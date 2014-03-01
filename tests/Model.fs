@@ -8,7 +8,7 @@ module Types =
 
   type Artifact =
     | File of FileInfo
-    | Rule of Task<FileInfo>
+    | Rule of Async<FileInfo>
 
   type Deferred<'t>(a:Async<'t>) =
     let mutable task:Task<'t> = null
