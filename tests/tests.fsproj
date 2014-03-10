@@ -41,6 +41,7 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Logging.fs" />
     <Compile Include="Model.fs" />
     <None Include="Script.fsx" />
   </ItemGroup>
