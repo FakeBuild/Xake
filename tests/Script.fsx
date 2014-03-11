@@ -18,7 +18,8 @@ open Xake.DotnetTasks
 System.IO.Directory.SetCurrentDirectory "C:\\!"
 
 "main.c" << rule {
-  context <- Map.empty
+  
+  execstate.Post (Reset)
   let! [|file1;file2;file3|] = execMany [|!"1"; !"2"; !"3"|]
 
   let text1 = File.ReadAllText(file1.FullName)
@@ -30,7 +31,7 @@ System.IO.Directory.SetCurrentDirectory "C:\\!"
   }
 
 "2" << rule {
-  do! Async.Sleep(3000)
+  do! Async.Sleep(3010)
   }
 
 "1" << rule {

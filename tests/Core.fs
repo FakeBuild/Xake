@@ -13,14 +13,20 @@ module Core =
 
   // execution context
   type ExecMessage =
-    | Run of ArtifactType * AsyncReplyChannel<Task<FileInfo>>
+    | Run of FileInfo * RuleType * AsyncReplyChannel<Task<FileInfo>>
+    | Reset
     | GetTask of FileInfo * AsyncReplyChannel<Task<FileInfo> option>
 
   let execstate = MailboxProcessor.Start(fun mbox ->
     let rec loop(map) = async {
       let! msg = mbox.Receive()
       match msg with
-      | Run(Artifact (file,rule),chnl) ->
+      | Reset ->        
+        // TODO cancel pending tasks
+        // map |> Map.iter (fun file task -> ...)
+        return! loop(Map.empty)
+
+      | Run(file,rule,chnl) ->
 
         let task = Map.tryFind file.FullName map
 
@@ -37,19 +43,27 @@ module Core =
             return file
           })
 
-
-          logInfo ">>added task %s from thread# %i" file.FullName System.Threading.Thread.CurrentThread.ManagedThreadId
-          logInfo "started '%s'" file.FullName
+          logInfo "started build '%s'" file.FullName
           chnl.Reply(task)
           return! loop(Map.add file.FullName task map)
 
-      | GetTask(file,chnl) ->
-        
+      | GetTask(file,chnl) ->        
         chnl.Reply (map |> Map.tryFind file.FullName)
-
         return! loop(map)
     }
     loop(Map.empty) )
+
+  // executes single artifact
+  let exec (Artifact (file,rule)) =
+
+    match rule with
+    | File -> Async.FromContinuations (fun (cont,_,_) -> cont(file))
+    | _ -> async {      
+      let! task = execstate.PostAndAsyncReply(fun chnl -> Run(file, rule, chnl))
+      return! Async.AwaitTask task
+      }
+
+  let execMany = Seq.ofArray >> Seq.map exec >> Async.Parallel 
 
   // get the async computation
   let private run (Artifact (file,rule)) =
@@ -59,34 +73,8 @@ module Core =
       do! r
       return file
     }
+
   let private runMany = Seq.ofArray >> Seq.map run >> Async.Parallel 
-
-  let mutable context = Map.empty
-
-  let exec (Artifact (file,rule)) =
-
-    let task = context |> Map.tryFind file.FullName
-
-    match task,rule with
-    | Some task, _-> async {
-        do! Async.AwaitTask task
-        return file
-      }
-    | None,File -> Async.FromContinuations (fun (cont,_,_) -> cont(file))
-    | None,Build r ->
-      let task = Async.StartAsTask r
-      context <- Map.add file.FullName task context
-      logInfo ">>added task %s from thread# %i" file.FullName System.Threading.Thread.CurrentThread.ManagedThreadId
-
-      logInfo "started '%s'" file.FullName
-      async {
-        do! Async.AwaitTask task
-        do logInfo "completed task '%s'" file.FullName
-        return file
-      }
-
-  let execMany = Seq.ofArray >> Seq.map exec >> Async.Parallel 
-
   // entry point, runs synchronously
   let runSync = run >> Async.RunSynchronously
 
