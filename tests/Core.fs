@@ -1,37 +1,57 @@
 ﻿namespace Xake
 
-open Xake.Logging
-
 [<AutoOpen>]
-module Types =
+module Core =
+
   open System.IO
+  open System.Threading.Tasks
 
-  type Rule =
-    | File
-    | Build of Async<unit>
+  open Xake.DomainTypes
+  open Xake.Common
 
-  type Artifact = Artifact of FileInfo * Rule
-  type FileSet = Files of Artifact list
+  open Xake.Logging
 
-[<AutoOpen>]
-module Fileset =
+  // execution context
+  type ExecMessage =
+    | Run of ArtifactType * AsyncReplyChannel<Task<FileInfo>>
+    | GetTask of FileInfo * AsyncReplyChannel<Task<FileInfo> option>
 
-  open Types
-  open System.IO
+  let execstate = MailboxProcessor.Start(fun mbox ->
+    let rec loop(map) = async {
+      let! msg = mbox.Receive()
+      match msg with
+      | Run(Artifact (file,rule),chnl) ->
 
-  let fileset pattern =
-    let dirIndo = DirectoryInfo (Path.GetDirectoryName pattern)
-    let mask = Path.GetFileName pattern
-    FileSet.Files (Seq.map (fun f -> Artifact (f,Types.Rule.File)) (dirIndo.EnumerateFiles mask) |> List.ofSeq)
+        let task = Map.tryFind file.FullName map
 
-[<AutoOpen>]
-module Build =
+        match task,rule with
+        | Some task, _-> 
+          chnl.Reply(task)
+          return! loop(map)
 
-  open System
-  open System.IO
-  open Types
+        | None,File -> failwith "Adding file '%s' to exec state is not allowed" file
+        | None,Build r ->
+          let task = Async.StartAsTask (async {
+            do! r
+            do logInfo "completed task '%s'" file.FullName
+            return file
+          })
 
-  // builds 
+
+          logInfo ">>added task %s from thread# %i" file.FullName System.Threading.Thread.CurrentThread.ManagedThreadId
+          logInfo "started '%s'" file.FullName
+          chnl.Reply(task)
+          return! loop(Map.add file.FullName task map)
+
+      | GetTask(file,chnl) ->
+        
+        chnl.Reply (map |> Map.tryFind file.FullName)
+
+        return! loop(map)
+    }
+    loop(Map.empty) )
+
+  // get the async computation
   let private run (Artifact (file,rule)) =
     match rule with
     | File -> Async.FromContinuations (fun (cont,_e,_c) -> cont(file))
@@ -41,11 +61,6 @@ module Build =
     }
   let private runMany = Seq.ofArray >> Seq.map run >> Async.Parallel 
 
-  let fileinfo path = new FileInfo(path)
-  let simplefile path = Artifact (fileinfo path,File)
-  let (<<<) path steps = Artifact (fileinfo path,Build steps)
-
-  // execution context
   let mutable context = Map.empty
 
   let exec (Artifact (file,rule)) =
@@ -76,34 +91,21 @@ module Build =
   let runSync = run >> Async.RunSynchronously
 
   let mutable private artifacts = Map.empty
+
+  // creates new artifact rule
   let (<<) path steps : unit =
     let fullname = fileinfo path
     let artifact = Artifact (fullname,Build steps)
     artifacts <- Map.add fullname.FullName artifact artifacts
 
+  // creates new file artifact
   let (!) path =
     let fullname = fileinfo path
     match Map.tryFind fullname.FullName artifacts with
     | Some a -> a
     | None ->
       match fullname.Exists with
-        | true -> Artifact (fullname,File)
+        | true -> Artifact (fullname, RuleType.File)
         | _ -> failwithf "Artifact '%s': neither file nor rule found" fullname.FullName
 
   let rule = async
-
-[<AutoOpen>]
-module DotNetTasks =
-
-  open Types
-  open System.IO
-
-  type TargetType = |Exe |Dll
-  type CscSettingsType = {Target: TargetType; OutFile: FileInfo; SrcFiles: Artifact list}
-  let CscSettings = {Target = Exe; OutFile = null; SrcFiles = []}
-
-  let Csc settings = 
-    async {
-      // TODO call compiler
-      do logInfo "Compiling %s" settings.OutFile.FullName
-    }

@@ -2,14 +2,18 @@
 // for more guidance on F# programming.
 
 #load "Logging.fs"
-#load "Model.fs"
+#load "Types.fs"
+#load "Core.fs"
+#load "DotnetTasks.fs"
+#load "Fileset.fs"
+
 open System.IO
 
+open Xake
 open Xake.Logging
-open Xake.Types
-open Xake.Fileset
-open Xake.Build
-open Xake.DotNetTasks
+open Xake.Common
+open Xake.Core
+open Xake.DotnetTasks
 
 System.IO.Directory.SetCurrentDirectory "C:\\!"
 
@@ -54,7 +58,7 @@ runSync !"main.c"
 
 
 // Define your library scripting code here
-let files = Xake.Fileset.fileset "..\*.*"
+let files = Fileset.create "..\*.*"
 
 let names fileset =
  let (Files ff) = fileset
