@@ -3,6 +3,14 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "tests", "tests\tests.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5DF9487A-79E1-412A-BF67-5F02999A1988}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csc", "csc", "{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD}"
+	ProjectSection(SolutionItems) = preProject
+		samples\csc\a.cs = samples\csc\a.cs
+		samples\csc\build.xa = samples\csc\build.xa
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -16,5 +24,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
 	EndGlobalSection
 EndGlobal

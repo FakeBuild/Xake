@@ -63,27 +63,29 @@ module Core =
       return! Async.AwaitTask task
       }
 
-  let execMany = Seq.ofArray >> Seq.map exec >> Async.Parallel 
+  let execMany = Seq.ofArray >> Seq.map exec >> Async.Parallel
+  // executes
+  let need artifacts = artifacts |> Seq.map exec |> Seq.toArray |> Async.Parallel |> Async.Ignore
 
-  // get the async computation
-  let private run (Artifact (file,rule)) =
-    match rule with
-    | File -> Async.FromContinuations (fun (cont,_e,_c) -> cont(file))
-    | Build r -> async {
-      do! r
-      return file
-    }
-
-  let private runMany = Seq.ofArray >> Seq.map run >> Async.Parallel 
-  // entry point, runs synchronously
-  let runSync = run >> Async.RunSynchronously
+  // Runs the artifact synchronously
+  let runSync = function
+    | (Artifact (file,Build rule)) ->
+      Async.RunSynchronously rule
+      file
+    | _ -> failwith "Expected artifact with rule"
 
   let mutable private artifacts = Map.empty
 
   // creates new artifact rule
-  let (<<) path steps : unit =
+  let ( *> ) path steps : unit =
     let fullname = fileinfo path
     let artifact = Artifact (fullname,Build steps)
+    artifacts <- Map.add fullname.FullName artifact artifacts
+
+  // creates new artifact rule
+  let ( **> ) path fnsteps : unit =
+    let fullname = fileinfo path
+    let artifact = Artifact (fullname,Build (fnsteps fullname))
     artifacts <- Map.add fullname.FullName artifact artifacts
 
   // creates new file artifact

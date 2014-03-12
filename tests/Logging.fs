@@ -19,9 +19,6 @@ let LevelToString level =
     | Debug -> "Debug"
     | _ -> "Unknown"
 
-/// The current log level.
-let mutable current_log_level = Debug
-
 /// The inteface loggers need to implement.
 type ILogger = abstract Log : Level -> Printf.StringFormat<'a,unit> -> 'a
 
@@ -29,8 +26,8 @@ type ILogger = abstract Log : Level -> Printf.StringFormat<'a,unit> -> 'a
 let ConsoleLogger = { 
   new ILogger with
     member __.Log level format =
-      System.Console.Out.Flush
-      Printf.kprintf (printfn "[%s] [%A] %s" (LevelToString level) System.DateTime.Now) format
+      let write = sprintf "[%s] [%A] %s" (LevelToString level) System.DateTime.Now >> System.Console.WriteLine
+      Printf.kprintf write format
   }
 
 /// Defines which logger to use.
