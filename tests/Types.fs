@@ -17,6 +17,7 @@ module Common =
 
   open DomainTypes
 
+  let fullname (Artifact (file,_)) = file.FullName
   let fileinfo path = new FileInfo(path)
   let simplefile path = Artifact (fileinfo path,File)
   let (<<<) path steps = Artifact (fileinfo path,Build steps)

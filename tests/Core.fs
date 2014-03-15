@@ -54,7 +54,7 @@ module Core =
     loop(Map.empty) )
 
   // executes single artifact
-  let exec (Artifact (file,rule)) =
+  let private execOne (Artifact (file,rule)) =
 
     match rule with
     | File -> Async.FromContinuations (fun (cont,_,_) -> cont(file))
@@ -63,9 +63,8 @@ module Core =
       return! Async.AwaitTask task
       }
 
-  let execMany = Seq.ofArray >> Seq.map exec >> Async.Parallel
-  // executes
-  let need artifacts = artifacts |> Seq.map exec |> Seq.toArray |> Async.Parallel |> Async.Ignore
+  let exec = Seq.ofList >> Seq.map execOne >> Async.Parallel
+  let need artifacts = artifacts |> exec |> Async.Ignore
 
   // Runs the artifact synchronously
   let runSync = function
@@ -88,7 +87,7 @@ module Core =
     let artifact = Artifact (fullname,Build (fnsteps fullname))
     artifacts <- Map.add fullname.FullName artifact artifacts
 
-  // creates new file artifact
+  // gets an artifact for file
   let (!) path =
     let fullname = fileinfo path
     match Map.tryFind fullname.FullName artifacts with
