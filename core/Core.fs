@@ -6,10 +6,7 @@ module Core =
   open System.IO
   open System.Threading.Tasks
 
-  open Xake.DomainTypes
-  open Xake.Common
-
-  open Xake.Logging
+  open Xake
 
   // execution context
   type ExecMessage =
@@ -39,7 +36,7 @@ module Core =
         | None,Build r ->
           let task = Async.StartAsTask (async {
             do! r
-            do logInfo "completed task '%s'" file.FullName
+            do logInfo "completed build '%s'" file.FullName
             return file
           })
 
@@ -52,6 +49,12 @@ module Core =
         return! loop(map)
     }
     loop(Map.empty) )
+
+  // gets the 
+  let fullname (Artifact (file,_)) = file.FullName
+
+  // turns the file into Artifact type
+  let simplefile path = Artifact (FileInfo(path),File)
 
   // executes single artifact
   let private execOne (Artifact (file,rule)) =
@@ -73,28 +76,50 @@ module Core =
       file
     | _ -> failwith "Expected artifact with rule"
 
+  // runs execution of all artifact rules in parallel
+  let run (artifacts: ArtifactType list)= 
+    let runOne = function
+      | (Artifact (file,Build rule)) -> (file, rule)
+      | _ -> failwith "Expected artifact with rule"
+    let rules = List.map (runOne >> snd) artifacts |> Seq.ofList |> Async.Parallel
+    Async.RunSynchronously rules |> ignore
+
+    List.map (runOne >> fst) artifacts
+
   let mutable private artifacts = Map.empty
 
   // creates new artifact rule
-  let ( *> ) path steps : unit =
-    let fullname = fileinfo path
-    let artifact = Artifact (fullname,Build steps)
-    artifacts <- Map.add fullname.FullName artifact artifacts
-
-  // creates new artifact rule
   let ( **> ) path fnsteps : unit =
-    let fullname = fileinfo path
-    let artifact = Artifact (fullname,Build (fnsteps fullname))
-    artifacts <- Map.add fullname.FullName artifact artifacts
+    let file = FileInfo(path)
+    let artifact = Artifact (file,Build (fnsteps file))
+    artifacts <- Map.add file.FullName artifact artifacts
+
+  let ( *> ) path steps : unit =
+    path **> fun _ -> steps
 
   // gets an artifact for file
   let (!) path =
-    let fullname = fileinfo path
-    match Map.tryFind fullname.FullName artifacts with
-    | Some a -> a
-    | None ->
-      match fullname.Exists with
-        | true -> Artifact (fullname, RuleType.File)
-        | _ -> failwithf "Artifact '%s': neither file nor rule found" fullname.FullName
+    let file = FileInfo(path)
+    match Map.tryFind file.FullName artifacts, file.Exists with
+    | Some a, _ -> a
+    | None, true -> Artifact (file, RuleType.File)
+    | _ -> failwithf "Artifact '%s': neither file nor rule found" file.FullName
 
   let rule = async
+
+  // TODO move all three generic methods somewhere else Xake.Util?
+  // generic method to turn any fn to async task
+  let wait fn artifact = async {
+    do! need [artifact]
+    return artifact |> fn
+    }
+
+  // executes the fn on all artifacts
+  let allf fn aa = async {
+    let! results = aa |> (List.map fn) |> List.toSeq |> Async.Parallel
+    return results |> Array.toList
+    }
+
+  let all aa =
+    let identity i = i
+    allf identity aa

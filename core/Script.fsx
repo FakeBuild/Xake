@@ -3,17 +3,12 @@
 
 #load "Logging.fs"
 #load "Types.fs"
+#load "Common.fs"
 #load "Core.fs"
 #load "DotnetTasks.fs"
 
 open System.IO
-
 open Xake
-open Xake.Logging
-open Xake.Common
-open Xake.Core
-open Xake.Tasks
-open Xake.DotnetTasks
 
 System.IO.Directory.SetCurrentDirectory "C:\\!"
 
@@ -29,7 +24,7 @@ System.IO.Directory.SetCurrentDirectory "C:\\!"
 
 "2" *> rule {
   do! Async.Sleep(3010)
-  do! system "ping www.ru" |> Async.Ignore
+  do! cmd "ping www.ru" |> Async.Ignore
   }
 
 "1" *> rule {
@@ -42,13 +37,6 @@ System.IO.Directory.SetCurrentDirectory "C:\\!"
   File.WriteAllText (r.FullName, "==== file3 ====\r\n" + (readtext !"1") + "\r\n========")
   do! Async.Sleep(2000)
   }
-
-//"a.exe" << Csc
-//  {
-//    CscSettings with
-//      OutFile = fileinfo "a.exe"
-//      SrcFiles = [!"a.cs"]
-//  }
 
 runSync !"main.c" |> ignore
 

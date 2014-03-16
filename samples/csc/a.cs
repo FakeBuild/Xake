@@ -1,6 +1,6 @@
-class Program()
+class Program
 {
-	public static int Main()
+	public static void Main()
 	{
 		System.Console.WriteLine("Hello world!");
 	}

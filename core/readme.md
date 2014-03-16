@@ -9,3 +9,6 @@
 ## Done
  * имя файла-результата как аргумент (для оператора **>)
  * задача system
+
+## References
+  * [Shake manual](https://github.com/ndmitchell/shake/blob/master/docs/Manual.md)
