@@ -28,6 +28,7 @@ module DotnetTasks =
       else
         Some {InstallPath = fwk.GetValue("InstallPath") :?> string; Version = fwk.GetValue("Version") :?> string}
 
+  // attempts to locate framework, fails if not found
   let locateFwk name =
     match tryLocateFwk name with
     | Some i -> i
@@ -70,38 +71,18 @@ module DotnetTasks =
       let refs = List.map fullname settings.References
 
       // TODO quote names and arguments
-      let commandTags =
+      let args =
         seq {
-          yield "csc.exe"
           yield "/nologo"
           if settings.OutFile <> null then
             yield sprintf "/out:%s" settings.OutFile.FullName
           yield! files
         }
 
-      let commandLine = (" ",commandTags) |> System.String.Join
-      // TODO locate csc.exe
+      let commandLine = (" ",args) |> System.String.Join
+      let csc_exe = Path.Combine(locateFwkAny(), "csc.exe")
 
-      let buildFile =
-        """@echo off
-        if exist "%VS110COMNTOOLS%vsvars32.bat" (
-          @call "%VS110COMNTOOLS%vsvars32.bat"
-          goto build
-        )
-        if exist "%VS100COMNTOOLS%vsvars32.bat" (
-          @call "%VS100COMNTOOLS%vsvars32.bat"
-          goto build
-        )
-        echo Requires VS2012 or VS2010 to be installed
-        goto exit
-        :build
-        """ + commandLine + """
-        :exit"""
+      do! system csc_exe commandLine |> Async.Ignore
 
-      ("build.cmd", buildFile) |> System.IO.File.WriteAllText
-
-      do! cmd "build.cmd" |> Async.Ignore
-
-      // TODO call compiler
       do logInfo "Done compiling %s" settings.OutFile.FullName
     }

@@ -53,6 +53,9 @@ module Core =
   // gets the 
   let fullname (Artifact (file,_)) = file.FullName
 
+  // changes file extension
+  let (-<.>) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
+
   // turns the file into Artifact type
   let simplefile path = Artifact (FileInfo(path),File)
 
