@@ -10,9 +10,16 @@ module Core =
 
   // execution context
   type ExecMessage =
-    | Run of FileInfo * RuleType * AsyncReplyChannel<Task<FileInfo>>
+    | Run of ArtifactType * BuildActionType * AsyncReplyChannel<Task<FileInfo>>
     | Reset
     | GetTask of FileInfo * AsyncReplyChannel<Task<FileInfo> option>
+
+  let private fileinfo artifact =
+    let (Artifact file) = artifact
+    file
+
+  // gets the artifact file name
+  let fullname (Artifact file) = file.FullName
 
   let execstate = MailboxProcessor.Start(fun mbox ->
     let rec loop(map) = async {
@@ -23,26 +30,26 @@ module Core =
         // map |> Map.iter (fun file task -> ...)
         return! loop(Map.empty)
 
-      | Run(file,rule,chnl) ->
+      | Run(artifact, BuildAction action,chnl) ->
+        
+        let fullname = fullname artifact
+        let task = map |> Map.tryFind fullname
 
-        let task = Map.tryFind file.FullName map
-
-        match task,rule with
-        | Some task, _-> 
+        match task with
+        | Some task -> 
           chnl.Reply(task)
           return! loop(map)
 
-        | None,File -> failwith "Adding file '%s' to exec state is not allowed" file
-        | None,Build r ->
+        | None ->
           let task = Async.StartAsTask (async {
-            do! r
-            do logInfo "completed build '%s'" file.FullName
-            return file
+            do! action (fileinfo artifact)
+            do logInfo "completed build '%s'" fullname
+            return (fileinfo artifact)
           })
 
-          logInfo "started build '%s'" file.FullName
+          logInfo "started build '%s'" fullname
           chnl.Reply(task)
-          return! loop(Map.add file.FullName task map)
+          return! loop(Map.add fullname task map)
 
       | GetTask(file,chnl) ->        
         chnl.Reply (map |> Map.tryFind file.FullName)
@@ -50,63 +57,71 @@ module Core =
     }
     loop(Map.empty) )
 
-  // gets the 
-  let fullname (Artifact (file,_)) = file.FullName
-
   // changes file extension
   let (-<.>) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
 
   // turns the file into Artifact type
-  let simplefile path = Artifact (FileInfo(path),File)
+  [<System.Obsolete>]
+  let simplefile = Artifact
+
+  let mutable private rules = Map.empty
+
+  // locates the rule
+  let private locateRule (Artifact file) : Async<unit> =
+
+    // tests if file name matches
+    let globToRegex (mask: string) =
+      let c = function
+        | '*' -> ".+"
+        | '.' -> "[.]"
+        | '?' -> "."
+        | ch -> System.String(ch,1)
+      System.String.Concat(mask.ToCharArray() |> Array.map c) + "$"
+
+    let checkRule rule a =
+      let pattern = 
+        match rule with
+          | Glob s -> globToRegex s
+          | Regexp pat -> pat
+      if System.Text.RegularExpressions.Regex.Matches(file.FullName, pattern).Count > 0 then Some a else None
+
+    match Map.tryPick checkRule rules with
+      | Some (BuildAction r) -> r file
+      | None -> async {ignore}
+
 
   // executes single artifact
-  let private execOne (Artifact (file,rule)) =
-
-    match rule with
-    | File -> Async.FromContinuations (fun (cont,_,_) -> cont(file))
-    | _ -> async {      
-      let! task = execstate.PostAndAsyncReply(fun chnl -> Run(file, rule, chnl))
+  let private execOne artifact =
+    let rule = locateRule artifact
+    async {      
+      let! task = execstate.PostAndAsyncReply(fun chnl -> Run(artifact, BuildAction (fun _ -> rule), chnl))
       return! Async.AwaitTask task
-      }
+    }
+
+  let private seqf f g a =
+    f a |> ignore
+    g a
 
   let exec = Seq.ofList >> Seq.map execOne >> Async.Parallel
   let need artifacts = artifacts |> exec |> Async.Ignore
 
   // Runs the artifact synchronously
-  let runSync = function
-    | (Artifact (file,Build rule)) ->
-      Async.RunSynchronously rule
-      file
-    | _ -> failwith "Expected artifact with rule"
+  let runSync a = seqf (locateRule >> Async.RunSynchronously) fileinfo
+    
 
   // runs execution of all artifact rules in parallel
-  let run (artifacts: ArtifactType list)= 
-    let runOne = function
-      | (Artifact (file,Build rule)) -> (file, rule)
-      | _ -> failwith "Expected artifact with rule"
-    let rules = List.map (runOne >> snd) artifacts |> Seq.ofList |> Async.Parallel
-    Async.RunSynchronously rules |> ignore
-
-    List.map (runOne >> fst) artifacts
-
-  let mutable private artifacts = Map.empty
+  let run = List.map locateRule >> Seq.ofList >> Async.Parallel >> Async.RunSynchronously >> ignore
 
   // creates new artifact rule
-  let ( **> ) path fnsteps : unit =
-    let file = FileInfo(path)
-    let artifact = Artifact (file,Build (fnsteps file))
-    artifacts <- Map.add file.FullName artifact artifacts
+  let ( **> ) selector fnsteps : unit =
+    let rule = Rule (selector, BuildAction (fnsteps))
+    rules <- Map.add selector (BuildAction fnsteps) rules
 
-  let ( *> ) path steps : unit =
-    path **> fun _ -> steps
+  let ( *> ) selector steps : unit =
+    selector **> (fun _ -> steps)
 
-  // gets an artifact for file
-  let (!) path =
-    let file = FileInfo(path)
-    match Map.tryFind file.FullName artifacts, file.Exists with
-    | Some a, _ -> a
-    | None, true -> Artifact (file, RuleType.File)
-    | _ -> failwithf "Artifact '%s': neither file nor rule found" file.FullName
+  // gets an rule for file
+  let (!) path = Artifact (FileInfo path)
 
   let rule = async
 

@@ -3,8 +3,8 @@
 
 #load "Logging.fs"
 #load "Types.fs"
-#load "Common.fs"
 #load "Core.fs"
+#load "Common.fs"
 #load "DotnetTasks.fs"
 
 open System.IO
@@ -12,7 +12,7 @@ open Xake
 
 System.IO.Directory.SetCurrentDirectory "C:\\!"
 
-"main.c" **> fun x -> rule {
+Glob "main.c" **> fun x -> rule {
   
   execstate.Post (Reset)
   do! need [!"1"; !"2"; !"3"]
@@ -22,16 +22,16 @@ System.IO.Directory.SetCurrentDirectory "C:\\!"
   File.WriteAllText (x.FullName, "file1\r\n" + text1 + "\n\rfile2\r\n" + text2 + "\r\nfile3\r\n" + text3)
   }
 
-"2" *> rule {
+Glob "2" *> rule {
   do! Async.Sleep(3010)
   do! cmd "ping www.ru" |> Async.Ignore
   }
 
-"1" *> rule {
+Glob "1" *> rule {
   do! Async.Sleep(3000)
   }
 
-"3" **> fun r -> rule {
+Glob "3" **> fun r -> rule {
   do! need [!"1"]
 
   File.WriteAllText (r.FullName, "==== file3 ====\r\n" + (readtext !"1") + "\r\n========")

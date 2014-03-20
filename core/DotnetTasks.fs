@@ -9,11 +9,12 @@ module DotnetTasks =
   type FrameworkInfo = {Version: string; InstallPath: string}
 
   let tryLocateFwk name : option<FrameworkInfo> =
-    let fwkRegKey = match name with
-//      | "1.1" -> "v1.1.4322"
-//      | "1.1" -> "v1.1.4322"
-//      | "2.0" -> "v2.0.50727"
-//      | "3.0" -> "v3.0\Setup\InstallSuccess 
+    let fwkRegKey =
+      match name with
+      //      | "1.1" -> "v1.1.4322"
+      //      | "1.1" -> "v1.1.4322"
+      //      | "2.0" -> "v2.0.50727"
+      //      | "3.0" -> "v3.0\Setup\InstallSuccess 
       | "net-35" | "3.5" -> "v3.5"
       | "net-40c" | "4.0-client" -> "v4\\Client"
       | "net-40" | "4.0"| "4.0-full" -> "v4\\Full"
@@ -36,7 +37,8 @@ module DotnetTasks =
 
   // attempts to locate any framework
   let locateFwkAny() =
-    let ipath n = match tryLocateFwk n with
+    let ipath n =
+      match tryLocateFwk n with
       | Some i -> i.InstallPath
       | None -> null
     
