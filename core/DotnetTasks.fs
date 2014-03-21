@@ -18,7 +18,7 @@ module DotnetTasks =
       | "net-35" | "3.5" -> "v3.5"
       | "net-40c" | "4.0-client" -> "v4\\Client"
       | "net-40" | "4.0"| "4.0-full" -> "v4\\Full"
-      | _ -> failwith "Unknown or unsupported profile '%s'" name
+      | _ -> failwithf "Unknown or unsupported profile '%s'" name
 
     let ndp = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP")
     if ndp = null then None
@@ -33,7 +33,7 @@ module DotnetTasks =
   let locateFwk name =
     match tryLocateFwk name with
     | Some i -> i
-    | _ -> failwith ".NET framework '%s' not found" name
+    | _ -> failwithf ".NET framework '%s' not found" name
 
   // attempts to locate any framework
   let locateFwkAny() =

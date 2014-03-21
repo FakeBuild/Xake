@@ -10,6 +10,7 @@ module DomainTypes =
   type RuleSelectorType =
     | Regexp of string
     | Glob of string
+    | Name of string
 
   type BuildActionType = BuildAction of (FileInfo -> Async<unit>)
 

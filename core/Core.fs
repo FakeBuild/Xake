@@ -67,7 +67,7 @@ module Core =
   let mutable private rules = Map.empty
 
   // locates the rule
-  let private locateRule (Artifact file) : Async<unit> =
+  let internal locateRule (Artifact file) : Async<unit> option =
 
     // tests if file name matches
     let globToRegex (mask: string) =
@@ -76,41 +76,53 @@ module Core =
         | '.' -> "[.]"
         | '?' -> "."
         | ch -> System.String(ch,1)
-      System.String.Concat(mask.ToCharArray() |> Array.map c) + "$"
+      (mask.ToCharArray() |> Array.map c |> System.String.Concat) + "$"
 
-    let checkRule rule a =
-      let pattern = 
+    let regexpMatch pat =
+      System.Text.RegularExpressions.Regex.Matches(file.FullName, pat).Count > 0
+
+    let matchRule rule a =
+      let matched =
         match rule with
-          | Glob s -> globToRegex s
-          | Regexp pat -> pat
-      if System.Text.RegularExpressions.Regex.Matches(file.FullName, pattern).Count > 0 then Some a else None
+        | Regexp pat -> regexpMatch pat
+        | Glob glob -> regexpMatch (globToRegex glob)
+        | Name name -> name.Equals(file.Name, System.StringComparison.OrdinalIgnoreCase)
+      match matched with
+      | true -> Some (a)
+      | false -> None
 
-    match Map.tryPick checkRule rules with
-      | Some (BuildAction r) -> r file
-      | None -> async {ignore}
+    match Map.tryPick matchRule rules with
+      | Some (BuildAction r) -> Some (r file)
+      | None -> None
 
+  let locateRuleOrDie a =
+    match locateRule a with
+    | Some rule -> rule
+    | None -> failwithf "Failed to locate file for '%s'" (fullname a)
 
   // executes single artifact
   let private execOne artifact =
-    let rule = locateRule artifact
-    async {      
-      let! task = execstate.PostAndAsyncReply(fun chnl -> Run(artifact, BuildAction (fun _ -> rule), chnl))
-      return! Async.AwaitTask task
-    }
-
-  let private seqf f g a =
-    f a |> ignore
-    g a
+    match locateRule artifact with
+    | Some rule ->
+      async {      
+        let! task = execstate.PostAndAsyncReply(fun chnl -> Run(artifact, BuildAction (fun _ -> rule), chnl))
+        return! Async.AwaitTask task
+      }
+    | None ->
+      if not (fileinfo artifact).Exists then failwithf "Neither rule nor file is found for '%s'" (fullname artifact)
+      Async.FromContinuations (fun (cont,_e,_c) -> cont(fileinfo artifact))
 
   let exec = Seq.ofList >> Seq.map execOne >> Async.Parallel
   let need artifacts = artifacts |> exec |> Async.Ignore
 
   // Runs the artifact synchronously
-  let runSync a = seqf (locateRule >> Async.RunSynchronously) fileinfo
-    
+  let runSync a =
+    locateRuleOrDie a |> Async.RunSynchronously |> ignore
+    fileinfo a
 
   // runs execution of all artifact rules in parallel
-  let run = List.map locateRule >> Seq.ofList >> Async.Parallel >> Async.RunSynchronously >> ignore
+  let run =
+    List.map locateRule >> List.filter Option.isSome >> List.map Option.get >> Seq.ofList >> Async.Parallel >> Async.RunSynchronously >> ignore
 
   // creates new artifact rule
   let ( **> ) selector fnsteps : unit =
