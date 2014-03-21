@@ -66,7 +66,7 @@ module DotnetTasks =
   // start csc compiler
   let Csc settings = 
     async {
-      do logInfo "CSC %s" settings.OutFile.FullName
+      do log Level.Info "[CSC] starting '%s'" settings.OutFile.Name
       do! need (settings.SrcFiles @ settings.References)
 
       let files = List.map fullname settings.SrcFiles
@@ -84,7 +84,7 @@ module DotnetTasks =
       let commandLine = (" ",args) |> System.String.Join
       let csc_exe = Path.Combine(locateFwkAny(), "csc.exe")
 
-      do! system csc_exe commandLine |> Async.Ignore
+      do! _system csc_exe commandLine |> Async.Ignore
 
-      do logInfo "Done compiling %s" settings.OutFile.FullName
+      do log Level.Info "[CSC] completed '%s'" settings.OutFile.Name
     }

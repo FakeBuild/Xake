@@ -15,11 +15,11 @@ module Core =
     | GetTask of FileInfo * AsyncReplyChannel<Task<FileInfo> option>
 
   let private fileinfo artifact =
-    let (Artifact file) = artifact
+    let (FileArtifact file) = artifact
     file
 
   // gets the artifact file name
-  let fullname (Artifact file) = file.FullName
+  let fullname (FileArtifact file) = file.FullName
 
   let execstate = MailboxProcessor.Start(fun mbox ->
     let rec loop(map) = async {
@@ -42,12 +42,12 @@ module Core =
 
         | None ->
           let task = Async.StartAsTask (async {
-            do! action (fileinfo artifact)
-            do logInfo "completed build '%s'" fullname
+            do! action artifact
+            do log Level.Verbose "completed build '%s'" fullname
             return (fileinfo artifact)
           })
 
-          logInfo "started build '%s'" fullname
+          do log Level.Verbose "started build '%s'" fullname
           chnl.Reply(task)
           return! loop(Map.add fullname task map)
 
@@ -60,14 +60,14 @@ module Core =
   // changes file extension
   let (-<.>) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
 
-  // turns the file into Artifact type
+  // turns the file into FileArtifact type
   [<System.Obsolete>]
-  let simplefile = Artifact
+  let simplefile = FileArtifact
 
   let mutable private rules = Map.empty
 
   // locates the rule
-  let internal locateRule (Artifact file) : Async<unit> option =
+  let internal locateRule artifact : Async<unit> option =
 
     // tests if file name matches
     let globToRegex (mask: string) =
@@ -78,8 +78,16 @@ module Core =
         | ch -> System.String(ch,1)
       (mask.ToCharArray() |> Array.map c |> System.String.Concat) + "$"
 
+    // TODO locate non-file rules
+    let (FileArtifact file) = artifact
+
     let regexpMatch pat =
       System.Text.RegularExpressions.Regex.Matches(file.FullName, pat).Count > 0
+
+    let rulename = function
+      | Regexp pat -> "regexp " + pat
+      | Glob glob -> "glob " + glob
+      | Name name -> "name " + name
 
     let matchRule rule a =
       let matched =
@@ -88,12 +96,14 @@ module Core =
         | Glob glob -> regexpMatch (globToRegex glob)
         | Name name -> name.Equals(file.Name, System.StringComparison.OrdinalIgnoreCase)
       match matched with
-      | true -> Some (a)
+      | true ->
+        log Verbose "Found rule '%s' for %s" (rulename rule) file.Name
+        Some (a)
       | false -> None
-
-    match Map.tryPick matchRule rules with
-      | Some (BuildAction r) -> Some (r file)
-      | None -> None
+    let mapAction = function
+      | BuildAction a -> a artifact
+      | BuildFile b -> b file
+    Map.tryPick matchRule rules |> Option.map mapAction
 
   let locateRuleOrDie a =
     match locateRule a with
@@ -125,15 +135,17 @@ module Core =
     List.map locateRule >> List.filter Option.isSome >> List.map Option.get >> Seq.ofList >> Async.Parallel >> Async.RunSynchronously >> ignore
 
   // creates new artifact rule
-  let ( **> ) selector fnsteps : unit =
-    let rule = Rule (selector, BuildAction (fnsteps))
-    rules <- Map.add selector (BuildAction fnsteps) rules
+  let ( ***> ) selector action : unit =
+    let rule = Rule (selector, action)
+    rules <- Map.add selector action rules
 
-  let ( *> ) selector steps : unit =
-    selector **> (fun _ -> steps)
+  let ( **> ) selector buildfile : unit =
+    let rule = Rule (selector, BuildFile buildfile)
+    rules <- Map.add selector (BuildFile buildfile) rules
 
   // gets an rule for file
-  let (!) path = Artifact (FileInfo path)
+  let ( ~& ) path = FileArtifact (System.IO.FileInfo path)
+  let ( ~&& ) path = FileArtifact (System.IO.FileInfo path)
 
   let rule = async
 

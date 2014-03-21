@@ -10,7 +10,7 @@ module Fileset =
   let ls pattern =
     let dirIndo = DirectoryInfo (Path.GetDirectoryName pattern)
     let mask = Path.GetFileName pattern
-    Files (Seq.map Artifact (dirIndo.EnumerateFiles mask) |> List.ofSeq)
+    Files (Seq.map FileArtifact (dirIndo.EnumerateFiles mask) |> List.ofSeq)
 
   // tests if file name matches
   let private test (mask: string) file =

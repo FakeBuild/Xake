@@ -10,6 +10,7 @@ type Level =
   | Warning
   | Info
   | Debug
+  | Verbose
 
 let LevelToString level =
   match level with
@@ -17,7 +18,18 @@ let LevelToString level =
     | Warning -> "Warn"
     | Info -> "Info"
     | Debug -> "Debug"
+    | Verbose -> "Verbose"
     | _ -> "Unknown"
+
+let rec private logFilter = function
+  | Error -> set [Error]
+  | Warning -> set [Error; Warning]
+  | Info -> set [Error; Warning; Info]
+  | Debug -> set [Error; Warning; Info; Debug]
+  | Verbose -> set [Error; Warning; Info; Debug; Verbose]
+  
+// defines output detail level
+let private filterLevels = logFilter Info // Verbose
 
 /// The inteface loggers need to implement.
 type ILogger = abstract Log : Level -> Printf.StringFormat<'a,unit> -> 'a
@@ -26,7 +38,10 @@ type ILogger = abstract Log : Level -> Printf.StringFormat<'a,unit> -> 'a
 let ConsoleLogger = { 
   new ILogger with
     member __.Log level format =
-      let write = sprintf "[%s] [%A] %s" (LevelToString level) System.DateTime.Now >> System.Console.WriteLine
+      let write = 
+        match Set.contains level filterLevels with
+        | true -> sprintf "[%s] [%A] %s" (LevelToString level) System.DateTime.Now >> System.Console.WriteLine
+        | false -> ignore
       Printf.kprintf write format
   }
 

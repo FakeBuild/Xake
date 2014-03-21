@@ -7,8 +7,8 @@ open Xake
 open System.IO
 open System.Diagnostics
 
-// executes external process and waits until it completes
-let system cmd args =
+// internal implementation
+let internal _system cmd args =
   async {
     let pinfo =
       ProcessStartInfo
@@ -21,7 +21,6 @@ let system cmd args =
     proc.ErrorDataReceived.Add(fun  e -> if e.Data <> null then log Level.Error "%s" e.Data)
     proc.OutputDataReceived.Add(fun e -> if e.Data <> null then log Level.Info "%s" e.Data)
 
-    do log Level.Info "Starting '%s'" cmd
     do proc.Start() |> ignore
 
     do proc.BeginOutputReadLine()
@@ -33,8 +32,24 @@ let system cmd args =
     return proc.ExitCode
   }
 
+// executes external process and waits until it completes
+let system cmd args =
+  async {
+    do log Level.Info "[system] starting '%s'" cmd
+    let! exitCode = _system cmd args
+    do log Level.Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
+    return exitCode
+  }
+
+
 // executes command
-let cmd cmdline = system "cmd.exe" ("/c "+ cmdline)
+let cmd cmdline =
+  async {
+    do log Level.Info "[cmd] starting '%s'" cmdline
+    let! exitCode = _system "cmd.exe" ("/c "+ cmdline)
+    do log Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
+    return exitCode
+  } 
 
 // reads the file and returns all text
 let readtext artifact =
