@@ -32,21 +32,26 @@ let internal _system cmd args =
     return proc.ExitCode
   }
 
+// joins and escapes strings
+let private joinArgs (args:string list list) =
+  // TODO quote
+  (" ", args |> List.fold (@) [] |> Array.ofList) |> System.String.Join
+
 // executes external process and waits until it completes
-let system cmd args =
+let system cmd ([<System.ParamArray>] args) =
   async {
     do log Level.Info "[system] starting '%s'" cmd
-    let! exitCode = _system cmd args
+    let! exitCode = _system cmd (joinArgs args)
     do log Level.Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
     return exitCode
   }
 
 
 // executes command
-let cmd cmdline =
+let cmd cmdline ([<System.ParamArray>] args : string list list) =
   async {
     do log Level.Info "[cmd] starting '%s'" cmdline
-    let! exitCode = _system "cmd.exe" ("/c "+ cmdline)
+    let! exitCode = _system "cmd.exe" (joinArgs (["/c"; cmdline] :: args))
     do log Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
     return exitCode
   } 

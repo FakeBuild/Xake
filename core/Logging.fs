@@ -6,6 +6,7 @@ open System
 
 /// Log levels.
 type Level =
+  // | Quiet
   | Error
   | Warning
   | Info
@@ -19,7 +20,6 @@ let LevelToString level =
     | Info -> "Info"
     | Debug -> "Debug"
     | Verbose -> "Verbose"
-    | _ -> "Unknown"
 
 let rec private logFilter = function
   | Error -> set [Error]

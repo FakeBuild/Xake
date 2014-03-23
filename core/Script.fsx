@@ -12,7 +12,7 @@ open Xake
 
 System.IO.Directory.SetCurrentDirectory "C:\\!"
 
-Glob "main.c" **> fun x -> rule {
+"main.c" **> fun x -> rule {
   
   execstate.Post (Reset)
   do! need [&"1"; &"2"; &"3"]
@@ -22,16 +22,16 @@ Glob "main.c" **> fun x -> rule {
   File.WriteAllText (x.FullName, "file1\r\n" + text1 + "\n\rfile2\r\n" + text2 + "\r\nfile3\r\n" + text3)
   }
 
-Glob "2" **> fun _ -> rule {
+"2" **> fun _ -> rule {
   do! Async.Sleep(3010)
   do! cmd "ping www.ru" |> Async.Ignore
   }
 
-Glob "1" **> fun _ -> rule {
+"1" **> fun _ -> rule {
   do! Async.Sleep(3000)
   }
 
-Glob "3" **> fun r -> rule {
+"3" **> fun r -> rule {
   do! need [&"1"]
 
   File.WriteAllText (r.FullName, "==== file3 ====\r\n" + (readtext &"1") + "\r\n========")

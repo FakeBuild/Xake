@@ -15,11 +15,8 @@ module Core =
     | GetTask of FileInfo * AsyncReplyChannel<Task<FileInfo> option>
 
   let private fileinfo artifact =
-    let (FileArtifact file) = artifact
+    let (Artifact file) = artifact
     file
-
-  // gets the artifact file name
-  let fullname (FileArtifact file) = file.FullName
 
   let execstate = MailboxProcessor.Start(fun mbox ->
     let rec loop(map) = async {
@@ -57,51 +54,21 @@ module Core =
     }
     loop(Map.empty) )
 
-  // changes file extension
-  let (-<.>) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
-
-  // turns the file into FileArtifact type
-  [<System.Obsolete>]
-  let simplefile = FileArtifact
-
-  let mutable private rules = Map.empty
+  let mutable private rules:Map<FilePattern,BuildActionType> = Map.empty
 
   // locates the rule
   let internal locateRule artifact : Async<unit> option =
+    let (Artifact file) = artifact
 
-    // tests if file name matches
-    let globToRegex (mask: string) =
-      let c = function
-        | '*' -> ".+"
-        | '.' -> "[.]"
-        | '?' -> "."
-        | ch -> System.String(ch,1)
-      (mask.ToCharArray() |> Array.map c |> System.String.Concat) + "$"
+    let matchRule pattern b = 
+      match pattern ?== file with
+        | true ->
+          log Verbose "Found pattern '%s' for %s" pattern file.Name
+          Some (b)
+        | false -> None
 
-    // TODO locate non-file rules
-    let (FileArtifact file) = artifact
-
-    let regexpMatch pat =
-      System.Text.RegularExpressions.Regex.Matches(file.FullName, pat).Count > 0
-
-    let rulename = function
-      | Regexp pat -> "regexp " + pat
-      | Glob glob -> "glob " + glob
-      | Name name -> "name " + name
-
-    let matchRule rule a =
-      let matched =
-        match rule with
-        | Regexp pat -> regexpMatch pat
-        | Glob glob -> regexpMatch (globToRegex glob)
-        | Name name -> name.Equals(file.Name, System.StringComparison.OrdinalIgnoreCase)
-      match matched with
-      | true ->
-        log Verbose "Found rule '%s' for %s" (rulename rule) file.Name
-        Some (a)
-      | false -> None
     let mapAction = function
-      | BuildAction a -> a artifact
+      | BuildAction act -> act artifact
       | BuildFile b -> b file
     Map.tryPick matchRule rules |> Option.map mapAction
 
@@ -109,6 +76,18 @@ module Core =
     match locateRule a with
     | Some rule -> rule
     | None -> failwithf "Failed to locate file for '%s'" (fullname a)
+
+  // creates new artifact rule
+  let ( ***> ) selector action : unit =
+    let rule = Rule (selector, action)
+    rules <- Map.add selector action rules
+
+  // creates new artifact rule
+  let ( *> ) selector buildfile : unit =
+    selector ***> BuildFile buildfile
+
+  // gets an rule for file
+  let ( ~& ) path = Artifact (System.IO.FileInfo path)
 
   // executes single artifact
   let private execOne artifact =
@@ -133,19 +112,6 @@ module Core =
   // runs execution of all artifact rules in parallel
   let run =
     List.map locateRule >> List.filter Option.isSome >> List.map Option.get >> Seq.ofList >> Async.Parallel >> Async.RunSynchronously >> ignore
-
-  // creates new artifact rule
-  let ( ***> ) selector action : unit =
-    let rule = Rule (selector, action)
-    rules <- Map.add selector action rules
-
-  let ( **> ) selector buildfile : unit =
-    let rule = Rule (selector, BuildFile buildfile)
-    rules <- Map.add selector (BuildFile buildfile) rules
-
-  // gets an rule for file
-  let ( ~& ) path = FileArtifact (System.IO.FileInfo path)
-  let ( ~&& ) path = FileArtifact (System.IO.FileInfo path)
 
   let rule = async
 

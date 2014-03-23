@@ -6,7 +6,7 @@ open Xake
 
 // System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__
 
-Name "a.exe" **> fun exe -> rule {
+"a.exe" *> fun exe -> rule {
   let cs = exe -<.> "cs"
   do! Csc {
     CscSettings with
@@ -14,15 +14,15 @@ Name "a.exe" **> fun exe -> rule {
       SrcFiles = [&"a.cs"]}
 }
 
-Glob "*.exe" ***> BuildFile (fun exe -> rule {
+"*.exe" *> fun exe -> rule {
   let cs = exe -<.> "cs"
   do! Csc {
     CscSettings with
       OutFile = exe
       SrcFiles = [&"a.cs"]}
-})
+}
 
-Name "main" **> fun _ -> rule {
+"main" *> fun _ -> rule {
   do! need (["a";"b";"c";"d";"e"] |> List.map (fun f -> &(f + ".exe")))
 }
 

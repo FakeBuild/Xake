@@ -5,19 +5,14 @@ module DomainTypes =
 
   open System.IO
 
-  type ArtifactType =
-    | FileArtifact of FileInfo 
-    | JustArtifact of string
+  type ArtifactType = Artifact of FileInfo 
 
-  type RuleSelectorType =
-    | Regexp of string
-    | Glob of string
-    | Name of string
+  type FilePattern = string
 
   type BuildActionType =
     | BuildAction of (ArtifactType -> Async<unit>)
     | BuildFile of (FileInfo -> Async<unit>)
 
-  type RuleType = Rule of RuleSelectorType * BuildActionType
+  type RuleType = Rule of FilePattern * BuildActionType
 
   type FileSetType = Files of ArtifactType list
