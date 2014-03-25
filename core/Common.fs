@@ -33,12 +33,24 @@ let internal _system cmd args =
   }
 
 // joins and escapes strings
-let private joinArgs (args:string list list) =
-  // TODO quote
-  (" ", args |> List.fold (@) [] |> Array.ofList) |> System.String.Join
+let private joinArgs (args:string list) =
+  let escape c s =
+    match c,s with
+    | '"',  (b, str) -> (true,  '\\' :: '\"' ::  str)
+    | '\\', (true,  str) -> (true,  '\\' :: '\\' :: str)
+    | '\\', (false, str) -> (false, '\\' :: str)
+    | c, (b, str) -> (false, c :: str)
+
+  // quotes quote and backslash characters
+  let translate (str:string) =
+    let ca = str.ToCharArray()
+    let res = Array.foldBack escape ca (true,['>'])
+    "\"" + System.String(res |> snd |> List.toArray)
+
+  (" ", args |> List.map translate |> Array.ofList) |> System.String.Join
 
 // executes external process and waits until it completes
-let system cmd ([<System.ParamArray>] args) =
+let system cmd args =
   async {
     do log Level.Info "[system] starting '%s'" cmd
     let! exitCode = _system cmd (joinArgs args)
@@ -48,10 +60,10 @@ let system cmd ([<System.ParamArray>] args) =
 
 
 // executes command
-let cmd cmdline ([<System.ParamArray>] args : string list list) =
+let cmd cmdline (args : string list) =
   async {
     do log Level.Info "[cmd] starting '%s'" cmdline
-    let! exitCode = _system "cmd.exe" (joinArgs (["/c"; cmdline] :: args))
+    let! exitCode = _system "cmd.exe" (joinArgs (["/c"; cmdline] @ args))
     do log Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
     return exitCode
   } 
