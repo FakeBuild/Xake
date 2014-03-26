@@ -14,5 +14,3 @@ module DomainTypes =
     | BuildFile of (FileInfo -> Async<unit>)
 
   type RuleType = Rule of FilePattern * BuildActionType
-
-  type FileSetType = Files of ArtifactType list

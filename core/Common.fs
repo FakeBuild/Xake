@@ -34,20 +34,16 @@ let internal _system cmd args =
 
 // joins and escapes strings
 let private joinArgs (args:string list) =
-  let escape c s =
-    match c,s with
-    | '"',  (b, str) -> (true,  '\\' :: '\"' ::  str)
-    | '\\', (true,  str) -> (true,  '\\' :: '\\' :: str)
-    | '\\', (false, str) -> (false, '\\' :: str)
-    | c, (b, str) -> (false, c :: str)
-
   // quotes quote and backslash characters
-  let translate (str:string) =
-    let ca = str.ToCharArray()
-    let res = Array.foldBack escape ca (true,['>'])
-    "\"" + System.String(res |> snd |> List.toArray)
+  // the ide is grabbed from nant's Argument.QuoteArgument
+  let escape arg =
+    let exists c = String.exists ((=) c) arg
+    match exists '"', exists ' ' || exists '\'' with
+    | true, _ -> arg                // already quoted
+    | _, true -> "\"" + arg + "\""  // contains space and is not quoted
+    | _ -> arg
 
-  (" ", args |> List.map translate |> Array.ofList) |> System.String.Join
+  (" ", args |> List.map escape |> Array.ofList) |> System.String.Join
 
 // executes external process and waits until it completes
 let system cmd args =

@@ -27,5 +27,5 @@ open Xake
 }
 
 printfn "Building main"
-run [ &&"main" ] |> ignore
+run [ &"main" ] |> ignore
 
