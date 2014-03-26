@@ -8,7 +8,8 @@ let files = ls "..\*.*"
 
 let names fileset =
  let (Files ff) = fileset
- ff |> List.map (fun (FileArtifact (f,_)) -> f.Name) |> List.toArray
+ let name (Artifact a) = a.Name
+ ff |> List.map name |> List.toArray
 
 // System.IO.Path.
 let file = "build/hello.c"
