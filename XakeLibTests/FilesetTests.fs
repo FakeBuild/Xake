@@ -24,13 +24,30 @@ type FilesetTests() =
 
   [<Test>]
   member o.LsSimple() =
-    let (Files files) = ls "*.sln"
+    let (FileList files) = ls "*.sln"
     let PathName (file:FileInfo) = file.Name
     Assert.That (List.map PathName files, Is.EquivalentTo (List.toSeq ["xake.sln"]))
 
   [<Test>]
   member o.LsMore() =
-    let (Files files) = ls "c:\\!\\**\\*.c*"
+    let (FileList files) = ls "c:\\!\\**\\*.c*"
+    let PathName (file:FileInfo) = file.FullName
+    files |> List.map PathName |> List.iter System.Console.WriteLine
+
+  [<Test>]
+  member o.Builder() =
+    let css = fileset {
+      includes @"c:\!\bak\*.css"
+    }
+
+    let fileset = fileset {
+      includes @"c:\!\bak\*.rdl"
+      includes @"c:\!\bak\*.rdlx"
+      inc css
+      //do! css
+    }
+
+    let (FileList files) = exec fileset
     let PathName (file:FileInfo) = file.FullName
     files |> List.map PathName |> List.iter System.Console.WriteLine
 
