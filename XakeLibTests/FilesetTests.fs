@@ -41,15 +41,46 @@ type FilesetTests() =
     }
 
     let fileset = fileset {
-      includes @"c:\!\bak\*.rdl"
-      includes @"c:\!\bak\*.rdlx"
-      inc css
-      //do! css
+      basedir @"c:\!\bak"
+
+      includes "*.rdl"
+      includes "*.rdlx"
+      
+      includes @"..\jparsec\src\main/**/A*.java"
+
+      do! css
     }
 
     let (FileList files) = exec fileset
     let PathName (file:FileInfo) = file.FullName
     files |> List.map PathName |> List.iter System.Console.WriteLine
+
+  [<Test>]
+  member o.ShortForm() =
+
+    let fileset =
+        !! "*.rdl" ++ "*.rdlx" ++ "../jparsec/src/main/**/A*.java"
+        <<< @"c:\!\bak"
+
+    let (FileList files) = exec fileset
+    let PathName (file:FileInfo) = file.FullName
+    files |> List.map PathName |> List.iter System.Console.WriteLine
+
+  [<Test>]
+  [<ExpectedException>]
+  member o.CombineFilesets() =
+    let fs1 = fileset {
+      basedir @"c:\!"
+      includes @"bak\*.css"
+    }
+
+    let fs2 = fileset {
+      basedir @"c:\!\bak"
+      includes @"*.rdl"
+
+      inc fs1
+    }
+    exec fs2 |> ignore
 
   [<TestCase(2, ExpectedResult = 4)>]
   [<TestCase(3, ExpectedResult = 9)>]
