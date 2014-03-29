@@ -66,39 +66,56 @@ module Fileset =
 
     /// Recursively applied the pattern rules to every item is start list
     let rec ils (startDir:seq<string>) = function
-      | [] -> startDir
-      | some :: rest ->
-        let data =
+      | some :: rest -> 
+        rest |> ils (
           match some with
-          | Disk d ->
-            seq {yield d + "\\"}
-          | FsRoot ->
-            startDir |> Seq.map Directory.GetDirectoryRoot
-//          | Parent ->
-//            startDir |> Seq.map (fun d -> Directory.GetParent(d).FullName)
-          | Recurse ->
-            startDir |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
-          | DirectoryMask d ->
-            let isMask = d.IndexOfAny([|'*';'?'|]) >= 0
-            seq {
-              for start in startDir do
-                let path = Path.Combine(start, d)
-                if not isMask && Directory.Exists(path) then
-                  yield path
-                else
-                  yield! Directory.EnumerateDirectories(start, d, SearchOption.TopDirectoryOnly)
-            }
-          | FileMask mask ->
-            let isMask = mask.IndexOfAny([|'*';'?'|]) >= 0
-            seq {
-              for start in startDir do
-                let path = Path.Combine(start, mask)
-                if not isMask && File.Exists(path) then
-                  yield path
-                else
-                  yield! Directory.EnumerateFiles(start, mask)
-            }
-        ils data rest
+            | Disk d  -> seq {yield d + "\\"}
+            | FsRoot  -> startDir |> Seq.map Directory.GetDirectoryRoot
+            | Recurse -> startDir |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
+            | DirectoryMask d ->
+              let isMask = d.IndexOfAny([|'*';'?'|]) >= 0
+              seq {
+                for start in startDir do
+                  let path = Path.Combine(start, d)
+                  if not isMask && Directory.Exists(path) then
+                    yield path
+                  else
+                    yield! Directory.EnumerateDirectories(start, d, SearchOption.TopDirectoryOnly)
+              }
+            | FileMask mask ->
+              let isMask = mask.IndexOfAny([|'*';'?'|]) >= 0
+              seq {
+                for start in startDir do
+                  let path = Path.Combine(start, mask)
+                  if not isMask && File.Exists(path) then
+                    yield path
+                  else
+                    yield! Directory.EnumerateFiles(start, mask)
+              }
+          )
+      | [] -> startDir
+
+    // combines two fileset options
+    let combineOptions (o1:FilesetOptions) (o2:FilesetOptions) =
+      {DefaultOptions with
+        BaseDir = match o1.BaseDir,o2.BaseDir with
+          | Some _, Some _ -> failwith "Cannot combine filesets with basedirs defined in both (not implemented)"
+          | Some _, None -> o1.BaseDir
+          | _ -> o2.BaseDir
+        FailOnError = o1.FailOnError || o2.FailOnError}
+
+    // combines two filesets
+    let combineWith (Fileset (o2, set2)) (Fileset (o1,set1)) =
+      Fileset(combineOptions o1 o2, set1 @ set2)
+
+    // Combines result of reading file to a fileset
+    let combineWithFile map (file:FileInfo) (Fileset (opts,fs)) =
+      let elements = File.ReadAllLines file.FullName |> Array.toList |> List.map map in
+      Fileset (opts, fs @ elements)
+      // TODO filter comments, empty lines? |> Array.filter
+
+    let changeBasedir dir (Fileset (opts,ps)) =
+      Fileset ({opts with BaseDir = Some dir}, ps)
   // end of module Impl
 
   open Impl
@@ -160,47 +177,36 @@ module Fileset =
   (******** builder ********)
   type FilesetBuilder() =
 
-    let combineOptions (o1:FilesetOptions) (o2:FilesetOptions) =
-      {DefaultOptions with
-        BaseDir = match o1.BaseDir,o2.BaseDir with
-          | Some _, Some _ -> failwith "Cannot combine filesets with basedirs defined in both (not implemented)"
-          | Some _, None -> o1.BaseDir
-          | _ -> o2.BaseDir
-        FailOnError = o1.FailOnError || o2.FailOnError}
-    
+    let empty = Fileset (DefaultOptions, [])
+
     [<CustomOperation("basedir")>]
-    member this.Basedir(Fileset (opts,fs),dir:string) = Fileset ({opts with BaseDir = Some dir}, fs)
+    member this.Basedir(fs,dir) = fs |> changeBasedir dir
 
     [<CustomOperation("includes")>]
-    member this.Includes(fs,pattern:FilePattern) = fs ++ pattern
+    member this.Includes(fs,pattern) = fs ++ pattern
 
-    [<CustomOperation("inc")>]
-    member this.IncludeFileSet(fs1:Fileset, fs2:Fileset) = this.Combine(fs1, fs2)      
+    [<CustomOperation("join")>]
+    member this.JoinFileset(fs1, fs2) = fs1 |> Impl.combineWith fs2
 
     [<CustomOperation("excludes")>]
-    member this.Excludes(fs, pattern:FilePattern) = fs -- pattern
+    member this.Excludes(fs, pattern) = fs -- pattern
 
     [<CustomOperation("includefile")>]
-    member this.IncludeFile(Fileset (opts,fs),file:FileInfo)  =
-      let elements = File.ReadAllLines file.FullName |> Array.toList |> List.map (parse >> Includes) in
-      Fileset (opts, fs @ elements)
+    member this.IncludeFile(fs, file) = fs |> combineWithFile (parse >> Includes) file
 
     [<CustomOperation("excludefile")>]
-    member this.ExcludeFile(Fileset (opts,fs),file:FileInfo) =
-      let elements = File.ReadAllLines file.FullName |> Array.toList |> List.map (parse >> Excludes) in
-      Fileset (opts, fs @ elements)
-      // TODO filter comments, empty lines? |> Array.filter
+    member this.ExcludeFile(fs,file)  = fs |> combineWithFile (parse >> Excludes) file
 
-    member this.Yield(())  = Fileset (DefaultOptions, [])
-    member this.Return(pattern:Pattern)     = Fileset (DefaultOptions, [pattern |> Includes])
-    member this.Return(pattern:FilePattern) = Fileset (DefaultOptions, [pattern |> parse |> Includes])
+    member this.Yield(())  = empty
+    member this.Return(pattern:FilePattern) = empty ++ pattern
 
-    member this.Combine(part1, part2) = let (Fileset (o1,set1),Fileset (o2, set2)) = (part1, part2) in Fileset(combineOptions o1 o2, set1 @ set2)
+    member this.Combine(fs1, fs2) = fs1 |> Impl.combineWith fs2
     member this.Delay(f) = f()
     member this.Zero() = this.Yield ( () )
 
-    member x.Bind(Fileset (o1, c1), f) = let (Fileset (o2, c2)) = f () in Fileset(combineOptions o1 o2, c1 @ c2)
+    member x.Bind(fs1:Fileset, f) = let fs2 = f() in fs1 |> Impl.combineWith fs2
     member x.For(fs, f) = x.Bind(fs, f)
     member x.Return(a) = x.Yield(a)
 
   let fileset = FilesetBuilder()
+

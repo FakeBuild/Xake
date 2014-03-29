@@ -30,16 +30,12 @@ type FilesetTests() =
 
   [<Test>]
   member o.LsMore() =
-    let (FileList files) = ls "c:\\!\\**\\*.c*"
+    let (FileList files) = ls "c:/!/**/*.c*"
     let PathName (file:FileInfo) = file.FullName
     files |> List.map PathName |> List.iter System.Console.WriteLine
 
   [<Test>]
   member o.Builder() =
-    let css = fileset {
-      includes @"c:\!\bak\*.css"
-    }
-
     let fileset = fileset {
       basedir @"c:\!\bak"
 
@@ -48,7 +44,9 @@ type FilesetTests() =
       
       includes @"..\jparsec\src\main/**/A*.java"
 
-      do! css
+      do! fileset {
+        includes @"c:\!\bak\*.css"
+      }
     }
 
     let (FileList files) = exec fileset
@@ -78,7 +76,7 @@ type FilesetTests() =
       basedir @"c:\!\bak"
       includes @"*.rdl"
 
-      inc fs1
+      join fs1
     }
     exec fs2 |> ignore
 
