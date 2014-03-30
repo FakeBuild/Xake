@@ -33,7 +33,7 @@ let internal _system cmd args =
   }
 
 // joins and escapes strings
-let private joinArgs (args:string list) =
+let escapeAndJoinArgs (args:#seq<string>) =
   // quotes quote and backslash characters
   // the ide is grabbed from nant's Argument.QuoteArgument
   let escape arg =
@@ -43,13 +43,13 @@ let private joinArgs (args:string list) =
     | _, true -> "\"" + arg + "\""  // contains space and is not quoted
     | _ -> arg
 
-  (" ", args |> List.map escape |> Array.ofList) |> System.String.Join
+  (" ", args |> Seq.map escape |> Array.ofSeq) |> System.String.Join
 
 // executes external process and waits until it completes
 let system cmd args =
   async {
     do log Level.Info "[system] starting '%s'" cmd
-    let! exitCode = _system cmd (joinArgs args)
+    let! exitCode = _system cmd (escapeAndJoinArgs args)
     do log Level.Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
     return exitCode
   }
@@ -59,7 +59,7 @@ let system cmd args =
 let cmd cmdline (args : string list) =
   async {
     do log Level.Info "[cmd] starting '%s'" cmdline
-    let! exitCode = _system "cmd.exe" (joinArgs (["/c"; cmdline] @ args))
+    let! exitCode = _system "cmd.exe" (escapeAndJoinArgs (["/c"; cmdline] @ args))
     do log Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
     return exitCode
   } 

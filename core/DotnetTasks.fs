@@ -56,15 +56,22 @@ module DotnetTasks =
       OutFile: Artifact;
       SrcFiles: FileList;
       References: FileList;
-      Resources: FileList
+      Resources: FileList;
+      Define: string list;
+
+      FailOnError: bool
     }
   // see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx
   // defines, optimize, warn, debug, platform
 
-  let CscSettings = {Platform = AnyCpu; Target = Exe; OutFile = null; SrcFiles = []; References = []; Resources = []}
+  let CscSettings = {Platform = AnyCpu; Target = Exe; OutFile = null; SrcFiles = []; References = []; Resources = []; Define = []; FailOnError = true}
 
   // start csc compiler
-  let Csc settings = 
+  let Csc settings =
+    
+    let targetStr = function |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"
+    let platformStr = function |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
+
     async {
       do log Level.Info "[CSC] starting '%s'" settings.OutFile.Name
       do! need (settings.SrcFiles @ settings.References @ settings.Resources)
@@ -72,19 +79,30 @@ module DotnetTasks =
       let files = List.map fullname settings.SrcFiles
       let refs = List.map fullname settings.References
 
-      // TODO quote names and arguments
       let args =
         seq {
           yield "/nologo"
+
+          yield "/target:" + targetStr settings.Target
+          yield "/platform:" + platformStr settings.Platform
+
           if settings.OutFile <> null then
             yield sprintf "/out:%s" settings.OutFile.FullName
+
+          if List.exists (fun _ -> true) settings.Define then
+            yield "/define:" + System.String.Join(";", Array.ofList settings.Define)
+
           yield! files
+          yield! settings.References |> List.map (fullname >> ((+) "/r:"))
         }
 
-      let commandLine = (" ",args) |> System.String.Join
+      let commandLine = args |> escapeAndJoinArgs
       let csc_exe = Path.Combine(locateFwkAny(), "csc.exe")
 
-      do! _system csc_exe commandLine |> Async.Ignore
+      let! exitCode = _system csc_exe commandLine
 
       do log Level.Info "[CSC] completed '%s'" settings.OutFile.Name
+      if exitCode <> 0 then
+        do log Level.Error "[CSC] failed with exit code '%i'" exitCode
+        if settings.FailOnError then failwith "Exiting due to FailOnError set"
     }

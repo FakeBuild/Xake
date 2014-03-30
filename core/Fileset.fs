@@ -78,7 +78,13 @@ module Fileset =
       | Disk d          -> seq {yield d + "\\"}
       | FsRoot          -> paths |> Seq.map Directory.GetDirectoryRoot
       | Parent          -> paths |> Seq.map (Directory.GetParent >> fullname)
-      | Recurse         -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
+      | Recurse         ->
+        seq {
+          for dir in paths do
+            yield dir
+            yield! Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
+          }
+        //paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
       | DirectoryMask m -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, m, SearchOption.TopDirectoryOnly))
       | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> Seq.filter Directory.Exists
       | FileMask mask   -> paths |> Seq.collect (fun dir -> Directory.EnumerateFiles(dir, mask))

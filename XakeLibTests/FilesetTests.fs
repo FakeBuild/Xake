@@ -43,6 +43,10 @@ type FilesetTests() =
   [<Test>]
   member o.LsMore() =
     ls "c:/!/**/*.c*" |> List.map fullname |> List.iter System.Console.WriteLine
+    let IsAny = Is.Not.All.Not
+    Assert.That(
+      ls "c:/!/**/*.c*" |> List.map fullname |> List.toArray,
+      IsAny.Contains(@"C:\!\main.c"))
 
   [<Test>]
   member o.LsParent() =
