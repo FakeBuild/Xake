@@ -10,13 +10,9 @@ module Core =
 
   // execution context
   type ExecMessage =
-    | Run of ArtifactType * BuildActionType * AsyncReplyChannel<Task<FileInfo>>
+    | Run of Artifact * BuildActionType * AsyncReplyChannel<Task<FileInfo>>
     | Reset
     | GetTask of FileInfo * AsyncReplyChannel<Task<FileInfo> option>
-
-  let private fileinfo artifact =
-    let (Artifact file) = artifact
-    file
 
   let execstate = MailboxProcessor.Start(fun mbox ->
     let rec loop(map) = async {
@@ -41,7 +37,7 @@ module Core =
           let task = Async.StartAsTask (async {
             do! action artifact
             do log Level.Verbose "completed build '%s'" fullname
-            return (fileinfo artifact)
+            return artifact
           })
 
           do log Level.Verbose "started build '%s'" fullname
@@ -54,23 +50,23 @@ module Core =
     }
     loop(Map.empty) )
 
+  // TODO make a parameter
+  let projectRoot = Directory.GetCurrentDirectory()
   let mutable private rules:Map<FilePattern,BuildActionType> = Map.empty
 
   // locates the rule
-  let internal locateRule artifact : Async<unit> option =
-    let (Artifact file) = artifact
-
+  let internal locateRule (artifact:Artifact) : Async<unit> option =
     let matchRule pattern b = 
-      match pattern ?== file with
+      match Fileset.matches pattern projectRoot artifact.FullName with
         | true ->
-          log Verbose "Found pattern '%s' for %s" pattern file.Name
+          log Verbose "Found pattern '%s' for %s" pattern artifact.Name
           Some (b)
         | false -> None
 
     let mapAction = function
       | BuildAction act -> act artifact
-      | BuildFile b -> b file
-    Map.tryPick matchRule rules |> Option.map mapAction
+      | BuildFile b -> b artifact
+    rules |> Map.tryPick matchRule |> Option.map mapAction
 
   let locateRuleOrDie a =
     match locateRule a with
@@ -87,7 +83,7 @@ module Core =
     selector ***> BuildFile buildfile
 
   // gets an rule for file
-  let ( ~& ) path = Artifact (System.IO.FileInfo path)
+  let ( ~& ) path :Artifact = (System.IO.FileInfo path)
 
   // executes single artifact
   let private execOne artifact =
@@ -98,16 +94,14 @@ module Core =
         return! Async.AwaitTask task
       }
     | None ->
-      if not (fileinfo artifact).Exists then failwithf "Neither rule nor file is found for '%s'" (fullname artifact)
-      Async.FromContinuations (fun (cont,_e,_c) -> cont(fileinfo artifact))
+      if not artifact.Exists then failwithf "Neither rule nor file is found for '%s'" (fullname artifact)
+      Async.FromContinuations (fun (cont,_e,_c) -> cont(artifact))
 
   let exec = Seq.ofList >> Seq.map execOne >> Async.Parallel
   let need artifacts = artifacts |> exec |> Async.Ignore
 
   // Runs the artifact synchronously
-  let runSync a =
-    locateRuleOrDie a |> Async.RunSynchronously |> ignore
-    fileinfo a
+  let runSync a = locateRuleOrDie a |> Async.RunSynchronously |> ignore; a
 
   // runs execution of all artifact rules in parallel
   let run =

@@ -53,10 +53,10 @@ module DotnetTasks =
     {
       Platform: TargetPlatform;
       Target: TargetType;
-      OutFile: FileInfo;
-      SrcFiles: ArtifactType list;
-      References: ArtifactType list;
-      Resources: ArtifactType list
+      OutFile: Artifact;
+      SrcFiles: FileList;
+      References: FileList;
+      Resources: FileList
     }
   // see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx
   // defines, optimize, warn, debug, platform
@@ -67,7 +67,7 @@ module DotnetTasks =
   let Csc settings = 
     async {
       do log Level.Info "[CSC] starting '%s'" settings.OutFile.Name
-      do! need (settings.SrcFiles @ settings.References)
+      do! need (settings.SrcFiles @ settings.References @ settings.Resources)
 
       let files = List.map fullname settings.SrcFiles
       let refs = List.map fullname settings.References

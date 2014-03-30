@@ -13,7 +13,9 @@ type FilesetTests() =
   let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "..")
   let mutable rememberDir = ""
 
-  let pathName (file:FileInfo) = file.Name
+  let name (file:FileInfo) = file.Name
+  let fullname (file:FileInfo) = file.FullName
+
   let tolower (s:string) = s.ToLower()
 
   [<TestFixtureSetUp>]
@@ -27,29 +29,24 @@ type FilesetTests() =
 
   [<Test (Description = "Verifies ls function")>]
   member o.LsSimple() =
-    let (FileList files) = ls "*.sln"
-    Assert.That (List.map pathName files, Is.EquivalentTo (List.toSeq ["xake.sln"]))
+    let files = ls "*.sln"
+    Assert.That (List.map name files, Is.EquivalentTo (List.toSeq ["xake.sln"]))
 
   [<Test (Description = "Verifies fileset exec function removes duplicates from result")>]
   member o.ExecDoesntRemovesDuplicates() =
 
-    let (FileList result) = exec (fileset {includes "*.sln"; includes "*.s*"})
-
     Assert.That (
-      result |> List.map (pathName >> tolower) |> List.filter ((=) "xake.sln") |> List.length,
+      scan (fileset {includes "*.sln"; includes "*.s*"})
+      |> List.map (name >> tolower) |> List.filter ((=) "xake.sln") |> List.length,
       Is.EqualTo (2))
 
   [<Test>]
   member o.LsMore() =
-    let (FileList files) = ls "c:/!/**/*.c*"
-    let PathName (file:FileInfo) = file.FullName
-    files |> List.map PathName |> List.iter System.Console.WriteLine
+    ls "c:/!/**/*.c*" |> List.map fullname |> List.iter System.Console.WriteLine
 
   [<Test>]
   member o.LsParent() =
-    let (FileList files) = exec (+ "c:/!/bak" ++ "../../!/*.c*")
-    let PathName (file:FileInfo) = file.FullName
-    files |> List.map PathName |> List.iter System.Console.WriteLine
+    scan (+ "c:/!/bak" ++ "../../!/*.c*") |> List.map fullname |> List.iter System.Console.WriteLine
 
   [<Test>]
   member o.Builder() =
@@ -66,9 +63,7 @@ type FilesetTests() =
       }
     }
 
-    let (FileList files) = exec fileset
-    let PathName (file:FileInfo) = file.FullName
-    files |> List.map PathName |> List.iter System.Console.WriteLine
+    scan fileset |> List.map fullname |> List.iter System.Console.WriteLine
 
   [<Test>]
   member o.ShortForm() =
@@ -79,9 +74,7 @@ type FilesetTests() =
     let fileset1 =
         + @"c:\!\bak" + "*.rdl" + "*.rdlx" + "../jparsec/src/main/**/A*.java"
 
-    let (FileList files) = exec fileset
-    let PathName (file:FileInfo) = file.FullName
-    files |> List.map PathName |> List.iter System.Console.WriteLine
+    scan fileset |> List.map fullname |> List.iter System.Console.WriteLine
 
   [<Test>]
   [<ExpectedException>]
@@ -97,14 +90,14 @@ type FilesetTests() =
 
       join fs1
     }
-    exec fs2 |> ignore
+    scan fs2 |> ignore
 
   [<Test>]
   member o.CombineFilesets() =
     let fs1 = fileset {includes @"c:\!\bak\bak\*.css"}
     let fs2 = fileset {includes @"c:\!\bak\*.rdl"}
 
-    exec (fs1 + fs2) |> ignore
+    scan (fs1 + fs2) |> ignore
 
   [<TestCase("c:\\**\\*.*", "c:\\", ExpectedResult = false)>]
   [<TestCase("c:\\**\\*.*", "",     ExpectedException = typeof<System.ArgumentException> )>]
@@ -131,10 +124,11 @@ type FilesetTests() =
 
   [<TestCase("c:\\*\\*.c", "c:\\abc\\def\\..\\a.c", ExpectedResult = true)>]
   [<TestCase("c:\\*.c", "c:\\abc\\..\\a.c", ExpectedResult = true)>]
-  [<TestCase("c:\\abc\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
-  [<TestCase("c:\\abc\\..\\*.c", "c:\\abc\\..\\a.c", ExpectedResult = true)>]
 
   [<TestCase("c:\\abc\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
+  [<TestCase("c:\\abc\\def\\..\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
+  [<TestCase("c:\\abc\\..\\..\\*.c", "c:\\a.c", ExpectedResult = false)>]
+  [<TestCase("c:\\abc\\**\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
   [<TestCase("c:\\abc\\..\\*.c", "c:\\abc\\..\\a.c", ExpectedException = typeof<System.ArgumentException>)>]
 
   member o.MaskWithParent(m,t) = matches m "" t

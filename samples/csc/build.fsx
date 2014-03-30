@@ -15,11 +15,14 @@ open Xake
 }
 
 "*.exe" *> fun exe -> rule {
-  let cs = exe -<.> "cs"
+
+  let srcFiles = scan (fileset {includes "*.cs"})
+  do! need srcFiles
+  
   do! Csc {
     CscSettings with
       OutFile = exe
-      SrcFiles = [&"a.cs"]}
+      SrcFiles = srcFiles}
 }
 
 "main" *> fun _ -> rule {

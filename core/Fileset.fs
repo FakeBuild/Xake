@@ -8,7 +8,7 @@ module Fileset =
   /// Part of filesystem pattern
   type PatternPart =
     | FsRoot
-    //| Parent
+    | Parent
     | Disk of string
     | DirectoryMask of string
     | Directory of string
@@ -27,7 +27,7 @@ module Fileset =
   type Fileset = Fileset of FilesetOptions * FilesetElement list
 
   /// Defines set of files
-  type FileList = FileList of FileInfo list
+  type FileList = FileInfo list
 
   /// Default fileset options
   let DefaultOptions = {FilesetOptions.BaseDir = None; FailOnError = false}
@@ -40,6 +40,7 @@ module Fileset =
     let driveRegex = Regex(@"^[A-Za-z]:$", RegexOptions.Compiled)
     let isMask (a:string) = a.IndexOfAny([|'*';'?'|]) >= 0
     let iif fn b c a = if fn a then b a else c a
+    let fullname (f:DirectoryInfo) = f.FullName
 
     /// Builds the regexp for testing file part
     let fileMatchRegex (pattern:string) =
@@ -56,7 +57,7 @@ module Fileset =
 
       let mapPart = function
           | "**" -> Recurse
-          //| ".." -> Parent (* works well now with Path.Combine() *)
+          | ".." -> Parent (* works well now with Path.Combine() *)
           | a when a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
           | a when isMask a -> DirectoryMask(a)
           | a -> Directory(a)
@@ -76,6 +77,7 @@ module Fileset =
       let applyPart (paths:#seq<string>) = function
       | Disk d          -> seq {yield d + "\\"}
       | FsRoot          -> paths |> Seq.map Directory.GetDirectoryRoot
+      | Parent          -> paths |> Seq.map (Directory.GetParent >> fullname)
       | Recurse         -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
       | DirectoryMask m -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, m, SearchOption.TopDirectoryOnly))
       | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> Seq.filter Directory.Exists
@@ -111,24 +113,25 @@ module Fileset =
   open Impl
 
   // lists the files
-  let ls (filePattern:FilePattern) =
+  let ls (filePattern:FilePattern) : FileList =
     let (Pattern pattern) = parse filePattern
     let startDir = Directory.GetCurrentDirectory()
     let files = listFiles [startDir] pattern
-    files |> Seq.map (fun f -> FileInfo f) |> List.ofSeq |> FileList
+    files |> Seq.map (fun f -> FileInfo f) |> List.ofSeq
 
+  // TODO move Artifact stuff out of here
   /// Gets the artifact file name
-  let fullname (Artifact file) = file.FullName
+  let fullname (file:Artifact) = file.FullName
 
   // changes file extension
   let (-<.>) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
 
   /// Draft implementation of fileset execute
-  let exec (Fileset (options,fileset)) =
+  let scan (Fileset (options,fileset)) : FileList =
 
     let startDir =
       match options.BaseDir with
-      | None -> Directory.GetCurrentDirectory()
+      | None -> Directory.GetCurrentDirectory()   // TODO use project root
       | Some path -> path
 
     let files pattern =
@@ -138,22 +141,20 @@ module Fileset =
     fileset |> List.collect (function
       | Includes (Pattern pat) -> files pat
       | Excludes e -> [])  // TODO implement
-    |> FileList
 
   let matches filePattern projectRoot =
     // IDEA: make relative path than match to pattern?
     // TODO implement. basedir matters! rules are global, so projectdir (current dir) is a basedir
     // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
 
-    let compareStr (s1:string) s2 =
-      if s1 = null then s2 = null else s1.Equals(s2, System.StringComparison.OrdinalIgnoreCase)
+    let eq s1 s2 = System.StringComparer.OrdinalIgnoreCase.Equals(s1, s2)
 
     let comparePart p1 p2 =
       match p1,p2 with
-      | Disk d1, Disk d2 -> compareStr d1 d2
-      | Directory d1, Directory d2 -> compareStr d1 d2
+      | Disk d1, Disk d2 -> eq d1 d2
+      | Directory d1, Directory d2 -> eq d1 d2
       | DirectoryMask mask, Directory d2 -> let rx = fileMatchRegex mask  in rx.IsMatch(d2)
-      | FileName f1, FileName f2 -> compareStr f1 f2
+      | FileName f1, FileName f2 -> eq f1 f2
       | FileMask mask, FileName f2 -> let rx = fileMatchRegex mask in rx.IsMatch(f2)
       | _ -> false
 
@@ -162,6 +163,19 @@ module Fileset =
       | [], [] -> true
       | [], x::xs -> false
       | m::ms, [] -> false
+
+      (* parent support is not complete, supports up to two parent refs TODO normalize mask instead *)
+      | Directory _::Parent::ms, _
+      | Directory _::Directory _::Parent::Parent::ms, _
+      | DirectoryMask _::Parent::ms, _
+      | DirectoryMask _::DirectoryMask _::Parent::Parent::ms, _
+        -> (comparePaths ms p)
+
+      | Directory _::Recurse::Parent::ms, _
+        -> (comparePaths (Recurse::ms) p)
+
+      | Recurse::Parent::ms, _ -> (comparePaths (Recurse::ms) p)  // ignore parent ref
+
       | Recurse::ms, FileName d2::xs -> (comparePaths ms p)
       | Recurse::ms, Directory d2::xs -> (comparePaths mask xs) || (comparePaths ms p)
       | m::ms, x::xs -> (comparePart m x) && (comparePaths ms xs)
@@ -174,9 +188,6 @@ module Fileset =
 
     matchFile
       
-
-  let (?==) p f = false
-
   /// Create a file set for specific file mask.
   let (!!) includes =
     Fileset (DefaultOptions, [includes |> parse |> Includes])

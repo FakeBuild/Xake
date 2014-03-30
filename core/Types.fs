@@ -5,12 +5,12 @@ module DomainTypes =
 
   open System.IO
 
-  type ArtifactType = Artifact of FileInfo 
+  type Artifact = FileInfo 
 
   type FilePattern = string
 
   type BuildActionType =
-    | BuildAction of (ArtifactType -> Async<unit>)
+    | BuildAction of (Artifact -> Async<unit>)
     | BuildFile of (FileInfo -> Async<unit>)
 
   type RuleType = Rule of FilePattern * BuildActionType
