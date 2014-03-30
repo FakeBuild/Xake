@@ -11,8 +11,10 @@ module Fileset =
     //| Parent
     | Disk of string
     | DirectoryMask of string
+    | Directory of string
     | Recurse
     | FileMask of string
+    | FileName of string
 
   /// Filesystem pattern
   type Pattern = Pattern of PatternPart list
@@ -35,70 +37,58 @@ module Fileset =
 
     open System.Text.RegularExpressions
 
-    /// Converts Ant -style file pattern to a list of parts
-    let parse pattern =
-      let driveRegex = Regex(@"^[A-Za-z]:$", RegexOptions.Compiled)
+    let driveRegex = Regex(@"^[A-Za-z]:$", RegexOptions.Compiled)
+    let isMask (a:string) = a.IndexOfAny([|'*';'?'|]) >= 0
+    let iif fn b c a = if fn a then b a else c a
 
-      let dir = pattern |> Path.GetDirectoryName
-      let parts = Array.toList <| dir.Split([|'\\';'/'|], System.StringSplitOptions.RemoveEmptyEntries)
-      let mapPart = function
-          | "**" -> Recurse
-          //| ".." -> Parent (* works well now with Path.Combine() *)
-          | a when a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
-          | a -> DirectoryMask(a)
-
-      // parse root "\" to FsRoot
-      let fsroot = if dir.StartsWith("\\") || dir.StartsWith("/") then [FsRoot] else []
-
-      List.foldBack (fun p l -> (mapPart p)::l) parts [FileMask (pattern |> Path.GetFileName)]
-      |> List.append fsroot
-      |> Pattern
-      
     /// Builds the regexp for testing file part
     let fileMatchRegex (pattern:string) =
       let c2r = function
-        | '*' -> ".+"
+        | '*' -> ".*"
         | '.' -> "[.]"
         | '?' -> "."
         | ch -> System.String(ch,1)
       let  pat = (pattern.ToCharArray() |> Array.map c2r |> System.String.Concat)
       Regex(@"^" + pat + "$", RegexOptions.Compiled + RegexOptions.IgnoreCase)  // TODO ignore case is optional (system-dependent)
 
+    /// Converts Ant -style file pattern to a list of parts
+    let parse pattern =
+
+      let mapPart = function
+          | "**" -> Recurse
+          //| ".." -> Parent (* works well now with Path.Combine() *)
+          | a when a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
+          | a when isMask a -> DirectoryMask(a)
+          | a -> Directory(a)
+
+      let dir = pattern |> Path.GetDirectoryName
+      let parts = if dir = null then [||] else dir.Split([|'\\';'/'|], System.StringSplitOptions.RemoveEmptyEntries)
+
+      // parse root "\" to FsRoot
+      let fsroot = if dir <> null && (dir.StartsWith("\\") || dir.StartsWith("/")) then [FsRoot] else []
+      let filepart = pattern |> Path.GetFileName |> (iif isMask FileMask FileName)
+
+      fsroot @ (Array.map mapPart parts |> List.ofArray) @ [filepart]
+      |> Pattern
+      
     /// Recursively applied the pattern rules to every item is start list
-    let rec ils (startDir:seq<string>) = function
-      | some :: rest -> 
-        rest |> ils (
-          match some with
-            | Disk d  -> seq {yield d + "\\"}
-            | FsRoot  -> startDir |> Seq.map Directory.GetDirectoryRoot
-            | Recurse -> startDir |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
-            | DirectoryMask d ->
-              let isMask = d.IndexOfAny([|'*';'?'|]) >= 0
-              seq {
-                for start in startDir do
-                  let path = Path.Combine(start, d)
-                  if not isMask && Directory.Exists(path) then
-                    yield path
-                  else
-                    yield! Directory.EnumerateDirectories(start, d, SearchOption.TopDirectoryOnly)
-              }
-            | FileMask mask ->
-              let isMask = mask.IndexOfAny([|'*';'?'|]) >= 0
-              seq {
-                for start in startDir do
-                  let path = Path.Combine(start, mask)
-                  if not isMask && File.Exists(path) then
-                    yield path
-                  else
-                    yield! Directory.EnumerateFiles(start, mask)
-              }
-          )
-      | [] -> startDir
+    let listFiles =
+      let applyPart (paths:#seq<string>) = function
+      | Disk d          -> seq {yield d + "\\"}
+      | FsRoot          -> paths |> Seq.map Directory.GetDirectoryRoot
+      | Recurse         -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
+      | DirectoryMask m -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, m, SearchOption.TopDirectoryOnly))
+      | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> Seq.filter Directory.Exists
+      | FileMask mask   -> paths |> Seq.collect (fun dir -> Directory.EnumerateFiles(dir, mask))
+      | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) |> Seq.filter File.Exists
+      in
+      List.fold applyPart
 
     // combines two fileset options
     let combineOptions (o1:FilesetOptions) (o2:FilesetOptions) =
       {DefaultOptions with
-        BaseDir = match o1.BaseDir,o2.BaseDir with
+        BaseDir =
+          match o1.BaseDir,o2.BaseDir with
           | Some _, Some _ -> failwith "Cannot combine filesets with basedirs defined in both (not implemented)"
           | Some _, None -> o1.BaseDir
           | _ -> o2.BaseDir
@@ -124,7 +114,7 @@ module Fileset =
   let ls (filePattern:FilePattern) =
     let (Pattern pattern) = parse filePattern
     let startDir = Directory.GetCurrentDirectory()
-    let files = ils (Seq.ofList [startDir]) pattern
+    let files = listFiles [startDir] pattern
     files |> Seq.map (fun f -> FileInfo f) |> List.ofSeq |> FileList
 
   /// Gets the artifact file name
@@ -136,12 +126,13 @@ module Fileset =
   /// Draft implementation of fileset execute
   let exec (Fileset (options,fileset)) =
 
-    let startDir = match options.BaseDir with
+    let startDir =
+      match options.BaseDir with
       | None -> Directory.GetCurrentDirectory()
       | Some path -> path
 
     let files pattern =
-      ils (Seq.ofList [startDir]) pattern
+      listFiles [startDir] pattern
       |> Seq.map (fun f -> FileInfo f) |> List.ofSeq
 
     fileset |> List.collect (function
@@ -150,11 +141,39 @@ module Fileset =
     |> FileList
 
   let matches filePattern projectRoot =
-    let absPath = Path.Combine(projectRoot,filePattern)
-    let (Pattern pattern) = parse absPath
+    // IDEA: make relative path than match to pattern?
     // TODO implement. basedir matters! rules are global, so projectdir (current dir) is a basedir
     // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
-    fun file -> false
+
+    let compareStr (s1:string) s2 =
+      if s1 = null then s2 = null else s1.Equals(s2, System.StringComparison.OrdinalIgnoreCase)
+
+    let comparePart p1 p2 =
+      match p1,p2 with
+      | Disk d1, Disk d2 -> compareStr d1 d2
+      | Directory d1, Directory d2 -> compareStr d1 d2
+      | DirectoryMask mask, Directory d2 -> let rx = fileMatchRegex mask  in rx.IsMatch(d2)
+      | FileName f1, FileName f2 -> compareStr f1 f2
+      | FileMask mask, FileName f2 -> let rx = fileMatchRegex mask in rx.IsMatch(f2)
+      | _ -> false
+
+    let rec comparePaths (mask:PatternPart list) (p:PatternPart list) =
+      match mask,p with
+      | [], [] -> true
+      | [], x::xs -> false
+      | m::ms, [] -> false
+      | Recurse::ms, FileName d2::xs -> (comparePaths ms p)
+      | Recurse::ms, Directory d2::xs -> (comparePaths mask xs) || (comparePaths ms p)
+      | m::ms, x::xs -> (comparePart m x) && (comparePaths ms xs)
+
+    let (Pattern mask) = Path.Combine(projectRoot,filePattern) |> parse
+
+    let matchFile file =
+      let (Pattern fileParts) = parse file
+      comparePaths mask fileParts
+
+    matchFile
+      
 
   let (?==) p f = false
 
@@ -166,13 +185,24 @@ module Fileset =
   let (<<<) (Fileset (opts,ps)) dir =
     Fileset ({opts with BaseDir = Some dir}, ps)
 
-  /// Adds includes pattern to a fileset.
-  let (++) (Fileset (opts,pts)) includes =
-    Fileset (opts, pts @ [includes |> parse |> Includes])
+  /// Defines the empty fileset with a specified base dir
+  let (~+) dir =
+    Fileset ({DefaultOptions with BaseDir = Some dir}, [])
 
-  /// Adds excludes pattern to a fileset.
-  let (--) (Fileset (opts,pts)) excludes =
-    Fileset (opts, pts @ [excludes |> parse |> Excludes])
+  type Fileset with
+    static member (+) (fs1: Fileset, fs2: Fileset) = fs1 |> combineWith fs2
+    static member (+) (fs1: Fileset, pat: FilePattern) = fs1 ++ pat
+    static member (-) (fs1: Fileset, pat: FilePattern) = fs1 -- pat
+    static member (@@) (fs1: Fileset, basedir: string) = fs1 <<< basedir
+
+    /// Adds includes pattern to a fileset.
+    static member (++) ((Fileset (opts,pts)), includes) =
+      Fileset (opts, pts @ [includes |> parse |> Includes])
+
+    /// Adds excludes pattern to a fileset.
+    static member (--) (Fileset (opts,pts), excludes) =
+      Fileset (opts, pts @ [excludes |> parse |> Excludes])
+  end
 
   (******** builder ********)
   type FilesetBuilder() =
@@ -183,13 +213,13 @@ module Fileset =
     member this.Basedir(fs,dir) = fs |> changeBasedir dir
 
     [<CustomOperation("includes")>]
-    member this.Includes(fs,pattern) = fs ++ pattern
+    member this.Includes(fs:Fileset,pattern) = fs ++ pattern
 
     [<CustomOperation("join")>]
     member this.JoinFileset(fs1, fs2) = fs1 |> Impl.combineWith fs2
 
     [<CustomOperation("excludes")>]
-    member this.Excludes(fs, pattern) = fs -- pattern
+    member this.Excludes(fs:Fileset, pattern) = fs -- pattern
 
     [<CustomOperation("includefile")>]
     member this.IncludeFile(fs, file) = fs |> combineWithFile (parse >> Includes) file
