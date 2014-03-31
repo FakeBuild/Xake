@@ -25,8 +25,8 @@
     </DocumentationFile>
     <StartAction>Program</StartAction>
     <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\Fsi.exe</StartProgram>
-    <StartWorkingDirectory>C:\projects\Mine\xake\samples\csc</StartWorkingDirectory>
-    <StartArguments>build.fsx</StartArguments>
+    <StartWorkingDirectory>C:\projects\ar9\Source</StartWorkingDirectory>
+    <StartArguments>\projects\Mine\xake\samples\ar\build.fsx</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>

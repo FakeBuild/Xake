@@ -8,7 +8,7 @@ open System.IO
 open System.Diagnostics
 
 // internal implementation
-let internal _system cmd args =
+let internal _system pfx cmd args =
   async {
     let pinfo =
       ProcessStartInfo
@@ -18,8 +18,8 @@ let internal _system cmd args =
 
     let proc = new Process(StartInfo = pinfo)
      
-    proc.ErrorDataReceived.Add(fun  e -> if e.Data <> null then log Level.Error "%s" e.Data)
-    proc.OutputDataReceived.Add(fun e -> if e.Data <> null then log Level.Info "%s" e.Data)
+    proc.ErrorDataReceived.Add(fun  e -> if e.Data <> null then log Level.Error "%s %s" pfx e.Data)
+    proc.OutputDataReceived.Add(fun e -> if e.Data <> null then log Level.Info  "%s %s" pfx e.Data)
 
     do proc.Start() |> ignore
 
@@ -27,7 +27,7 @@ let internal _system cmd args =
     do proc.BeginErrorReadLine()
 
     proc.EnableRaisingEvents <- true
-    let! _ = Async.AwaitEvent proc.Exited
+    do! Async.AwaitEvent proc.Exited |> Async.Ignore
 
     return proc.ExitCode
   }
@@ -49,7 +49,7 @@ let escapeAndJoinArgs (args:#seq<string>) =
 let system cmd args =
   async {
     do log Level.Info "[system] starting '%s'" cmd
-    let! exitCode = _system cmd (escapeAndJoinArgs args)
+    let! exitCode = _system "" cmd (escapeAndJoinArgs args)
     do log Level.Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
     return exitCode
   }
@@ -59,7 +59,7 @@ let system cmd args =
 let cmd cmdline (args : string list) =
   async {
     do log Level.Info "[cmd] starting '%s'" cmdline
-    let! exitCode = _system "cmd.exe" (escapeAndJoinArgs (["/c"; cmdline] @ args))
+    let! exitCode = _system "" "cmd.exe" (escapeAndJoinArgs (["/c"; cmdline] @ args))
     do log Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
     return exitCode
   } 

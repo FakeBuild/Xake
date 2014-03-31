@@ -66,14 +66,26 @@ module DotnetTasks =
 
   let CscSettings = {Platform = AnyCpu; Target = Exe; OutFile = null; SrcFiles = []; References = []; Resources = []; Define = []; FailOnError = true}
 
-  // start csc compiler
+  let mutable private iid_lock = System.Object()
+  let mutable private iid = 0
+
+  let internal newProcPrefix () = lock iid_lock (fun _ ->
+    let pfx = sprintf "[CSC%i]" iid in 
+    iid <- iid + 1
+    pfx)
+
+  /// C# compiler task
   let Csc settings =
     
     let targetStr = function |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"
     let platformStr = function |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
 
+    let pfx = newProcPrefix()
+
     async {
-      do log Level.Info "[CSC] starting '%s'" settings.OutFile.Name
+
+      do log Level.Info "%s starting '%s'" pfx settings.OutFile.Name
+      do settings.OutFile.Delete()
       do! need (settings.SrcFiles @ settings.References @ settings.Resources)
 
       let files = List.map fullname settings.SrcFiles
@@ -99,10 +111,10 @@ module DotnetTasks =
       let commandLine = args |> escapeAndJoinArgs
       let csc_exe = Path.Combine(locateFwkAny(), "csc.exe")
 
-      let! exitCode = _system csc_exe commandLine
+      let! exitCode = _system (pfx + " ") csc_exe commandLine
 
-      do log Level.Info "[CSC] completed '%s'" settings.OutFile.Name
+      do log Level.Info "%s completed '%s'" pfx settings.OutFile.Name
       if exitCode <> 0 then
-        do log Level.Error "[CSC] failed with exit code '%i'" exitCode
+        do log Level.Error "%s failed with exit code '%i'" pfx exitCode
         if settings.FailOnError then failwith "Exiting due to FailOnError set"
     }

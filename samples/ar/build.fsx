@@ -55,7 +55,7 @@ ardll "Testing.Tools" *> fun outname -> rule {
       }
 }
 
-ardll "Chart" *> fun outname -> rule {
+ardll("Chart") *> fun outname -> rule {
 
   do! Csc {
     CscSettings with
@@ -68,5 +68,5 @@ ardll "Chart" *> fun outname -> rule {
 }
 
 printfn "Building main"
-run (["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart" ] |> List.map (ardll >> (~&))) |> ignore
+run (["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart" ] |> List.map ardll) |> ignore
 

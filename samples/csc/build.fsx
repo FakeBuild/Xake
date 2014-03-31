@@ -25,10 +25,6 @@ open Xake
       SrcFiles = srcFiles}
 }
 
-"main" *> fun _ -> rule {
-  do! need (["a";"b";"c";"d";"e"] |> List.map (fun f -> &(f + ".exe")))
-}
-
 printfn "Building main"
-run [ &"main" ] |> ignore
+run (["a";"b";"c";"d";"e"] |> List.map (fun f -> f + ".exe")) |> ignore
 

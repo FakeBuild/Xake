@@ -10,7 +10,7 @@ module Core =
 
   // execution context
   type ExecMessage =
-    | Run of Artifact * BuildActionType * AsyncReplyChannel<Task<FileInfo>>
+    | Run of Artifact * BuildAction * AsyncReplyChannel<Task<FileInfo>>
     | Reset
     | GetTask of FileInfo * AsyncReplyChannel<Task<FileInfo> option>
 
@@ -23,26 +23,24 @@ module Core =
         // map |> Map.iter (fun file task -> ...)
         return! loop(Map.empty)
 
-      | Run(artifact, BuildAction action,chnl) ->
+      | Run(artifact, BuildAction action, chnl) ->
         
         let fullname = fullname artifact
-        let task = map |> Map.tryFind fullname
 
-        match task with
-        | Some task -> 
+        match map |> Map.tryFind fullname with
+        | Some task ->
+          log Verbose "Task found for '%s'. Waiting for completion" artifact.Name
           chnl.Reply(task)
           return! loop(map)
 
         | None ->
           let task = Async.StartAsTask (async {
             do! action artifact
-            do log Level.Verbose "completed build '%s'" fullname
             return artifact
           })
-
-          do log Level.Verbose "started build '%s'" fullname
+          log Verbose "Starting new task for '%s'" artifact.Name
           chnl.Reply(task)
-          return! loop(Map.add fullname task map)
+          return! loop(map |> Map.add fullname task)
 
       | GetTask(file,chnl) ->        
         chnl.Reply (map |> Map.tryFind file.FullName)
@@ -52,10 +50,10 @@ module Core =
 
   // TODO make a parameter
   let projectRoot = Directory.GetCurrentDirectory()
-  let mutable private rules:Map<FilePattern,BuildActionType> = Map.empty
+  let mutable private rules:Map<FilePattern,BuildAction> = Map.empty
 
   // locates the rule
-  let internal locateRule (artifact:Artifact) : Async<unit> option =
+  let internal locateRule (artifact:Artifact) : BuildAction option =
     let matchRule pattern b = 
       match Fileset.matches pattern projectRoot artifact.FullName with
         | true ->
@@ -63,10 +61,7 @@ module Core =
           Some (b)
         | false -> None
 
-    let mapAction = function
-      | BuildAction act -> act artifact
-      | BuildFile b -> b artifact
-    rules |> Map.tryPick matchRule |> Option.map mapAction
+    rules |> Map.tryPick matchRule
 
   let locateRuleOrDie a =
     match locateRule a with
@@ -74,54 +69,33 @@ module Core =
     | None -> failwithf "Failed to locate file for '%s'" (fullname a)
 
   // creates new artifact rule
-  let ( ***> ) selector action : unit =
-    let rule = Rule (selector, action)
-    rules <- Map.add selector action rules
-
-  // creates new artifact rule
   let ( *> ) selector buildfile : unit =
-    selector ***> BuildFile buildfile
-
-  // gets an rule for file
-  let ( ~& ) path :Artifact = (System.IO.FileInfo path)
+    let action = BuildAction buildfile
+    rules <- rules |> Map.add selector action
 
   // executes single artifact
   let private execOne artifact =
     match locateRule artifact with
     | Some rule ->
-      async {      
-        let! task = execstate.PostAndAsyncReply(fun chnl -> Run(artifact, BuildAction (fun _ -> rule), chnl))
+      async {
+        let! task = execstate.PostAndAsyncReply(fun chnl -> Run(artifact, rule, chnl))
         return! Async.AwaitTask task
       }
     | None ->
       if not artifact.Exists then failwithf "Neither rule nor file is found for '%s'" (fullname artifact)
-      Async.FromContinuations (fun (cont,_e,_c) -> cont(artifact))
+      Async.FromContinuations (fun (cont,_,_) -> cont(artifact))
 
   let exec = Seq.ofList >> Seq.map execOne >> Async.Parallel
   let need artifacts = artifacts |> exec |> Async.Ignore
 
   // Runs the artifact synchronously
-  let runSync a = locateRuleOrDie a |> Async.RunSynchronously |> ignore; a
+  let runSync a =
+    let (BuildAction rule) = locateRuleOrDie a in
+    rule a |> Async.RunSynchronously
+    a
 
-  // runs execution of all artifact rules in parallel
-  let run =
-    List.map locateRule >> List.filter Option.isSome >> List.map Option.get >> Seq.ofList >> Async.Parallel >> Async.RunSynchronously >> ignore
+  /// Runs execution of all artifact rules in parallel
+  let run = List.map (~&) >> exec >> Async.RunSynchronously >> ignore
+
 
   let rule = async
-
-  // TODO move all three generic methods somewhere else Xake.Util?
-  // generic method to turn any fn to async task
-  let wait fn artifact = async {
-    do! need [artifact]
-    return artifact |> fn
-    }
-
-  // executes the fn on all artifacts
-  let allf fn aa = async {
-    let! results = aa |> (List.map fn) |> List.toSeq |> Async.Parallel
-    return results |> Array.toList
-    }
-
-  let all aa =
-    let identity i = i
-    allf identity aa

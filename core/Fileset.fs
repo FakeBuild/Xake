@@ -79,12 +79,8 @@ module Fileset =
       | FsRoot          -> paths |> Seq.map Directory.GetDirectoryRoot
       | Parent          -> paths |> Seq.map (Directory.GetParent >> fullname)
       | Recurse         ->
-        seq {
-          for dir in paths do
-            yield dir
-            yield! Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
-          }
-        //paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
+            paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
+            |> Seq.append paths
       | DirectoryMask m -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, m, SearchOption.TopDirectoryOnly))
       | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> Seq.filter Directory.Exists
       | FileMask mask   -> paths |> Seq.collect (fun dir -> Directory.EnumerateFiles(dir, mask))
@@ -128,6 +124,9 @@ module Fileset =
   // TODO move Artifact stuff out of here
   /// Gets the artifact file name
   let fullname (file:Artifact) = file.FullName
+
+  // gets an rule for file
+  let ( ~& ) path :Artifact = (System.IO.FileInfo path)
 
   // changes file extension
   let (-<.>) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
