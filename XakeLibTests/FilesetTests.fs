@@ -29,28 +29,29 @@ type FilesetTests() =
 
   [<Test (Description = "Verifies ls function")>]
   member o.LsSimple() =
-    let files = ls "*.sln"
-    Assert.That (List.map name files, Is.EquivalentTo (List.toSeq ["xake.sln"]))
+    let files = ls "*.sln" |> getFiles
+    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["xake.sln"]))
 
   [<Test (Description = "Verifies fileset exec function removes duplicates from result")>]
   member o.ExecDoesntRemovesDuplicates() =
 
     Assert.That (
-      scan (fileset {includes "*.sln"; includes "*.s*"})
+      fileset {includes "*.sln"; includes "*.s*"}
+      |> getFiles
       |> List.map (name >> tolower) |> List.filter ((=) "xake.sln") |> List.length,
       Is.EqualTo (2))
 
   [<Test>]
   member o.LsMore() =
-    ls "c:/!/**/*.c*" |> List.map fullname |> List.iter System.Console.WriteLine
-    let IsAny = Is.Not.All.Not
+    ls "c:/!/**/*.c*" |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
+    let IsAny() = Is.Not.All.Not
     Assert.That(
-      ls "c:/!/**/*.c*" |> List.map fullname |> List.toArray,
-      IsAny.Contains(@"C:\!\main.c"))
+      ls "c:/!/**/*.c*" |> getFiles |> List.map fullname |> List.toArray,
+      IsAny().EqualTo(@"C:\!\main.c").IgnoreCase)
 
   [<Test>]
   member o.LsParent() =
-    scan (+ "c:/!/bak" ++ "../../!/*.c*") |> List.map fullname |> List.iter System.Console.WriteLine
+    (+ "c:/!/bak" ++ "../../!/*.c*") |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
 
   [<Test>]
   member o.Builder() =
@@ -67,18 +68,18 @@ type FilesetTests() =
       }
     }
 
-    scan fileset |> List.map fullname |> List.iter System.Console.WriteLine
+    fileset |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
 
   [<Test>]
   member o.ShortForm() =
 
     let fileset =
-        !! "*.rdl" + "*.rdlx" + "../jparsec/src/main/**/A*.java" @@ """c:\!\bak"""
+        ls "*.rdl" + "*.rdlx" + "../jparsec/src/main/**/A*.java" @@ """c:\!\bak"""
 
     let fileset1 =
-        + @"c:\!\bak" + "*.rdl" + "*.rdlx" + "../jparsec/src/main/**/A*.java"
+        + @"c:\!\bak" + "*.rdl" +? (false,"*.rdlx") + "../jparsec/src/main/**/A*.java"
 
-    scan fileset |> List.map fullname |> List.iter System.Console.WriteLine
+    fileset |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
 
   [<Test>]
   [<ExpectedException>]
@@ -86,6 +87,7 @@ type FilesetTests() =
     let fs1 = fileset {
       basedir @"c:\!"
       includes @"bak\*.css"
+      includesif false @"debug\*.css"
     }
 
     let fs2 = fileset {

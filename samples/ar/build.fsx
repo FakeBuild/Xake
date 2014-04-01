@@ -5,12 +5,12 @@ open Xake
 
 let ardll name = "out\\GrapeCity.ActiveReports." + name + ".v9.dll"
 
-let commonSrcFiles = scan (fileset {
+let commonSrcFiles = fileset {
   includes "CommonAssemblyInfo.cs"
   includes "VersionInfo.cs"
   includes "AssemblyNames.cs"
   includes "CommonFiles/SmartAssembly.Attributes.cs"
-  })
+  }
 
 module libs =
   let nunit = &"Tools/NUnit/nunit.framework.dll"
@@ -28,8 +28,8 @@ ardll "Extensibility" *> fun outname -> rule {
     CscSettings with
       Target = Library
       OutFile = outname
-      SrcFiles = (scan sources) @ commonSrcFiles
-      References = [libs.nunit]
+      SrcFiles = sources + commonSrcFiles
+      References = FileList [libs.nunit]
       }
 }
 
@@ -39,8 +39,8 @@ ardll "Diagnostics" *> fun outname -> rule {
     CscSettings with
       Target = Library
       OutFile = outname
-      SrcFiles = (ls "Diagnostics/**/*.cs") @ commonSrcFiles
-      References = [libs.nunit]
+      SrcFiles = !!"Diagnostics/**/*.cs" + commonSrcFiles
+      References = FileList [libs.nunit]
       }
 }
 
@@ -50,8 +50,8 @@ ardll "Testing.Tools" *> fun outname -> rule {
     CscSettings with
       Target = Library
       OutFile = outname
-      SrcFiles = (ls "Testing/Testing.Tools/**/*.cs") @ commonSrcFiles
-      References = [libs.nunit; libs.xmldiff; &ardll "Extensibility"]
+      SrcFiles = !! "Testing/Testing.Tools/**/*.cs" + commonSrcFiles
+      References = FileList [libs.nunit; libs.xmldiff; &ardll "Extensibility"]
       }
 }
 
@@ -62,11 +62,15 @@ ardll("Chart") *> fun outname -> rule {
       Target = Library
       OutFile = outname
       Define = ["ARNET"]
-      SrcFiles = (ls "SL/ARChart/**/*.cs") @ commonSrcFiles
-      References = [libs.nunit]
+      SrcFiles = ls "SL/ARChart/**/*.cs" + commonSrcFiles
+      References = FileList [libs.nunit]
       }
 }
 
 printfn "Building main"
-run (["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart" ] |> List.map ardll) |> ignore
+
+let start = System.DateTime.Now
+do run (["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart" ] |> List.map ardll)
+
+printfn "\nBuild completed in %A" (System.DateTime.Now - start)
 

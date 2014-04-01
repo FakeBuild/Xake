@@ -54,9 +54,9 @@ module DotnetTasks =
       Platform: TargetPlatform;
       Target: TargetType;
       OutFile: Artifact;
-      SrcFiles: FileList;
-      References: FileList;
-      Resources: FileList;
+      SrcFiles: FilesetType;
+      References: FilesetType;
+      Resources: FilesetType;
       Define: string list;
 
       FailOnError: bool
@@ -64,7 +64,7 @@ module DotnetTasks =
   // see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx
   // defines, optimize, warn, debug, platform
 
-  let CscSettings = {Platform = AnyCpu; Target = Exe; OutFile = null; SrcFiles = []; References = []; Resources = []; Define = []; FailOnError = true}
+  let CscSettings = {Platform = AnyCpu; Target = Exe; OutFile = null; SrcFiles = Fileset.Empty; References = Fileset.Empty; Resources = Fileset.Empty; Define = []; FailOnError = true}
 
   let mutable private iid_lock = System.Object()
   let mutable private iid = 0
@@ -85,11 +85,11 @@ module DotnetTasks =
     async {
 
       do log Level.Info "%s starting '%s'" pfx settings.OutFile.Name
-      do settings.OutFile.Delete()
-      do! need (settings.SrcFiles @ settings.References @ settings.Resources)
-
-      let files = List.map fullname settings.SrcFiles
-      let refs = List.map fullname settings.References
+      
+      let (FileList src) = scan settings.SrcFiles
+      let (FileList refs) = scan settings.References
+      let (FileList ress) = scan settings.Resources
+      do! need (src @ refs @ ress)
 
       let args =
         seq {
@@ -104,8 +104,9 @@ module DotnetTasks =
           if List.exists (fun _ -> true) settings.Define then
             yield "/define:" + System.String.Join(";", Array.ofList settings.Define)
 
-          yield! files
-          yield! settings.References |> List.map (fullname >> ((+) "/r:"))
+          yield! src |> List.map fullname
+          yield! refs |> List.map (fullname >> (+) "/r:")
+          // TODO resources
         }
 
       let commandLine = args |> escapeAndJoinArgs

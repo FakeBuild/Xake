@@ -8,7 +8,6 @@
   * rules versioning
   * xake exec parameters (number of threads, log file, verbosity)
   * exception handling and reporting
-  * parameterized filesets (оператор для условной конкатенации списков ["a.cs"] &? debug ["debug.cs"])
   * ...
 
 ## In progress
@@ -20,6 +19,7 @@
  * файл (filepath) с разными операциями
  * списки (fileset)
  * матчинг имен артефактов/файлов + каталоги
+ * parameterized filesets (оператор для условной конкатенации списков ["a.cs"] &? debug ["debug.cs"])
 
 ## Thoughts
  * артефакты: файлы + виртуальные артефакты. Со вторыми проблемы:

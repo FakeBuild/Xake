@@ -5,6 +5,8 @@ module Fileset =
 
   open System.IO
 
+  type FilePattern = string
+
   /// Part of filesystem pattern
   type PatternPart =
     | FsRoot
@@ -24,13 +26,15 @@ module Fileset =
   type FilesetOptions = {FailOnError:bool; BaseDir:string option}
 
   // Fileset is a set of rules
-  type Fileset = Fileset of FilesetOptions * FilesetElement list
+  type FilesetType =
+    | Fileset of FilesetOptions * FilesetElement list
+    | FileList of FileInfo list
 
-  /// Defines set of files
-  type FileList = FileInfo list
+    // TODO better name for both options: FileNames, FilesetRules, FilesetPattern
 
   /// Default fileset options
   let DefaultOptions = {FilesetOptions.BaseDir = None; FailOnError = false}
+  let Empty : FilesetType = FileList []
 
   /// Implementation module
   module internal Impl =
@@ -88,6 +92,26 @@ module Fileset =
       in
       List.fold applyPart
 
+    /// Draft implementation of fileset execute
+    /// "Materializes fileset to a filelist
+    let scan = function
+      | FileList list as ff -> ff
+      | Fileset (options,fileset) ->
+        let startDir =
+          match options.BaseDir with
+          | None -> Directory.GetCurrentDirectory()   // TODO use project root
+          | Some path -> path
+
+        let files pattern =
+          listFiles [startDir] pattern
+          |> Seq.map (fun f -> FileInfo f) |> List.ofSeq
+
+        fileset |> List.collect (function
+          | Includes (Pattern pat) -> files pat
+          | Excludes e -> []  // TODO implement
+          )
+          |> FileList
+
     // combines two fileset options
     let combineOptions (o1:FilesetOptions) (o2:FilesetOptions) =
       {DefaultOptions with
@@ -99,8 +123,15 @@ module Fileset =
         FailOnError = o1.FailOnError || o2.FailOnError}
 
     // combines two filesets
-    let combineWith (Fileset (o2, set2)) (Fileset (o1,set1)) =
-      Fileset(combineOptions o1 o2, set1 @ set2)
+    let rec combineWith f1 f2 =
+      match f1,f2 with
+      | (Fileset (o2, set2)),(Fileset (o1,set1)) -> Fileset(combineOptions o1 o2, set1 @ set2)
+      | FileList list1, FileList list2 -> FileList (list1 @ list2)
+      | FileList _, _ -> combineWith f1 (scan f2)
+      | _, FileList _ -> combineWith (scan f1) f2
+
+    /// More strict analog of combineWith, important to combine includes excludes
+    let combineFilesetWith (Fileset (o2, set2)) (Fileset (o1,set1)) = Fileset(combineOptions o1 o2, set1 @ set2)
 
     // Combines result of reading file to a fileset
     let combineWithFile map (file:FileInfo) (Fileset (opts,fs)) =
@@ -110,16 +141,50 @@ module Fileset =
 
     let changeBasedir dir (Fileset (opts,ps)) =
       Fileset ({opts with BaseDir = Some dir}, ps)
+
+    let eq s1 s2 = System.StringComparer.OrdinalIgnoreCase.Equals(s1, s2)
+
+    let matchPart p1 p2 =
+      match p1,p2 with
+      | Disk d1, Disk d2 -> eq d1 d2
+      | Directory d1, Directory d2 -> eq d1 d2
+      | DirectoryMask mask, Directory d2 -> let rx = fileMatchRegex mask  in rx.IsMatch(d2)
+      | FileName f1, FileName f2 -> eq f1 f2
+      | FileMask mask, FileName f2 -> let rx = fileMatchRegex mask in rx.IsMatch(f2)
+      | _ -> false
+
+    let rec matchPaths (mask:PatternPart list) (p:PatternPart list) =
+      match mask,p with
+      | [], [] -> true
+      | [], x::xs -> false
+      | m::ms, [] -> false
+
+      (* parent support is not complete, supports up to two parent refs TODO normalize mask instead *)
+      | Directory _::Parent::ms, _
+      | Directory _::Directory _::Parent::Parent::ms, _
+      | DirectoryMask _::Parent::ms, _
+      | DirectoryMask _::DirectoryMask _::Parent::Parent::ms, _
+        -> (matchPaths ms p)
+
+      | Directory _::Recurse::Parent::ms, _
+        -> (matchPaths (Recurse::ms) p)
+
+      | Recurse::Parent::ms, _ -> (matchPaths (Recurse::ms) p)  // ignore parent ref
+
+      | Recurse::ms, FileName d2::xs -> (matchPaths ms p)
+      | Recurse::ms, Directory d2::xs -> (matchPaths mask xs) || (matchPaths ms p)
+      | m::ms, x::xs -> (matchPart m x) && (matchPaths ms xs)
+
   // end of module Impl
 
   open Impl
 
   // lists the files
-  let ls (filePattern:FilePattern) : FileList =
-    let (Pattern pattern) = parse filePattern
-    let startDir = Directory.GetCurrentDirectory()
-    let files = listFiles [startDir] pattern
-    files |> Seq.map (fun f -> FileInfo f) |> List.ofSeq
+  let ls (filePattern:FilePattern) : FilesetType =
+    Fileset (DefaultOptions, [filePattern |> parse |> Includes])
+
+  /// Create a file set for specific file mask. The same as "ls"
+  let (!!) = ls
 
   // TODO move Artifact stuff out of here
   /// Gets the artifact file name
@@ -132,87 +197,45 @@ module Fileset =
   let (-<.>) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
 
   /// Draft implementation of fileset execute
-  let scan (Fileset (options,fileset)) : FileList =
+  /// "Materializes fileset to a filelist
+  let scan = Impl.scan
 
-    let startDir =
-      match options.BaseDir with
-      | None -> Directory.GetCurrentDirectory()   // TODO use project root
-      | Some path -> path
-
-    let files pattern =
-      listFiles [startDir] pattern
-      |> Seq.map (fun f -> FileInfo f) |> List.ofSeq
-
-    fileset |> List.collect (function
-      | Includes (Pattern pat) -> files pat
-      | Excludes e -> [])  // TODO implement
-
+  // let matches filePattern projectRoot
   let matches filePattern projectRoot =
     // IDEA: make relative path than match to pattern?
     // TODO implement. basedir matters! rules are global, so projectdir (current dir) is a basedir
     // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
 
-    let eq s1 s2 = System.StringComparer.OrdinalIgnoreCase.Equals(s1, s2)
+    // TODO alternative implementation, convert pattern to a match function using combinators
 
-    let comparePart p1 p2 =
-      match p1,p2 with
-      | Disk d1, Disk d2 -> eq d1 d2
-      | Directory d1, Directory d2 -> eq d1 d2
-      | DirectoryMask mask, Directory d2 -> let rx = fileMatchRegex mask  in rx.IsMatch(d2)
-      | FileName f1, FileName f2 -> eq f1 f2
-      | FileMask mask, FileName f2 -> let rx = fileMatchRegex mask in rx.IsMatch(f2)
-      | _ -> false
-
-    let rec comparePaths (mask:PatternPart list) (p:PatternPart list) =
-      match mask,p with
-      | [], [] -> true
-      | [], x::xs -> false
-      | m::ms, [] -> false
-
-      (* parent support is not complete, supports up to two parent refs TODO normalize mask instead *)
-      | Directory _::Parent::ms, _
-      | Directory _::Directory _::Parent::Parent::ms, _
-      | DirectoryMask _::Parent::ms, _
-      | DirectoryMask _::DirectoryMask _::Parent::Parent::ms, _
-        -> (comparePaths ms p)
-
-      | Directory _::Recurse::Parent::ms, _
-        -> (comparePaths (Recurse::ms) p)
-
-      | Recurse::Parent::ms, _ -> (comparePaths (Recurse::ms) p)  // ignore parent ref
-
-      | Recurse::ms, FileName d2::xs -> (comparePaths ms p)
-      | Recurse::ms, Directory d2::xs -> (comparePaths mask xs) || (comparePaths ms p)
-      | m::ms, x::xs -> (comparePart m x) && (comparePaths ms xs)
-
-    let (Pattern mask) = Path.Combine(projectRoot,filePattern) |> parse
-
+    let (Pattern mask) = Path.Combine(projectRoot,filePattern) |> parse in
     let matchFile file =
       let (Pattern fileParts) = parse file
-      comparePaths mask fileParts
-
+      matchPaths mask fileParts
+      in
     matchFile
       
-  /// Create a file set for specific file mask.
-  let (!!) includes =
-    Fileset (DefaultOptions, [includes |> parse |> Includes])
-
-  /// Defines the basedir for a fileset
-  let (<<<) (Fileset (opts,ps)) dir =
-    Fileset ({opts with BaseDir = Some dir}, ps)
+  /// Gets the file list of specific fileset
+  let rec getFiles = function
+    | FileList list -> list
+    | _ as fileset -> scan fileset |> getFiles
 
   /// Defines the empty fileset with a specified base dir
   let (~+) dir =
     Fileset ({DefaultOptions with BaseDir = Some dir}, [])
 
-  type Fileset with
-    static member (+) (fs1: Fileset, fs2: Fileset) = fs1 |> combineWith fs2
-    static member (+) (fs1: Fileset, pat: FilePattern) = fs1 ++ pat
-    static member (-) (fs1: Fileset, pat: FilePattern) = fs1 -- pat
-    static member (@@) (fs1: Fileset, basedir: string) = fs1 <<< basedir
+  type FilesetType with
+    static member (+) (fs1: FilesetType, fs2: FilesetType) :FilesetType = fs1 |> combineWith fs2
+    static member (+) (fs1: FilesetType, pat: FilePattern) = fs1 ++ pat
+    static member (-) (fs1: FilesetType, pat: FilePattern) = fs1 -- pat
+    static member (@@) (fs1: FilesetType, basedir: string) = fs1 |> Impl.changeBasedir basedir
+
+    /// Conditional include/exclude operator
+    static member (+?) (fs1: FilesetType, (condition:bool,pat: FilePattern)) = if condition then fs1 ++ pat else fs1
+    static member (-?) (fs1: FilesetType, (condition:bool,pat: FilePattern)) = if condition then fs1 -- pat else fs1
 
     /// Adds includes pattern to a fileset.
-    static member (++) ((Fileset (opts,pts)), includes) =
+    static member (++) ((Fileset (opts,pts)), includes) :FilesetType =
       Fileset (opts, pts @ [includes |> parse |> Includes])
 
     /// Adds excludes pattern to a fileset.
@@ -229,13 +252,19 @@ module Fileset =
     member this.Basedir(fs,dir) = fs |> changeBasedir dir
 
     [<CustomOperation("includes")>]
-    member this.Includes(fs:Fileset,pattern) = fs ++ pattern
+    member this.Includes(fs:FilesetType,pattern) = fs ++ pattern
+
+    [<CustomOperation("includesif")>]
+    member this.IncludesIf(fs:FilesetType,condition,pattern) =  fs +? (condition,pattern)
 
     [<CustomOperation("join")>]
     member this.JoinFileset(fs1, fs2) = fs1 |> Impl.combineWith fs2
 
     [<CustomOperation("excludes")>]
-    member this.Excludes(fs:Fileset, pattern) = fs -- pattern
+    member this.Excludes(fs:FilesetType, pattern) = fs -- pattern
+
+    [<CustomOperation("excludesif")>]
+    member this.ExcludesIf(fs:FilesetType, pattern) = fs -? pattern
 
     [<CustomOperation("includefile")>]
     member this.IncludeFile(fs, file) = fs |> combineWithFile (parse >> Includes) file
@@ -246,11 +275,11 @@ module Fileset =
     member this.Yield(())  = empty
     member this.Return(pattern:FilePattern) = empty ++ pattern
 
-    member this.Combine(fs1, fs2) = fs1 |> Impl.combineWith fs2
+    member this.Combine(fs1, fs2) = fs1 |> Impl.combineFilesetWith fs2
     member this.Delay(f) = f()
     member this.Zero() = this.Yield ( () )
 
-    member x.Bind(fs1:Fileset, f) = let fs2 = f() in fs1 |> Impl.combineWith fs2
+    member x.Bind(fs1:FilesetType, f) = let fs2 = f() in fs1 |> Impl.combineFilesetWith fs2
     member x.For(fs, f) = x.Bind(fs, f)
     member x.Return(a) = x.Yield(a)
 
