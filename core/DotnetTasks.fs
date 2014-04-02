@@ -59,6 +59,7 @@ module DotnetTasks =
       ReferencesGlobal: string list;
       Resources: FilesetType;
       Define: string list;
+      Unsafe: bool;
 
       FailOnError: bool
     }
@@ -75,6 +76,7 @@ module DotnetTasks =
     ReferencesGlobal = [];
     Resources = Fileset.Empty;
     Define = [];
+    Unsafe = false;
     FailOnError = true}
 
   let mutable private iid_lock = System.Object()
@@ -105,6 +107,9 @@ module DotnetTasks =
 
           yield "/target:" + targetStr settings.Target
           yield "/platform:" + platformStr settings.Platform
+
+          if settings.Unsafe then
+            yield "/unsafe"
 
           if settings.OutFile <> null then
             yield sprintf "/out:%s" settings.OutFile.FullName
@@ -139,5 +144,5 @@ module DotnetTasks =
       do log Level.Info "%s completed '%s'" pfx settings.OutFile.Name
       if exitCode <> 0 then
         do log Level.Error "%s failed with exit code '%i'" pfx exitCode
-        if settings.FailOnError then failwith "Exiting due to FailOnError set"
+        if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
     }
