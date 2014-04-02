@@ -56,6 +56,7 @@ module DotnetTasks =
       OutFile: Artifact;
       SrcFiles: FilesetType;
       References: FilesetType;
+      ReferencesGlobal: string list;
       Resources: FilesetType;
       Define: string list;
 
@@ -64,7 +65,17 @@ module DotnetTasks =
   // see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx
   // defines, optimize, warn, debug, platform
 
-  let CscSettings = {Platform = AnyCpu; Target = Exe; OutFile = null; SrcFiles = Fileset.Empty; References = Fileset.Empty; Resources = Fileset.Empty; Define = []; FailOnError = true}
+  /// Default setting for CSC task so that you could only override required settings
+  let CscSettings = {
+    Platform = AnyCpu;
+    Target = Exe;
+    OutFile = null;
+    SrcFiles = Fileset.Empty;
+    References = Fileset.Empty;
+    ReferencesGlobal = [];
+    Resources = Fileset.Empty;
+    Define = [];
+    FailOnError = true}
 
   let mutable private iid_lock = System.Object()
   let mutable private iid = 0
@@ -83,9 +94,6 @@ module DotnetTasks =
     let pfx = newProcPrefix()
 
     async {
-
-      do log Level.Info "%s starting '%s'" pfx settings.OutFile.Name
-      
       let (FileList src) = scan settings.SrcFiles
       let (FileList refs) = scan settings.References
       let (FileList ress) = scan settings.Resources
@@ -106,13 +114,27 @@ module DotnetTasks =
 
           yield! src |> List.map fullname
           yield! refs |> List.map (fullname >> (+) "/r:")
+          yield! settings.ReferencesGlobal |> List.map ((+) "/r:")
           // TODO resources
         }
 
-      let commandLine = args |> escapeAndJoinArgs
       let csc_exe = Path.Combine(locateFwkAny(), "csc.exe")
 
-      let! exitCode = _system (pfx + " ") csc_exe commandLine
+// for short args this is ok
+//      let commandLine = args |> escapeAndJoinArgs
+      let rspFile = Path.GetTempFileName()
+      File.WriteAllLines(rspFile, args |> Seq.map escapeArg |> List.ofSeq)
+      let commandLine = "@" + rspFile
+
+      do log Level.Info "%s compiling '%s'" pfx settings.OutFile.Name
+
+      let options = {
+        SystemOptions with
+          LogPrefix = pfx
+          StdOutLevel = Level.Verbose   // consider standard compiler output too noisy
+        }
+      let! exitCode = _system options csc_exe commandLine
+      do File.Delete rspFile
 
       do log Level.Info "%s completed '%s'" pfx settings.OutFile.Name
       if exitCode <> 0 then

@@ -18,6 +18,8 @@ type FilesetTests() =
 
   let tolower (s:string) = s.ToLower()
 
+  let IsAny() = Is.Not.All.Not
+
   [<TestFixtureSetUp>]
   member o.Setup() =
     rememberDir <- Directory.GetCurrentDirectory()
@@ -44,7 +46,6 @@ type FilesetTests() =
   [<Test>]
   member o.LsMore() =
     ls "c:/!/**/*.c*" |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
-    let IsAny() = Is.Not.All.Not
     Assert.That(
       ls "c:/!/**/*.c*" |> getFiles |> List.map fullname |> List.toArray,
       IsAny().EqualTo(@"C:\!\main.c").IgnoreCase)
@@ -52,6 +53,12 @@ type FilesetTests() =
   [<Test>]
   member o.LsParent() =
     (+ "c:/!/bak" ++ "../../!/*.c*") |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
+
+  [<Test>]
+  member o.LsExcludes() =
+    let fileNames = (+ "c:/!/bak" ++ "m*.rdl*" ++ "a*.rdl*" -- "*.rdlx") |> getFiles |> List.map name
+    fileNames |> List.iter System.Console.WriteLine
+    Assert.That (fileNames, Is.All.Not.Contains("rdlx"))
 
   [<Test>]
   member o.Builder() =
