@@ -1,16 +1,18 @@
 ﻿## TODO
   * параметризация сценария, сценарий как объект (main + rules)
   * ---
+  * ресурсы (CPU и пр.) для управления очередностью
   * multiple outputs
   * условное правило (функция вместо маски)
   * incremental builds
   * clean
   * rules versioning
   * xake exec parameters (number of threads, log file, verbosity)
-  * exception handling and reporting
   * ...
 
 ## In progress
+  * диагностика и лог (детально в файл, кратко на экран)
+  * exception handling and reporting
 
 ## Done
  * имя файла-результата как аргумент (для оператора **>)
@@ -20,13 +22,12 @@
  * списки (fileset)
  * матчинг имен артефактов/файлов + каталоги
  * parameterized filesets (оператор для условной конкатенации списков ["a.cs"] &? debug ["debug.cs"])
+ * два вида fileset - правила и вычисленный список
 
 ## Thoughts
  * артефакты: файлы + виртуальные артефакты. Со вторыми проблемы:
  * файлсет (как список артефактов) теряет смысл
  * усложнение правила - как матчинг правил, так и описание действия
-
- * два вида fileset - правила и вычисленный список
 
 ## References
   * [Shake manual](https://github.com/ndmitchell/shake/blob/master/docs/Manual.md)

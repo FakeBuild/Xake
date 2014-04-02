@@ -48,6 +48,14 @@ module Core =
     }
     loop(Map.empty) )
 
+  let exitWithError errorCode error details =
+    log Error "Error '%s'. See build.log for details" error
+    log Verbose "Error details are:\n%A\n\n" details
+    //exit errorCode
+
+  // TODO how does it work?
+  execstate.Error.Add(fun e -> exitWithError 1 e.Message e)
+
   // TODO make a parameter
   let projectRoot = Directory.GetCurrentDirectory()
   let mutable private rules:Map<FilePattern,BuildAction> = Map.empty
@@ -82,20 +90,22 @@ module Core =
         return! Async.AwaitTask task
       }
     | None ->
-      if not artifact.Exists then failwithf "Neither rule nor file is found for '%s'" (fullname artifact)
+      if not artifact.Exists then exitWithError 2 (sprintf "Neither rule nor file is found for '%s'" (fullname artifact)) ""
       Async.FromContinuations (fun (cont,_,_) -> cont(artifact))
 
   let exec = Seq.ofList >> Seq.map execOne >> Async.Parallel
   let need artifacts = artifacts |> exec |> Async.Ignore
 
-  // Runs the artifact synchronously
-  let runSync a =
-    let (BuildAction rule) = locateRuleOrDie a in
-    rule a |> Async.RunSynchronously
-    a
-
   /// Runs execution of all artifact rules in parallel
-  let run = List.map (~&) >> exec >> Async.RunSynchronously >> ignore
+  let run targets =
+    try
+      targets |>
+        (List.map (~&) >> exec >> Async.RunSynchronously >> ignore)
+    with 
+      | :? System.AggregateException as a ->
+        let errors = a.InnerExceptions |> Seq.map (fun e -> e.Message) |> Seq.toArray
+        exitWithError 255 (a.Message + "\n" + System.String.Join("\r\n      ", errors)) a
+      | exn -> exitWithError 255 exn.Message exn
 
 
   let rule = async

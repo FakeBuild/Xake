@@ -143,6 +143,6 @@ module DotnetTasks =
 
       do log Level.Info "%s completed '%s'" pfx settings.OutFile.Name
       if exitCode <> 0 then
-        do log Level.Error "%s failed with exit code '%i'" pfx exitCode
+        do log Level.Error "%s ('%s') failed with exit code '%i'" pfx settings.OutFile.Name exitCode
         if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
     }
