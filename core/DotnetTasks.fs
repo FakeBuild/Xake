@@ -53,10 +53,10 @@ module DotnetTasks =
     {
       Platform: TargetPlatform
       Target: TargetType
-      OutFile: Artifact
-      SrcFiles: FilesetType
-      References: FilesetType
-      ReferencesGlobal: string list
+      Out: Artifact
+      Src: FilesetType
+      Ref: FilesetType
+      RefGlobal: string list
       Resources: FilesetType
       Define: string list
       Unsafe: bool
@@ -69,20 +69,20 @@ module DotnetTasks =
   let CscSettings = {
     Platform = AnyCpu;
     Target = Auto;  // try to resolve the type from name etc
-    OutFile = null;
-    SrcFiles = Fileset.Empty;
-    References = Fileset.Empty;
-    ReferencesGlobal = [];
+    Out = null;
+    Src = Fileset.Empty;
+    Ref = Fileset.Empty;
+    RefGlobal = [];
     Resources = Fileset.Empty;
     Define = [];
     Unsafe = false;
     FailOnError = true
   }
 
-  let mutable private iid = 0
+  let private refIid = ref 0
 
   let internal newProcPrefix () = 
-    System.Threading.Interlocked.Increment(ref iid) |> sprintf "[CSC%i]"
+    System.Threading.Interlocked.Increment(refIid) |> sprintf "[CSC%i]"
 
   /// C# compiler task
   let Csc settings =
@@ -92,14 +92,14 @@ module DotnetTasks =
       if name.EndsWith (".exe", System.StringComparison.OrdinalIgnoreCase) then "exe" else
       "library"
     
-    let targetStr = function |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"| Auto -> resolveTarget settings.OutFile.Name
+    let targetStr = function |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"| Auto -> resolveTarget settings.Out.Name
     let platformStr = function |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
 
     let pfx = newProcPrefix()
 
     async {
-      let src = settings.SrcFiles |> getFiles
-      let refs = settings.References |> getFiles
+      let src = settings.Src |> getFiles
+      let refs = settings.Ref |> getFiles
       let ress = settings.Resources |> getFiles
       do! need (FileList (src @ refs @ ress))
 
@@ -113,15 +113,15 @@ module DotnetTasks =
           if settings.Unsafe then
             yield "/unsafe"
 
-          if settings.OutFile <> null then
-            yield sprintf "/out:%s" settings.OutFile.FullName
+          if settings.Out <> null then
+            yield sprintf "/out:%s" settings.Out.FullName
 
           if List.exists (fun _ -> true) settings.Define then
             yield "/define:" + System.String.Join(";", Array.ofList settings.Define)
 
           yield! src |> List.map fullname
           yield! refs |> List.map (fullname >> (+) "/r:")
-          yield! settings.ReferencesGlobal |> List.map ((+) "/r:")
+          yield! settings.RefGlobal |> List.map ((+) "/r:")
           // TODO resources
         }
 
@@ -133,7 +133,7 @@ module DotnetTasks =
       File.WriteAllLines(rspFile, args |> Seq.map escapeArg |> List.ofSeq)
       let commandLine = "@" + rspFile
 
-      do log Level.Info "%s compiling '%s'" pfx settings.OutFile.Name
+      do log Level.Info "%s compiling '%s'" pfx settings.Out.Name
 
       let options = {
         SystemOptions with
@@ -143,9 +143,9 @@ module DotnetTasks =
       let! exitCode = _system options csc_exe commandLine
       do File.Delete rspFile
 
-      do log Level.Info "%s done '%s'" pfx settings.OutFile.Name
+      do log Level.Info "%s done '%s'" pfx settings.Out.Name
       if exitCode <> 0 then
-        do log Level.Error "%s ('%s') failed with exit code '%i'" pfx settings.OutFile.Name exitCode
+        do log Level.Error "%s ('%s') failed with exit code '%i'" pfx settings.Out.Name exitCode
         if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
     }
 
@@ -153,11 +153,11 @@ module DotnetTasks =
   type CscSettingsBuilder() =
 
     [<CustomOperation("target")>]   member this.Target(s, value) =       {s with Target = value}
-    [<CustomOperation("out")>]      member this.OutFile(s, value) =      {s with OutFile = value}
-    [<CustomOperation("src")>]      member this.SrcFiles(s, value) =     {s with SrcFiles = value}
+    [<CustomOperation("out")>]      member this.OutFile(s, value) =      {s with Out = value}
+    [<CustomOperation("src")>]      member this.SrcFiles(s, value) =     {s with Src = value}
 
-    [<CustomOperation("refs")>]     member this.References(s, value) =   {s with References = value}
-    [<CustomOperation("grefs")>]    member this.ReferencesGlobal(s, value) = {s with ReferencesGlobal = value}
+    [<CustomOperation("refs")>]     member this.Ref(s, value) =   {s with Ref = value}
+    [<CustomOperation("grefs")>]    member this.RefGlobal(s, value) = {s with RefGlobal = value}
     [<CustomOperation("res")>]      member this.Resources(s, value) =    {s with Resources = value}
 
     [<CustomOperation("define")>]   member this.Define(s, value) =       {s with Define = value}

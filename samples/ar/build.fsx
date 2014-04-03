@@ -36,9 +36,9 @@ ardll "Extensibility" *> fun outname -> rule {
 
   do! Csc {
     CscSettings with
-      OutFile = outname
-      SrcFiles = sources
-      References = FileList [libs.nunit]
+      Out = outname
+      Src = sources
+      Ref = FileList [libs.nunit]
   }
 
 // TODO check whether below code does the same as above
@@ -54,9 +54,9 @@ ardll "Diagnostics" *> fun outname -> rule {
 
   do! Csc {
     CscSettings with
-      OutFile = outname
-      SrcFiles = !!"Diagnostics/**/*.cs" + commonSrcFiles
-      References = FileList [libs.nunit]
+      Out = outname
+      Src = !!"Diagnostics/**/*.cs" + commonSrcFiles
+      Ref = FileList [libs.nunit]
       }
 }
 
@@ -64,9 +64,9 @@ ardll "Testing.Tools" *> fun outname -> rule {
 
   do! Csc {
     CscSettings with
-      OutFile = outname
-      SrcFiles = !! "Testing/Testing.Tools/**/*.cs" + commonSrcFiles
-      References = FileList [libs.nunit; libs.xmldiff; &ardll "Extensibility"]
+      Out = outname
+      Src = !! "Testing/Testing.Tools/**/*.cs" + commonSrcFiles
+      Ref = FileList [libs.nunit; libs.xmldiff; &ardll "Extensibility"]
       }
 }
 
@@ -97,10 +97,10 @@ ardll("Document") *> fun outname -> rule {
   do! Csc {
     CscSettings with
       Target = Library
-      OutFile = outname
+      Out = outname
       Define = ["ARVIEWER_BUILD"]
-      SrcFiles = src + commonSrcFiles
-      References = FileList [libs.nunit] + (ardep ["Extensibility"; "Testing.Tools"])
+      Src = src + commonSrcFiles
+      Ref = FileList [libs.nunit] + (ardep ["Extensibility"; "Testing.Tools"])
       }
 }
 
@@ -133,11 +133,11 @@ ardll("Core") *> fun outname -> rule {
   do! Csc {
     CscSettings with
       Target = Library
-      OutFile = outname
+      Out = outname
       Define = ["DATAMANAGER_HOST_IS_STRYKER"]
-      SrcFiles = src
-      References = FileList [libs.nunit] + (ardep ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Document"; "Chart"])
-      ReferencesGlobal = ["Microsoft.VisualBasic.dll"]
+      Src = src
+      Ref = FileList [libs.nunit] + (ardep ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Document"; "Chart"])
+      RefGlobal = ["Microsoft.VisualBasic.dll"]
       }
 }
 
@@ -146,10 +146,10 @@ ardll("OracleClient") *> fun outname -> rule {
   do! Csc {
     CscSettings with
       Target = Library
-      OutFile = outname
-      SrcFiles = ls "Reports/OracleClient/**/*.cs" + commonSrcFiles
-      References = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"])
-      ReferencesGlobal = ["System.Data.OracleClient.dll"]
+      Out = outname
+      Src = ls "Reports/OracleClient/**/*.cs" + commonSrcFiles
+      Ref = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"])
+      RefGlobal = ["System.Data.OracleClient.dll"]
       }
 }
 
@@ -158,11 +158,11 @@ ardll("RdfExport") *> fun outname -> rule {
   do! Csc {
     CscSettings with
       Target = Library
-      OutFile = outname
-      SrcFiles = ls "RDFExport/**/*.cs"
+      Out = outname
+      Src = ls "RDFExport/**/*.cs"
         + "Reports/ReportsCore/Rendering/CumulativeTotalsHelper.cs"
         + commonSrcFiles
-      References = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"])
+      Ref = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"])
       }
 }
 
@@ -171,8 +171,8 @@ ardll("XmlExport") *> fun outname -> rule {
   do! Csc {
     CscSettings with
       Target = Library
-      OutFile = outname
-      SrcFiles = fileset {
+      Out = outname
+      Src = fileset {
         includes "XmlExport/**/*.cs"
         includes "SL/CommonFiles/SafeGraphics.cs"
         includes "SL/Exports/*.cs"
@@ -180,7 +180,7 @@ ardll("XmlExport") *> fun outname -> rule {
         includes "SL/Document/Document/LayoutUtils.cs"
         join commonSrcFiles
         }
-      References = FileList [libs.nunit; libs.moq; libs.moqseq]
+      Ref = FileList [libs.nunit; libs.moq; libs.moqseq]
         + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "RdfExport"])
       }
 }
@@ -191,23 +191,23 @@ ardll("Image.Unsafe") *> fun outname -> rule {
     CscSettings with
       Target = Library
       Unsafe = true
-      OutFile = outname
-      SrcFiles = ls "SL/DDLib.Net/Drawing/MonochromeBitmapTool.cs" + commonSrcFiles
+      Out = outname
+      Src = ls "SL/DDLib.Net/Drawing/MonochromeBitmapTool.cs" + commonSrcFiles
       }
 }
 
 ardll("ImageExport") *> fun outname -> rule {
   do! Csc {
     CscSettings with
-      OutFile = outname
-      SrcFiles = fileset {
+      Out = outname
+      Src = fileset {
         includes "ImageExport/**/*.cs"
         includes "Reports/ReportsCore/Rendering/Tools/Text/FontDescriptor.cs"
         includes "Reports/ReportsCore/Rendering/Tools/Cache/Services.cs"
         includes "SL/Exports/PageRangeParser.cs"
         join commonSrcFiles
         }
-      References = FileList [libs.nunit; libs.moq]
+      Ref = FileList [libs.nunit; libs.moq]
         + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "Image.Unsafe"; "RdfExport"])
       }
 }
@@ -216,8 +216,8 @@ ardll("ImageExport") *> fun outname -> rule {
 ardll("Viewer.Win") *> fun outname -> rule {
   do! Csc {
     CscSettings with
-      OutFile = outname
-      SrcFiles = fileset {
+      Out = outname
+      Src = fileset {
         includes "UnifiedViewer/Base/Common/**/*.cs"
         includes "UnifiedViewer/Base/Properties/BaseResources.Designer.cs"
         includes "UnifiedViewer/Base/Tests/**/*.cs"
@@ -225,7 +225,7 @@ ardll("Viewer.Win") *> fun outname -> rule {
         includes "UnifiedViewer/WinForms/**/*.cs"
         join commonSrcFiles
         }
-      References = FileList [libs.nunit; libs.moq]
+      Ref = FileList [libs.nunit; libs.moq]
         + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "ImageExport"])
       }
 }
@@ -234,9 +234,9 @@ ardll("Viewer.Win") *> fun outname -> rule {
 arexe("Viewer") *> fun outname -> rule {
   do! Csc {
     CscSettings with
-      OutFile = outname
-      SrcFiles = ls "WinViewer/**/*.cs" + "Designer/Export/*.cs" + commonSrcFiles
-      References = FileList [libs.nunit; libs.moq]
+      Out = outname
+      Src = ls "WinViewer/**/*.cs" + "Designer/Export/*.cs" + commonSrcFiles
+      Ref = FileList [libs.nunit; libs.moq]
         + (ardep ["Extensibility"; "Document"; "Chart"; "Core"; "ImageExport"; "RdfExport"; "Viewer.Win"])
       }
 }
