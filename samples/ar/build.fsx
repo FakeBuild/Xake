@@ -31,14 +31,23 @@ ardll "Extensibility" *> fun outname -> rule {
   let sources = fileset {
     includes "Extensibility/**/*.cs"
     includes "SL/CommonFiles/SafeGraphics.cs"
+    join commonSrcFiles
   }
 
   do! Csc {
     CscSettings with
       OutFile = outname
-      SrcFiles = sources + commonSrcFiles
+      SrcFiles = sources
       References = FileList [libs.nunit]
-      }
+  }
+
+// TODO check whether below code does the same as above
+//  do! csc {
+//      target Library
+//      out outname
+//      src sources
+//      refs (FileList [libs.nunit])
+//  }
 }
 
 ardll "Diagnostics" *> fun outname -> rule {
