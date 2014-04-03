@@ -71,15 +71,13 @@ ardll "Testing.Tools" *> fun outname -> rule {
 }
 
 ardll("Chart") *> fun outname -> rule {
-
-  do! Csc {
-    CscSettings with
-      Target = Library
-      OutFile = outname
-      Define = ["ARNET"]
-      SrcFiles = ls "SL/ARChart/**/*.cs" + commonSrcFiles
-      References = FileList [libs.nunit]
-      }
+  (* example of simplified syntax*)
+  do! (csc {
+    out outname
+    define ["ARNET"]
+    src (!! "SL/ARChart/**/*.cs" + commonSrcFiles)
+    refs (FileList [libs.nunit])    
+  })
 }
 
 ardll("Document") *> fun outname -> rule {

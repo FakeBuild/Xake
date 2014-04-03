@@ -51,16 +51,16 @@ module DotnetTasks =
   type TargetPlatform = |AnyCpu |AnyCpu32Preferred |ARM | X64 | X86 |Itanium
   type CscSettingsType =
     {
-      mutable Platform: TargetPlatform
-      mutable Target: TargetType
-      mutable OutFile: Artifact
-      mutable SrcFiles: FilesetType
-      mutable References: FilesetType
-      mutable ReferencesGlobal: string list
-      mutable Resources: FilesetType
-      mutable Define: string list
-      mutable Unsafe: bool
-      mutable FailOnError: bool
+      Platform: TargetPlatform
+      Target: TargetType
+      OutFile: Artifact
+      SrcFiles: FilesetType
+      References: FilesetType
+      ReferencesGlobal: string list
+      Resources: FilesetType
+      Define: string list
+      Unsafe: bool
+      FailOnError: bool
     }
   // see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx
   // defines, optimize, warn, debug, platform
@@ -79,13 +79,10 @@ module DotnetTasks =
     FailOnError = true
   }
 
-  let mutable private iid_lock = System.Object()
   let mutable private iid = 0
 
-  let internal newProcPrefix () = lock iid_lock (fun _ ->
-    let pfx = sprintf "[CSC%i]" iid in 
-    iid <- iid + 1
-    pfx)
+  let internal newProcPrefix () = 
+    System.Threading.Interlocked.Increment(ref iid) |> sprintf "[CSC%i]"
 
   /// C# compiler task
   let Csc settings =
@@ -155,53 +152,22 @@ module DotnetTasks =
   (* csc options builder *)
   type CscSettingsBuilder() =
 
-    let mutable settings = CscSettings
+    [<CustomOperation("target")>]   member this.Target(s, value) =       {s with Target = value}
+    [<CustomOperation("out")>]      member this.OutFile(s, value) =      {s with OutFile = value}
+    [<CustomOperation("src")>]      member this.SrcFiles(s, value) =     {s with SrcFiles = value}
 
-    [<CustomOperation("target")>]
-    member this.Target(s:CscSettingsType, value) =
-      s.Target <- value
-      s
+    [<CustomOperation("refs")>]     member this.References(s, value) =   {s with References = value}
+    [<CustomOperation("grefs")>]    member this.ReferencesGlobal(s, value) = {s with ReferencesGlobal = value}
+    [<CustomOperation("res")>]      member this.Resources(s, value) =    {s with Resources = value}
 
-    [<CustomOperation("out")>]
-    member this.OutFile(s:CscSettingsType, value) =
-      s.OutFile <- value
-      s
-
-    [<CustomOperation("src")>]
-    member this.SrcFiles(s:CscSettingsType, value) =
-      s.SrcFiles <- value
-      s
-
-    [<CustomOperation("refs")>]
-    member this.References(s:CscSettingsType, value) =
-      s.References <- value
-      s
-
-    [<CustomOperation("grefs")>]
-    member this.ReferencesGlobal(s:CscSettingsType, value) =
-      s.ReferencesGlobal <- value
-      s
-
-    [<CustomOperation("res")>]
-    member this.Resources(s:CscSettingsType, value) =
-      s.Resources <- value
-      s
-
-    [<CustomOperation("define")>]
-    member this.Define(s:CscSettingsType, value) =
-      s.Define <- value
-      s
-
-    [<CustomOperation("unsafe")>]
-    member this.Unsafe(s:CscSettingsType, value) =
-      s.Unsafe <- value
-      s
+    [<CustomOperation("define")>]   member this.Define(s, value) =       {s with Define = value}
+    [<CustomOperation("unsafe")>]   member this.Unsafe(s, value) =       {s with Unsafe = value}
 
     member this.Bind(x, f) = f x
-    member this.Return(x) = settings
-    member this.Yield(()) = settings
-    member this.Zero() = settings
+    member this.Yield(()) = CscSettings
     member this.For(x, f) = f x
+
+    member this.Zero() = CscSettings
     member this.Run(s:CscSettingsType) = Csc s
 
   let csc = CscSettingsBuilder()
