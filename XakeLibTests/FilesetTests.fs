@@ -103,14 +103,14 @@ type FilesetTests() =
 
       join fs1
     }
-    scan fs2 |> ignore
+    fs2 |> getFiles |> ignore
 
   [<Test>]
   member o.CombineFilesets() =
     let fs1 = fileset {includes @"c:\!\bak\bak\*.css"}
     let fs2 = fileset {includes @"c:\!\bak\*.rdl"}
 
-    scan (fs1 + fs2) |> ignore
+    (fs1 + fs2) |> getFiles |> ignore
 
   [<TestCase("c:\\**\\*.*", "c:\\", ExpectedResult = false)>]
   [<TestCase("c:\\**\\*.*", "",     ExpectedException = typeof<System.ArgumentException> )>]

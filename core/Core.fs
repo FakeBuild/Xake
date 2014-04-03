@@ -94,7 +94,7 @@ module Core =
       Async.FromContinuations (fun (cont,_,_) -> cont(artifact))
 
   let exec = Seq.ofList >> Seq.map execOne >> Async.Parallel
-  let need artifacts = artifacts |> exec |> Async.Ignore
+  let need = getFiles >> exec >> Async.Ignore
 
   /// Runs execution of all artifact rules in parallel
   let run targets =

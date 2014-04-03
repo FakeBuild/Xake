@@ -212,10 +212,6 @@ module Fileset =
   // changes file extension
   let (-<.>) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
 
-  /// Draft implementation of fileset execute
-  /// "Materializes fileset to a filelist
-  let scan = Impl.scan
-
   // let matches filePattern projectRoot
   let matches filePattern rootPath =
     // IDEA: make relative path than match to pattern?
@@ -224,10 +220,10 @@ module Fileset =
     // TODO alternative implementation, convert pattern to a match function using combinators
     Impl.matchesPattern <| joinPattern (rootPath |> parseDir) (filePattern |> parseFileMask)
       
-  /// Gets the file list of specific fileset
+  /// "Materializes fileset to a filelist
   let rec getFiles = function
     | FileList list -> list
-    | _ as fileset -> scan fileset |> getFiles
+    | _ as fileset -> Impl.scan fileset |> getFiles
 
   /// Defines the empty fileset with a specified base dir
   let (~+) dir =

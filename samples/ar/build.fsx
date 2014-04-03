@@ -35,7 +35,6 @@ ardll "Extensibility" *> fun outname -> rule {
 
   do! Csc {
     CscSettings with
-      Target = Library
       OutFile = outname
       SrcFiles = sources + commonSrcFiles
       References = FileList [libs.nunit]
@@ -46,7 +45,6 @@ ardll "Diagnostics" *> fun outname -> rule {
 
   do! Csc {
     CscSettings with
-      Target = Library
       OutFile = outname
       SrcFiles = !!"Diagnostics/**/*.cs" + commonSrcFiles
       References = FileList [libs.nunit]
@@ -57,7 +55,6 @@ ardll "Testing.Tools" *> fun outname -> rule {
 
   do! Csc {
     CscSettings with
-      Target = Library
       OutFile = outname
       SrcFiles = !! "Testing/Testing.Tools/**/*.cs" + commonSrcFiles
       References = FileList [libs.nunit; libs.xmldiff; &ardll "Extensibility"]
@@ -195,7 +192,6 @@ ardll("Image.Unsafe") *> fun outname -> rule {
 ardll("ImageExport") *> fun outname -> rule {
   do! Csc {
     CscSettings with
-      Target = Library
       OutFile = outname
       SrcFiles = fileset {
         includes "ImageExport/**/*.cs"
@@ -213,7 +209,6 @@ ardll("ImageExport") *> fun outname -> rule {
 ardll("Viewer.Win") *> fun outname -> rule {
   do! Csc {
     CscSettings with
-      Target = Library
       OutFile = outname
       SrcFiles = fileset {
         includes "UnifiedViewer/Base/Common/**/*.cs"
@@ -232,7 +227,6 @@ ardll("Viewer.Win") *> fun outname -> rule {
 arexe("Viewer") *> fun outname -> rule {
   do! Csc {
     CscSettings with
-      Target = WinExe
       OutFile = outname
       SrcFiles = ls "WinViewer/**/*.cs" + "Designer/Export/*.cs" + commonSrcFiles
       References = FileList [libs.nunit; libs.moq]

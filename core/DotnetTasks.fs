@@ -47,7 +47,7 @@ module DotnetTasks =
       | fi -> fi
     
   // CSC task and related types
-  type TargetType = |AppContainerExe |Exe |Library |Module |WinExe |WinmdObj
+  type TargetType = |Auto |AppContainerExe |Exe |Library |Module |WinExe |WinmdObj
   type TargetPlatform = |AnyCpu |AnyCpu32Preferred |ARM | X64 | X86 |Itanium
   type CscSettingsType =
     {
@@ -69,7 +69,7 @@ module DotnetTasks =
   /// Default setting for CSC task so that you could only override required settings
   let CscSettings = {
     Platform = AnyCpu;
-    Target = Exe;
+    Target = Auto;  // try to resolve the type from name etc
     OutFile = null;
     SrcFiles = Fileset.Empty;
     References = Fileset.Empty;
@@ -89,17 +89,22 @@ module DotnetTasks =
 
   /// C# compiler task
   let Csc settings =
+
+    let resolveTarget (name:string) =
+      if name.EndsWith (".dll", System.StringComparison.OrdinalIgnoreCase) then "library" else
+      if name.EndsWith (".exe", System.StringComparison.OrdinalIgnoreCase) then "exe" else
+      "library"
     
-    let targetStr = function |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"
+    let targetStr = function |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"| Auto -> resolveTarget settings.OutFile.Name
     let platformStr = function |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
 
     let pfx = newProcPrefix()
 
     async {
-      let (FileList src) = scan settings.SrcFiles
-      let (FileList refs) = scan settings.References
-      let (FileList ress) = scan settings.Resources
-      do! need (src @ refs @ ress)
+      let src = settings.SrcFiles |> getFiles
+      let refs = settings.References |> getFiles
+      let ress = settings.Resources |> getFiles
+      do! need (FileList (src @ refs @ ress))
 
       let args =
         seq {
@@ -141,7 +146,7 @@ module DotnetTasks =
       let! exitCode = _system options csc_exe commandLine
       do File.Delete rspFile
 
-      do log Level.Info "%s completed '%s'" pfx settings.OutFile.Name
+      do log Level.Info "%s done '%s'" pfx settings.OutFile.Name
       if exitCode <> 0 then
         do log Level.Error "%s ('%s') failed with exit code '%i'" pfx settings.OutFile.Name exitCode
         if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx

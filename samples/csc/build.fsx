@@ -11,18 +11,16 @@ open Xake
   do! Csc {
     CscSettings with
       OutFile = exe
-      SrcFiles = [&"a.cs"]}
+      SrcFiles = FileList [&"a.cs"]}
 }
 
 "*.exe" *> fun exe -> rule {
 
-  let srcFiles = scan (fileset {includes "*.cs"})
-  do! need srcFiles
-  
   do! Csc {
     CscSettings with
       OutFile = exe
-      SrcFiles = srcFiles}
+      SrcFiles = ls "*.cs"
+    }
 }
 
 printfn "Building main"
