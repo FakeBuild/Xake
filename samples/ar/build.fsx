@@ -82,8 +82,11 @@ ardll("Chart") *> fun outname -> rule {
 
 ardll("Document") *> fun outname -> rule {
 
+  let DEBUG = false
+
   let src = fileset {
     includes "SL/CommonFiles/SafeGraphics.cs"
+    includesif DEBUG "SL/CommonFiles/DebugShims.cs"
     includes "SL/DDLib.Net/Controls/**/*.cs"
     includes "SL/DDLib.Net/DDWord/kinsoku.cs"
     includes "SL/DDLib.Net/Utility/*.cs"
@@ -91,7 +94,8 @@ ardll("Document") *> fun outname -> rule {
     includes "PdfExport/AR/PDFRender/BidiTable.cs"
     includes "PdfExport/AR/PDFRender/BidiReference.cs"
     includes "SL/Document/**/*.cs"
-    excludes "!SL/DDLib.Net/ZLib/ZByteArray.cs"
+
+    excludes "SL/DDLib.Net/ZLib/ZByteArray.cs"
   }
 
   do! Csc {

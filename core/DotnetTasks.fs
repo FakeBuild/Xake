@@ -9,8 +9,7 @@ module DotnetTasks =
   type FrameworkInfo = {Version: string; InstallPath: string}
 
   let tryLocateFwk name : option<FrameworkInfo> =
-    let fwkRegKey =
-      match name with
+    let fwkRegKey = function
       //      | "1.1" -> "v1.1.4322"
       //      | "1.1" -> "v1.1.4322"
       //      | "2.0" -> "v2.0.50727"
@@ -23,7 +22,7 @@ module DotnetTasks =
     let ndp = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP")
     if ndp = null then None
     else
-      let fwk = ndp.OpenSubKey(fwkRegKey)
+      let fwk = ndp.OpenSubKey(fwkRegKey name)
       if fwk = null || not (fwk.GetValue("Install").Equals(1)) then
         None
       else
@@ -67,15 +66,15 @@ module DotnetTasks =
 
   /// Default setting for CSC task so that you could only override required settings
   let CscSettings = {
-    Platform = AnyCpu;
-    Target = Auto;  // try to resolve the type from name etc
-    Out = null;
-    Src = Fileset.Empty;
-    Ref = Fileset.Empty;
-    RefGlobal = [];
-    Resources = Fileset.Empty;
-    Define = [];
-    Unsafe = false;
+    Platform = AnyCpu
+    Target = Auto  // try to resolve the type from name etc
+    Out = null
+    Src = Fileset.Empty
+    Ref = Fileset.Empty
+    RefGlobal = []
+    Resources = Fileset.Empty
+    Define = []
+    Unsafe = false
     FailOnError = true
   }
 
@@ -116,7 +115,7 @@ module DotnetTasks =
           if settings.Out <> null then
             yield sprintf "/out:%s" settings.Out.FullName
 
-          if List.exists (fun _ -> true) settings.Define then
+          if not (List.isEmpty settings.Define) then
             yield "/define:" + System.String.Join(";", Array.ofList settings.Define)
 
           yield! src |> List.map fullname
@@ -152,16 +151,16 @@ module DotnetTasks =
   (* csc options builder *)
   type CscSettingsBuilder() =
 
-    [<CustomOperation("target")>]   member this.Target(s, value) =       {s with Target = value}
-    [<CustomOperation("out")>]      member this.OutFile(s, value) =      {s with Out = value}
-    [<CustomOperation("src")>]      member this.SrcFiles(s, value) =     {s with Src = value}
+    [<CustomOperation("target")>]   member this.Target(s, value) =    {s with Target = value}
+    [<CustomOperation("out")>]      member this.OutFile(s, value) =   {s with Out = value}
+    [<CustomOperation("src")>]      member this.SrcFiles(s, value) =  {s with Src = value}
 
-    [<CustomOperation("refs")>]     member this.Ref(s, value) =   {s with Ref = value}
+    [<CustomOperation("refs")>]     member this.Ref(s, value) =       {s with Ref = value}
     [<CustomOperation("grefs")>]    member this.RefGlobal(s, value) = {s with RefGlobal = value}
-    [<CustomOperation("res")>]      member this.Resources(s, value) =    {s with Resources = value}
+    [<CustomOperation("res")>]      member this.Resources(s, value) = {s with Resources = value}
 
-    [<CustomOperation("define")>]   member this.Define(s, value) =       {s with Define = value}
-    [<CustomOperation("unsafe")>]   member this.Unsafe(s, value) =       {s with Unsafe = value}
+    [<CustomOperation("define")>]   member this.Define(s, value) =    {s with Define = value}
+    [<CustomOperation("unsafe")>]   member this.Unsafe(s, value) =    {s with Unsafe = value}
 
     member this.Bind(x, f) = f x
     member this.Yield(()) = CscSettings

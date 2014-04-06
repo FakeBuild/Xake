@@ -5,12 +5,12 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>6b39c22f-6741-428d-b21a-33580af7bd8e</ProjectGuid>
+    <ProjectGuid>70be9b7a-b5bd-4b91-aa2c-8edde63c72e4</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>tests</RootNamespace>
-    <AssemblyName>Xake.Core</AssemblyName>
+    <RootNamespace>Research</RootNamespace>
+    <AssemblyName>Research</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
-    <Name>XakeLib</Name>
+    <Name>Research</Name>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -18,15 +18,10 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
-    <OutputPath>..\bin\</OutputPath>
+    <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>
-    </DocumentationFile>
-    <StartAction>Program</StartAction>
-    <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\Fsi.exe</StartProgram>
-    <StartWorkingDirectory>C:\projects\ar9\Source</StartWorkingDirectory>
-    <StartArguments>\projects\Mine\xake\samples\ar\build.fsx</StartArguments>
+    <DocumentationFile>bin\Debug\Research.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -35,7 +30,7 @@
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\tests.XML</DocumentationFile>
+    <DocumentationFile>bin\Release\Research.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
@@ -46,15 +41,15 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Logging.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="Fileset.fs" />
-    <Compile Include="Core.fs" />
-    <Compile Include="Common.fs" />
-    <Compile Include="DotnetTasks.fs" />
-    <None Include="Script.fsx" />
-    <None Include="filesets.fsx" />
-    <None Include="readme.md" />
+    <Compile Include="Lib1.fs" />
+    <None Include="DosNameEscape.fsx" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\core\XakeLib.fsproj">
+      <Name>XakeLib</Name>
+      <Project>{6b39c22f-6741-428d-b21a-33580af7bd8e}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
