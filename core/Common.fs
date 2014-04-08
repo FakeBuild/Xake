@@ -35,24 +35,15 @@ let internal _system settings cmd args =
     return proc.ExitCode
   }
 
-/// Escapes argument value containing spaces or backslash characters
-let escapeArg arg =
-  // the idea is grabbed from nant's Argument.QuoteArgument
-  let exists c = String.exists ((=) c) arg
-  match exists '"', exists ' ' || exists '\'' with
-  | true, _ -> arg                // already quoted
-  | _, true -> "\"" + arg + "\""  // contains space and is not quoted
-  | _ -> arg
-
 // joins and escapes strings
-let escapeAndJoinArgs (args:#seq<string>) =
-  (" ", args |> Seq.map escapeArg |> Array.ofSeq) |> System.String.Join
+let internal joinArgs (args:#seq<string>) =
+  (" ", args |> Array.ofSeq) |> System.String.Join
 
 // executes external process and waits until it completes
 let system cmd args =
   async {
     do log Level.Info "[system] starting '%s'" cmd
-    let! exitCode = _system SystemOptions cmd (escapeAndJoinArgs args)
+    let! exitCode = _system SystemOptions cmd (joinArgs args)
     do log Level.Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
     return exitCode
   }
@@ -62,7 +53,7 @@ let system cmd args =
 let cmd cmdline (args : string list) =
   async {
     do log Level.Info "[cmd] starting '%s'" cmdline
-    let! exitCode = _system SystemOptions "cmd.exe" (escapeAndJoinArgs (["/c"; cmdline] @ args))
+    let! exitCode = _system SystemOptions "cmd.exe" (joinArgs (["/c"; cmdline] @ args))
     do log Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
     return exitCode
   } 

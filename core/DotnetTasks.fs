@@ -8,6 +8,57 @@ module DotnetTasks =
 
   type FrameworkInfo = {Version: string; InstallPath: string}
 
+  // CSC task and related types
+  type TargetType = |Auto |AppContainerExe |Exe |Library |Module |WinExe |WinmdObj
+  type TargetPlatform = |AnyCpu |AnyCpu32Preferred |ARM | X64 | X86 |Itanium
+  type CscSettingsType =
+    {
+      /// Limits which platforms this code can run on. The default is anycpu.
+      Platform: TargetPlatform
+      /// Specifies the format of the output file.
+      Target: TargetType
+      /// Specifies the output file name (default: base name of file with main class or first file).
+      Out: Artifact
+      /// Source files.
+      Src: FilesetType
+      /// References metadata from the specified assembly files.
+      Ref: FilesetType
+      /// References the specified assemblies from GAC.
+      RefGlobal: string list
+      /// Embeds the specified resource.
+      Resources: FilesetType
+      /// Defines conditional compilation symbols.
+      Define: string list
+      /// Allows unsafe code.
+      Unsafe: bool
+      /// Custom command-line arguments
+      CommandArgs: string list
+      /// Build fails on compile error.
+      FailOnError: bool
+    }
+  // see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx
+  // defines, optimize, warn, debug, platform
+
+  /// Default setting for CSC task so that you could only override required settings
+  let CscSettings = {
+    Platform = AnyCpu
+    Target = Auto  // try to resolve the type from name etc
+    Out = null
+    Src = Fileset.Empty
+    Ref = Fileset.Empty
+    RefGlobal = []
+    Resources = Fileset.Empty
+    Define = []
+    Unsafe = false
+    CommandArgs = []
+    FailOnError = true
+  }
+
+  let private refIid = ref 0
+
+  let internal newProcPrefix () = 
+    System.Threading.Interlocked.Increment(refIid) |> sprintf "[CSC%i]"
+
   let tryLocateFwk name : option<FrameworkInfo> =
     let fwkRegKey = function
       //      | "1.1" -> "v1.1.4322"
@@ -44,55 +95,37 @@ module DotnetTasks =
     match ["3.5"; "4.0"] |> List.fold (fun a p -> if a <> null then a else ipath p) null with
       | null -> failwith "No framework found"
       | fi -> fi
-    
-  // CSC task and related types
-  type TargetType = |Auto |AppContainerExe |Exe |Library |Module |WinExe |WinmdObj
-  type TargetPlatform = |AnyCpu |AnyCpu32Preferred |ARM | X64 | X86 |Itanium
-  type CscSettingsType =
-    {
-      Platform: TargetPlatform
-      Target: TargetType
-      Out: Artifact
-      Src: FilesetType
-      Ref: FilesetType
-      RefGlobal: string list
-      Resources: FilesetType
-      Define: string list
-      Unsafe: bool
-      FailOnError: bool
-    }
-  // see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx
-  // defines, optimize, warn, debug, platform
 
-  /// Default setting for CSC task so that you could only override required settings
-  let CscSettings = {
-    Platform = AnyCpu
-    Target = Auto  // try to resolve the type from name etc
-    Out = null
-    Src = Fileset.Empty
-    Ref = Fileset.Empty
-    RefGlobal = []
-    Resources = Fileset.Empty
-    Define = []
-    Unsafe = false
-    FailOnError = true
-  }
+  /// Escapes argument according to CSC.exe rules (see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx)
+  let escapeArgument (str:string) =
 
-  let private refIid = ref 0
+    let escape c s =
+      match c,s with
+      | '"',  (b, str) -> (true,  '\\' :: '\"' ::  str)
+      | '\\', (true,  str) -> (true,  '\\' :: '\\' :: str)
+      | '\\', (false, str) -> (false, '\\' :: str)
+      | c, (b, str) -> (false, c :: str)
 
-  let internal newProcPrefix () = 
-    System.Threading.Interlocked.Increment(refIid) |> sprintf "[CSC%i]"
+    if str |> String.exists (fun c -> c = '"' || c = ' ') then
+      let ca = str.ToCharArray()
+      let res = Array.foldBack escape ca (true,['"'])
+      "\"" + System.String(res |> snd |> List.toArray)
+    else
+      str
 
   /// C# compiler task
   let Csc settings =
 
     let resolveTarget (name:string) =
-      if name.EndsWith (".dll", System.StringComparison.OrdinalIgnoreCase) then "library" else
-      if name.EndsWith (".exe", System.StringComparison.OrdinalIgnoreCase) then "exe" else
-      "library"
+      if name.EndsWith (".dll", System.StringComparison.OrdinalIgnoreCase) then Library else
+      if name.EndsWith (".exe", System.StringComparison.OrdinalIgnoreCase) then Exe else
+      Library
     
-    let targetStr = function |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"| Auto -> resolveTarget settings.Out.Name
-    let platformStr = function |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
+    let rec targetStr = function
+      |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"
+      |Auto -> settings.Out.Name |> resolveTarget |> targetStr
+    let platformStr = function
+      |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
 
     let pfx = newProcPrefix()
 
@@ -126,10 +159,9 @@ module DotnetTasks =
 
       let csc_exe = Path.Combine(locateFwkAny(), "csc.exe")
 
-// for short args this is ok
-//      let commandLine = args |> escapeAndJoinArgs
+// for short args this is ok, otherwise use rsp file --  let commandLine = args |> escapeAndJoinArgs
       let rspFile = Path.GetTempFileName()
-      File.WriteAllLines(rspFile, args |> Seq.map escapeArg |> List.ofSeq)
+      File.WriteAllLines(rspFile, args |> Seq.map escapeArgument |> List.ofSeq)
       let commandLine = "@" + rspFile
 
       do log Level.Info "%s compiling '%s'" pfx settings.Out.Name
