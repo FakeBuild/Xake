@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="Lib1.fs" />
     <None Include="DosNameEscape.fsx" />
+    <None Include="Tasks.fsx" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\core\XakeLib.fsproj">
