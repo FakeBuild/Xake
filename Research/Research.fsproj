@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Research</RootNamespace>
     <AssemblyName>Research</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <Name>Research</Name>
     <TargetFrameworkProfile />
   </PropertyGroup>

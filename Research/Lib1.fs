@@ -45,7 +45,7 @@ module variant3 =
       rule ("*.res" *> fun x -> ())
       }
 
-module variant4 =
+module ``variant 4 - All together `` =
   open Lib1
   open Xake
 
@@ -98,11 +98,26 @@ module variant4 =
 
   do xake {XakeOptions with FileLog = "build.log" } {
 
-      want ["hello.exe"; "ppx.exe"]
+    want ["hello.exe"; "ppx.exe"]
 
-      rule ("*.c" *> fun x -> ())
-      rule ("*.cs" *> fun x -> ())
-      rule ("*.res" *> fun x -> ())
-      rule ("*.exe" *> fun x -> ())
-      }
+    rule ("*.c" *> fun x -> ())
+    rule ("*.cs" *> fun x -> ())
+    rule ("*.res" *> fun x -> ())
+    rule ("*.exe" *> fun x -> ())
+    }
 
+module variant5 =
+  open Lib1
+  let ( *> ) pattern (action: string -> unit) = makeFileRule pattern action
+
+  type RulesBuilder(options) =
+    member this.Yield(()) = Rules[]
+    [<CustomOperation("rule")>]   member this.Rule(rules, rule) = addRule rule rules
+
+  let rules = new RulesBuilder()    
+  
+//  let script = rules {
+//      // setOptions "aaa"
+//      //("*.cs" *> fun x -> ())
+//      //("*.res" *> fun x -> ())
+//      }

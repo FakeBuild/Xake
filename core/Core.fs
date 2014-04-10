@@ -4,69 +4,20 @@
 module Core =
 
   open System.IO
+  open System.Threading
   open System.Threading.Tasks
 
   open Xake
 
   // task pool
-  let MaxThreads = 5
-
-  type TaskPoolMessage =
-    | RunTask of Async<unit> * AsyncReplyChannel<Task<unit>>
-    | TaskComplete
-    | TaskSuspend of bool
-
-    // TODO resume with awaiting the pool is free
-
-  let taskPool = MailboxProcessor.Start(fun mbox ->
-    
-    let wrapTask a = async {
-      try
-        do! a
-      finally
-        mbox.Post TaskComplete
-    }
-
-    let rec loop x p =
-      //log Info "loop %A [%A]" x (List.length p)
-      if x >= MaxThreads || not (List.isEmpty p) then wait x p else run x p
-
-    and run taskCount pool = (async {
-      let! msg = mbox.Receive()
-      match msg with
-      | RunTask (task,chnl) ->
-        chnl.Reply(Async.StartAsTask (wrapTask task))
-        return! loop (taskCount + 1) pool
-      | TaskComplete ->
-        return! loop (taskCount - 1) pool
-      | TaskSuspend true ->
-        return! loop (taskCount - 1) pool
-      | TaskSuspend false ->
-        return! loop (taskCount + 1) pool
-    })
-    and wait taskCount pool = (async {
-      let! msg = mbox.Receive()
-      match msg with
-      | RunTask (task,chnl) ->
-        let t = new Task<unit> (fun() -> Async.RunSynchronously (wrapTask task))
-        chnl.Reply(t)
-        return! loop taskCount (pool @ [t]) // TODO use queue
-      | TaskComplete
-      | TaskSuspend true ->
-        match pool with
-        |t::ts -> 
-          t.Start()
-          return! loop taskCount ts
-        | [] ->
-          return! loop (taskCount-1) pool
-      | TaskSuspend false ->
-        return! loop (taskCount + 1) pool
-    })
-    loop 0 [] )
+  let MaxThreads = 2
 
   // execution context
   type ExecMessage =
     | Run of Artifact * BuildAction * AsyncReplyChannel<Async<unit>>
+
+  // controls how many threads are running in parallel
+  let private throttler = new SemaphoreSlim (MaxThreads)
 
   let actionPool = MailboxProcessor.Start(fun mbox ->
     let rec loop(map) = async {
@@ -80,8 +31,15 @@ module Core =
           return! loop(map)
 
         | None ->
-          log Verbose "Starting new task for '%s'" artifact.Name
-          let! task = taskPool.PostAndAsyncReply(fun chnl -> RunTask(action artifact, chnl))
+          do log Verbose "Starting new task for '%s'" artifact.Name
+          do! throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
+          
+          let task = Async.StartAsTask (async {
+            try
+              do! action artifact
+            finally
+              throttler.Release() |> ignore
+          })
           chnl.Reply(Async.AwaitTask task)
           return! loop(map |> Map.add artifact.FullName task)
     }
@@ -134,9 +92,10 @@ module Core =
 
   let exec = Seq.ofList >> Seq.map execOne >> Async.Parallel
   let need x = async {
-    do taskPool.Post (TaskSuspend true)
+
+    throttler.Release() |> ignore
     do! x |> (getFiles >> exec >> Async.Ignore)
-    do taskPool.Post (TaskSuspend false)
+    do! throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
     }
 
   /// Runs execution of all artifact rules in parallel
