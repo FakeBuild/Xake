@@ -210,7 +210,7 @@ module Fileset =
   let ( ~& ) path :Artifact = (System.IO.FileInfo path)
 
   // changes file extension
-  let (-<.>) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
+  let (-.) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
 
   // let matches filePattern projectRoot
   let matches filePattern rootPath =

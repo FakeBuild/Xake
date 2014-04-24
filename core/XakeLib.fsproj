@@ -50,6 +50,7 @@
     <Compile Include="Types.fs" />
     <Compile Include="Fileset.fs" />
     <Compile Include="Core.fs" />
+    <Compile Include="XakeScript.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="DotnetTasks.fs" />
     <None Include="Script.fsx" />
