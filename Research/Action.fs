@@ -1,46 +1,53 @@
 ﻿module Research.Action
 
+open System
+
 // expression type
-type Action<'a,'b> = 'a -> Async<'b>
+type Action<'a,'b> = Action of ('a -> Async<'b>)
 
-type ActionBuilder<'x>() =
-  let a = async
+let runAction (Action r) ctx = r ctx
+let returnF a = Action (fun _ -> async {return a})
+let bind m k =  Action (fun r -> runAction (k (runAction m r)) r)
   
-  member __.Zero() :Action<'x,_>    = fun _ -> a.Zero()
-  member __.Delay(f) :Action<'x,'b> = fun x -> f() x
-  member __.Return(c)               = fun _ -> a.Return(c)  
-  member __.Run(q) = q
+type ActionBuilder<'x>() =
+  //see for Reader monad https://github.com/fsprojects/fsharpx/blob/master/src/FSharpx.Core/ComputationExpressions/Monad.fs  
+  member this.Return(c) = returnF c
+  member this.Zero()    = returnF ()
+  member this.Delay(f)  = bind (returnF ()) f
 
-  member __.Bind(m, f):Action<'x,_> = fun x -> async {let! a = m in return! f a x}
-  member __.For(source, f) : Action<'x,'b> = fun x -> async {let! a = source x in return! f a x}
+  // monadic bind
+  member this.Bind(m, f) = bind m f
+  member this.Bind(m, f) = Action (fun x -> async {let! a = m in return! runAction (f a) x})
+  member this.For(Action s, f)  = Action (fun x -> async {let! a = s x in return! runAction (f a) x})
 
   [<CustomOperation("need")>]
-  member __.Need(s:Action<'x,'a>, targets: string list) :Action<'x,'a> =
-    fun x ->
-      let r = s x in
-      printfn "calling need with %A (%A)" targets x
-      async {
-        do! Async.Sleep 400
-        return! r
-      }
+  member this.Need(Action a,  targets: string list) =
+    Action (fun x ->
+      let r = a x
+      printfn "need(%A, [%A])" a targets
+      r)
+//    printfn "need(%A, [%A])" a targets
+//    Action a
 
-  member this.Yield(dd) =
-    printfn "yield %A" dd
+   //member this.Combine(r1, r2) = this.Bind(r1, fun _ -> r2)
+   member this.Yield(_) =
+    //printfn "yield"
     this.Zero()
-    //async {dd}
-
 let action = ActionBuilder<string>()
+
+/////////////////////////////////////////////////////////////
 
 let steps = fun filename -> action {
   let! a = async {return 123}
   let! c = async {return 3}
-
   printfn "after ac"
-  let d = a + c
-  let f:string = "fff"
 
-  printfn "before need %A" f
+  //let f = a+c
+
+  printfn "before need %A" "f"
   need ["def"; "dd"]
+
+  //let! d = async {return f}
 
   printfn "after need"
 
@@ -48,8 +55,42 @@ let steps = fun filename -> action {
 
   printfn "after sleep"
 }
-// let! a = fn()
-// let! b = fn2(a)
-// return b
 
-Async.RunSynchronously(steps "m.c" "abc")
+Async.RunSynchronously(runAction (steps "m.c") "abc")
+
+let stepsUnwrapped1 = fun fname ->
+  action.Bind(async {return 123}, fun a ->
+    action.Bind(async {return 3}, fun c ->
+      let f = a + c
+      action.Zero()
+    )
+  )
+
+
+let stepsUnwrapped = fun fname ->
+  action.Need(
+    action.Bind(async {return 123}, fun a ->
+    action.Bind(async {return 3}, fun c ->
+      let f = a + c
+      action.Zero()
+    ),
+    ["abc"]
+  )
+
+//    action.Bind(async {return 123}, fun a ->
+//      action.Bind(async {return 3}, fun c ->
+//        
+//          Action (fun _ ->
+//            let d = a + c
+//            printf "c = %A" d
+//            action.Bind(
+//              Async.Sleep(11), fun () ->
+//                action.Zero()
+//            )
+//          )
+//        ,["abc"]))
+//  ))
+
+
+Async.RunSynchronously(runAction (stepsUnwrapped "m.c") "abc")
+
