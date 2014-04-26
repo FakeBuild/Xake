@@ -7,7 +7,13 @@ type Action<'a,'b> = Action of ('a -> Async<'b>)
 
 let runAction (Action r) ctx = r ctx
 let returnF a = Action (fun _ -> async {return a})
-let bind m k =  Action (fun r -> runAction (k (runAction m r)) r)
+let bind m f = Action (fun r -> async {
+    let! a = runAction m r in return! runAction (f a) r
+    })
+
+let bindA ac f = Action (fun r -> async {
+    let! a = ac in return! runAction (f a) r
+    })
   
 type ActionBuilder<'x>() =
   //see for Reader monad https://github.com/fsprojects/fsharpx/blob/master/src/FSharpx.Core/ComputationExpressions/Monad.fs  
@@ -17,37 +23,51 @@ type ActionBuilder<'x>() =
 
   // monadic bind
   member this.Bind(m, f) = bind m f
-  member this.Bind(m, f) = Action (fun x -> async {let! a = m in return! runAction (f a) x})
-  member this.For(Action s, f)  = Action (fun x -> async {let! a = s x in return! runAction (f a) x})
-
-  [<CustomOperation("need")>]
-  member this.Need(Action a,  targets: string list) =
-    Action (fun x ->
-      let r = a x
-      printfn "need(%A, [%A])" a targets
-      r)
-//    printfn "need(%A, [%A])" a targets
-//    Action a
-
-   //member this.Combine(r1, r2) = this.Bind(r1, fun _ -> r2)
-   member this.Yield(_) =
-    //printfn "yield"
-    this.Zero()
+  member this.Bind(m, f) = bindA m f
+//  member this.For(Action s, f)  = Action (fun x -> async {let! a = s x in return! runAction (f a) x})
+//
+//  [<CustomOperation("need")>]
+//  member this.Need(Action a,  targets: string list) =
+//    Action (fun x ->
+//      let r = a x
+//      printfn "need(%A, [%A])" a targets
+//      r)
+////    printfn "need(%A, [%A])" a targets
+////    Action a
+//
+//   //member this.Combine(r1, r2) = this.Bind(r1, fun _ -> r2)
+//   member this.Yield(_) =
+//    //printfn "yield"
+//    this.Zero()
 let action = ActionBuilder<string>()
 
 /////////////////////////////////////////////////////////////
+
+let getCtx =
+  Action (fun ctx -> async {return ctx})
+
+
+let need targets =
+  Action (fun x ->
+    async {
+      //let! tt = targets
+      printfn "need([%A]) in %A" targets x
+    })
 
 let steps = fun filename -> action {
   let! a = async {return 123}
   let! c = async {return 3}
   printfn "after ac"
 
-  //let f = a+c
+  let f = a+c
 
-  printfn "before need %A" "f"
-  need ["def"; "dd"]
+  printfn "before need %A" f
+  do! need ["def"; "dd"]
 
-  //let! d = async {return f}
+  let! ctx = getCtx
+  printfn "ctx: %A" ctx
+
+  let! d = async {return f}
 
   printfn "after need"
 
