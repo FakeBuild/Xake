@@ -129,7 +129,7 @@ module DotnetTasks =
 
     let pfx = newProcPrefix()
 
-    async {
+    action {
       let src = settings.Src |> getFiles
       let refs = settings.Ref |> getFiles
       let ress = settings.Resources |> getFiles

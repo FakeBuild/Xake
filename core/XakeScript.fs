@@ -2,10 +2,9 @@
 
 [<AutoOpen>]
 module XakeScript =
+  open System.Threading
 
   type ArtifactMask = FilePattern of string
-  type Rule = Rule of ArtifactMask * BuildAction
-  type Rules = Rules of Map<ArtifactMask,BuildAction>
 
   type XakeOptionsType = {
     /// Defines project root folder
@@ -23,10 +22,20 @@ module XakeScript =
     Want: string list
   }
 
+  type ExecContext = {
+    TaskPool: MailboxProcessor<Core.ExecMessage>
+    Throttler: SemaphoreSlim
+    Options: XakeOptionsType
+    Rules: Rules
+  }
+  and BuAction = Artifact -> Action<ExecContext,unit>
+  and Rule = Rule of ArtifactMask * BuAction
+  and Rules = Rules of Map<ArtifactMask,BuAction>
+
   /// Main type.
   type XakeScript = XakeScript of XakeOptionsType * Rules
 
-  /// Defaulta options
+  /// Default options
   let XakeOptions = {
     ProjectRoot = System.IO.Directory.GetCurrentDirectory()
     Threads = 4
@@ -43,11 +52,8 @@ module XakeScript =
     let addRule (Rule (selector,action)) (Rules rules) :Rules =
       rules |> Map.add selector action |> Rules
 
-    let setOptions (options:string) :Rules =
-      Rules Map.empty // TODO implement
-
-    // locates the rule // TODO replace with XakeScript
-    let locateRule (rules:Map<ArtifactMask,BuildAction>) projectRoot (artifact:Artifact) : BuildAction option =
+    // locates the rule
+    let locateRule (Rules rules) projectRoot (artifact:Artifact) : BuAction option =
       let matchRule (FilePattern pattern) b = 
         match Fileset.matches pattern projectRoot artifact.FullName with
           | true ->
@@ -61,43 +67,54 @@ module XakeScript =
       | Some rule -> rule
       | None -> failwithf "Failed to locate file for '%s'" (fullname a)
 
-(* TODO
+  module private ExecScript =
 
-  // executes single artifact
-  let private execOne artifact =
-    match locateRule artifact with
-    | Some rule ->
-      async {
-        let! task = actionPool.PostAndAsyncReply(fun chnl -> Run(artifact, rule, chnl))
-        return! task
+    open Core
+
+    /// creates script execution context
+    let createContext (XakeScript (options,rules)) =
+      let (throttler, pool) = Core.createActionPool options.Threads
+      in
+      {
+        TaskPool = pool
+        Throttler = throttler
+        Options = options
+        Rules = rules
       }
-    | None ->
-      if not artifact.Exists then exitWithError 2 (sprintf "Neither rule nor file is found for '%s'" (fullname artifact)) ""
-      Async.FromContinuations (fun (cont,_,_) -> cont())
 
-  let exec = Seq.ofList >> Seq.map execOne >> Async.Parallel
-  let need x = async {
+    // executes single artifact
+    let private execOne ctx artifact =
+      match Impl.locateRule ctx.Rules ctx.Options.ProjectRoot artifact with
+      | Some rule ->
+        async {
+          let (Action r) = rule artifact
+          let! task = ctx.TaskPool.PostAndAsyncReply(fun chnl -> Run(artifact, r ctx, chnl))
+          return! task
+        }
+      | None ->
+        if not artifact.Exists then exitWithError 2 (sprintf "Neither rule nor file is found for '%s'" (fullname artifact)) ""
+        Async.FromContinuations (fun (cont,_,_) -> cont())
 
-    throttler.Release() |> ignore
-    do! x |> (getFiles >> exec >> Async.Ignore)
-    do! throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
-    }
+    /// Executes several artifacts in parallel
+    let exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
 
-  /// Runs execution of all artifact rules in parallel
-  let run targets =
-    try
-      targets |>
-        (List.map (~&) >> exec >> Async.RunSynchronously >> ignore)
-    with 
-      | :? System.AggregateException as a ->
-        let errors = a.InnerExceptions |> Seq.map (fun e -> e.Message) |> Seq.toArray
-        exitWithError 255 (a.Message + "\n" + System.String.Join("\r\n      ", errors)) a
-      | exn -> exitWithError 255 exn.Message exn
+    /// Executes and awaits specified artifacts
+    let need ctx fileset = async {
+        ctx.Throttler.Release() |> ignore
+        do! fileset |> (getFiles >> exec ctx >> Async.Ignore)
+        do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
+      }
 
-
-  let rule = async
-
-*)
+    /// Runs execution of all artifact rules in parallel
+    let run ctx targets =
+      try
+        targets |>
+          (List.map (~&) >> exec ctx >> Async.RunSynchronously >> ignore)
+      with 
+        | :? System.AggregateException as a ->
+          let errors = a.InnerExceptions |> Seq.map (fun e -> e.Message) |> Seq.toArray
+          exitWithError 255 (a.Message + "\n" + System.String.Join("\r\n      ", errors)) a
+        | exn -> exitWithError 255 exn.Message exn
 
   /// Creates the rule for specified file pattern.  
   let ( *> ) pattern action =
@@ -106,15 +123,22 @@ module XakeScript =
   /// Script builder.
   type RulesBuilder(options) =
     member o.Bind(x,f) = f x
+    member o.For(s,f) = for i in s do f i
     member o.Zero() = XakeScript (options, Rules Map.empty)
 
-    member this.Yield(()) = XakeScript (options, Rules Map.empty)
-    member this.Run(XakeScript (options,rules)) =
+    member this.Run(script) =
+
+      let (XakeScript (options,rules)) = script
+      let ctx = ExecScript.createContext script
+      
+      let start = System.DateTime.Now
       printfn "running"
       printfn "Options: %A" options 
-      printfn "Rules: %A" rules
 
-      // TODO run options.Want
+      // TODO implement run above, no need in multiple exposed functions
+      ExecScript.run ctx options.Want
+
+      printfn "\nBuild completed in %A" (System.DateTime.Now - start)
       ()
 
     [<CustomOperation("rule")>]   member this.Rule(XakeScript (options,rules), rule) = XakeScript (options, Impl.addRule rule rules)
@@ -129,3 +153,10 @@ module XakeScript =
             }, rules)
 
   let xake options = new RulesBuilder(options)
+
+  /// key function implementation
+  let need targets = action {
+    let! ctx = getCtx
+    // printfn "need([%A]) in %A" targets ctx
+    do! (ExecScript.need ctx targets)
+  }
