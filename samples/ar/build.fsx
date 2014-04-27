@@ -3,12 +3,11 @@
 //#r @"..\..\bin\Xake.Core.dll"
 #r @"\projects\Mine\xake\bin\Xake.Core.dll"
 open Xake
-open System.IO
 
 ////// utility methods
 let ardll name = "out\\GrapeCity.ActiveReports." + name + ".v9.dll"
 let arexe name = "out\\GrapeCity.ActiveReports." + name + ".v9.exe"
-let ardep = List.map (ardll >> toFileinfo) >> FileList
+let ardep = List.fold (fun fs f -> fs + (ardll f)) Fileset.Empty
 
 let commonSrcFiles = fileset {
   includes "CommonAssemblyInfo.cs"
@@ -17,21 +16,21 @@ let commonSrcFiles = fileset {
   includes "CommonFiles/SmartAssembly.Attributes.cs"
   }
 
-// TODO consider making filesets
+// "External" libraries
 module libs =
-  let nunit    = FileInfo "Tools/NUnit/nunit.framework.dll"
-  let xmldiff  = FileInfo "Tools/XmlDiff/XmlDiffPatch.dll"
-  let moq      = FileInfo "Tools/Moq.3.1/moq.dll"
-  let moqseq   = FileInfo "Tools/Moq.3.1/moq.sequences.dll"
-  let iTextSharp=FileInfo "ExternalLibs/iTextSharp/build/iTextSharp.dll"
-  let OpenXml  = FileInfo "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
-  let qwhale   = FileInfo "ExternalLibs\QwhaleEditor\Qwhale.All.dll"
+  let nunit    = !! "Tools/NUnit/nunit.framework.dll"
+  let xmldiff  = !! "Tools/XmlDiff/XmlDiffPatch.dll"
+  let moq      = !! "Tools/Moq.3.1/moq.dll"
+  let moqseq    = !! "Tools/Moq.3.1/moq.sequences.dll"
+  let iTextSharp= !! "ExternalLibs/iTextSharp/build/iTextSharp.dll"
+  let OpenXml   = !! "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
+  let qwhale    = !! "ExternalLibs\QwhaleEditor\Qwhale.All.dll"
 
-let dlls = ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart"; "Document"; "Core"; (* "Core1"; "Core2"; "Core3"; *) "OracleClient"; "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "Viewer.Win" ]
+let dlls = List.map ardll <| ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart"; "Document"; "Core"; (* "Core1"; "Core2"; "Core3"; *) "OracleClient"; "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "Viewer.Win" ]
 
 do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
 
-  want ((dlls |> List.map ardll) @ [arexe "Viewer"])
+  want (dlls @ [arexe "Viewer"])
 
   rules [
     ardll "Extensibility" *> fun outname -> action {
@@ -46,7 +45,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         CscSettings with
           Out = outname
           Src = sources
-          Ref = FileList [libs.nunit]
+          Ref = libs.nunit
       }
       }
   
@@ -56,7 +55,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         CscSettings with
           Out = outname
           Src = !!"Diagnostics/**/*.cs" + commonSrcFiles
-          Ref = FileList [libs.nunit]
+          Ref = libs.nunit
           }
       }
 
@@ -66,7 +65,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         CscSettings with
           Out = outname
           Src = !! "Testing/Testing.Tools/**/*.cs" + commonSrcFiles
-          Ref = FileList [libs.nunit; libs.xmldiff; FileInfo (ardll "Extensibility")]
+          Ref = libs.nunit + libs.xmldiff + !! (ardll "Extensibility")
           }
       }
 
@@ -76,7 +75,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         out outname
         define ["ARNET"]
         src (!! "SL/ARChart/**/*.cs" + commonSrcFiles)
-        refs (FileList [libs.nunit])    
+        refs libs.nunit
       })
       }
 
@@ -86,7 +85,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
           Target = Library
           Out = outname
           Src = ls "Reports/OracleClient/**/*.cs" + commonSrcFiles
-          Ref = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"])
+          Ref = libs.nunit + libs.moq + ardep ["Extensibility"; "Core"]
           RefGlobal = ["System.Data.OracleClient.dll"]
           }
       }
@@ -99,7 +98,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
           Src = ls "RDFExport/**/*.cs"
             + "Reports/ReportsCore/Rendering/CumulativeTotalsHelper.cs"
             + commonSrcFiles
-          Ref = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"])
+          Ref = libs.nunit + libs.moq + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"]
           }
       }
 
@@ -116,8 +115,8 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
             includes "SL/Document/Document/LayoutUtils.cs"
             join commonSrcFiles
             }
-          Ref = FileList [libs.nunit; libs.moq; libs.moqseq]
-            + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "RdfExport"])
+          Ref = libs.nunit + libs.moq + libs.moqseq
+            + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "RdfExport"]
           }
       }
 
@@ -142,8 +141,8 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
             includes "SL/Exports/PageRangeParser.cs"
             join commonSrcFiles
             }
-          Ref = FileList [libs.nunit; libs.moq]
-            + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "Image.Unsafe"; "RdfExport"])
+          Ref = libs.nunit + libs.moq
+            + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "Image.Unsafe"; "RdfExport"]
           }
       }
 
@@ -159,8 +158,8 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
             includes "UnifiedViewer/WinForms/**/*.cs"
             join commonSrcFiles
             }
-          Ref = FileList [libs.nunit; libs.moq]
-            + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "ImageExport"])
+          Ref = libs.nunit + libs.moq
+            + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "ImageExport"]
         }
       }
 
@@ -169,8 +168,8 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         CscSettings with
           Out = outname
           Src = ls "WinViewer/**/*.cs" + "Designer/Export/*.cs" + commonSrcFiles
-          Ref = FileList [libs.nunit; libs.moq]
-            + (ardep ["Extensibility"; "Document"; "Chart"; "Core"; "ImageExport"; "RdfExport"; "Viewer.Win"])
+          Ref = libs.nunit + libs.moq
+            + ardep ["Extensibility"; "Document"; "Chart"; "Core"; "ImageExport"; "RdfExport"; "Viewer.Win"]
           }
       }
     ]
@@ -199,7 +198,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         Out = outname
         Define = ["ARVIEWER_BUILD"]
         Src = src + commonSrcFiles
-        Ref = FileList [libs.nunit] + (ardep ["Extensibility"; "Testing.Tools"])
+        Ref = libs.nunit + ardep ["Extensibility"; "Testing.Tools"]
         }
   })
 
@@ -235,7 +234,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         Out = outname
         Define = ["DATAMANAGER_HOST_IS_STRYKER"]
         Src = src
-        Ref = FileList [libs.nunit] + (ardep ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Document"; "Chart"])
+        Ref = libs.nunit + ardep ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Document"; "Chart"]
         RefGlobal = ["Microsoft.VisualBasic.dll"]
         }
   })

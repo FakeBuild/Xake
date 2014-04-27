@@ -1,14 +1,18 @@
 ﻿## TODO
-  * CSC resources
-  * MSBuild task
-  * command-line tool
+  * clean (phony actions)
   * multiple outputs
   * условное правило (функция вместо маски)
   * incremental builds
-  * clean
+  * complete abstraction over artifact (do not use fileinfo, resolve files when started using project dir)
   * rules versioning
   * ресурсы (CPU и пр.) для управления очередностью
   * ...
+
+## Tasks TODO
+  * command-line tool
+  * CSC resources
+  * MSBuild task
+
 
 ## In progress
   * диагностика и лог (детально в файл, кратко на экран)

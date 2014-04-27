@@ -32,7 +32,9 @@ module Fileset =
 
   /// Default fileset options
   let DefaultOptions = {FilesetOptions.BaseDir = None; FailOnError = false}
-  let Empty : FilesetType = FileList []
+  
+  let Empty = Fileset (DefaultOptions,[])
+  let EmptyList = FileList []
 
   /// Implementation module
   module internal Impl =
@@ -256,8 +258,6 @@ module Fileset =
   (******** builder ********)
   type FilesetBuilder() =
 
-    let empty = Fileset (DefaultOptions, [])
-
     [<CustomOperation("basedir")>]
     member this.Basedir(fs,dir) = fs |> changeBasedir dir
 
@@ -282,8 +282,8 @@ module Fileset =
     [<CustomOperation("excludefile")>]
     member this.ExcludeFile(fs,file)  = fs |> combineWithFile (parseFileMask >> Excludes) file
 
-    member this.Yield(())  = empty
-    member this.Return(pattern:FilePattern) = empty ++ pattern
+    member this.Yield(())  = Empty
+    member this.Return(pattern:FilePattern) = Empty ++ pattern
 
     member this.Combine(fs1, fs2) = fs1 |> Impl.combineFilesetWith fs2
     member this.Delay(f) = f()
