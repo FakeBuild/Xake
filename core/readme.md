@@ -1,13 +1,13 @@
 ﻿## TODO
-  * параметризация сценария, сценарий как объект (main + rules)
-  * ---
-  * ресурсы (CPU и пр.) для управления очередностью
+  * CSC resources
+  * MSBuild task
+  * command-line tool
   * multiple outputs
   * условное правило (функция вместо маски)
   * incremental builds
   * clean
   * rules versioning
-  * xake exec parameters (number of threads, log file, verbosity)
+  * ресурсы (CPU и пр.) для управления очередностью
   * ...
 
 ## In progress
@@ -23,6 +23,9 @@
  * матчинг имен артефактов/файлов + каталоги
  * parameterized filesets (оператор для условной конкатенации списков ["a.cs"] &? debug ["debug.cs"])
  * два вида fileset - правила и вычисленный список
+ * CPU affinity as a script option
+ * xake exec parameters (number of threads, log file, verbosity)
+ * параметризация сценария, сценарий как объект (main + rules)
 
 ## Thoughts
  * артефакты: файлы + виртуальные артефакты. Со вторыми проблемы:

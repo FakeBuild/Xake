@@ -4,8 +4,6 @@
 module XakeScript =
   open System.Threading
 
-  type ArtifactMask = FilePattern of string
-
   type XakeOptionsType = {
     /// Defines project root folder
     ProjectRoot : string
@@ -22,18 +20,20 @@ module XakeScript =
     Want: string list
   }
 
+  type ArtifactMask = FilePattern of string
+  type BuildAction<'ctx> = Artifact -> Action<'ctx,unit>
+  type Rule<'ctx> = Rule of ArtifactMask * BuildAction<'ctx>
+  type Rules<'ctx> = Rules of Map<ArtifactMask,BuildAction<'ctx>>
+
   type ExecContext = {
-    TaskPool: MailboxProcessor<Core.ExecMessage>
+    TaskPool: MailboxProcessor<WorkerPool.ExecMessage>
     Throttler: SemaphoreSlim
     Options: XakeOptionsType
-    Rules: Rules
+    Rules: Rules<ExecContext>
   }
-  and BuAction = Artifact -> Action<ExecContext,unit>
-  and Rule = Rule of ArtifactMask * BuAction
-  and Rules = Rules of Map<ArtifactMask,BuAction>
 
   /// Main type.
-  type XakeScript = XakeScript of XakeOptionsType * Rules
+  type XakeScript = XakeScript of XakeOptionsType * Rules<ExecContext>
 
   /// Default options
   let XakeOptions = {
@@ -47,44 +47,26 @@ module XakeScript =
     }
 
   module private Impl =
+    open WorkerPool
+
     let makeFileRule pattern action = Rule ((FilePattern pattern), action)
 
-    let addRule (Rule (selector,action)) (Rules rules) :Rules =
+    let addRule (Rule (selector,action)) (Rules rules) :Rules<_> =
       rules |> Map.add selector action |> Rules
 
     // locates the rule
-    let locateRule (Rules rules) projectRoot (artifact:Artifact) : BuAction option =
+    let private locateRule (Rules rules) projectRoot (artifact:Artifact) : BuildAction<_> option =
       let matchRule (FilePattern pattern) b = 
         match Fileset.matches pattern projectRoot artifact.FullName with
           | true ->
-            log Verbose "Found pattern '%s' for %s" pattern artifact.Name
+            Logging.log Verbose "Found pattern '%s' for %s" pattern artifact.Name
             Some (b)
           | false -> None
       rules |> Map.tryPick matchRule
 
-    let locateRuleOrDie r p a =
-      match locateRule r p a with
-      | Some rule -> rule
-      | None -> failwithf "Failed to locate file for '%s'" (fullname a)
-
-  module private ExecScript =
-
-    open Core
-
-    /// creates script execution context
-    let createContext (XakeScript (options,rules)) =
-      let (throttler, pool) = Core.createActionPool options.Threads
-      in
-      {
-        TaskPool = pool
-        Throttler = throttler
-        Options = options
-        Rules = rules
-      }
-
     // executes single artifact
     let private execOne ctx artifact =
-      match Impl.locateRule ctx.Rules ctx.Options.ProjectRoot artifact with
+      match locateRule ctx.Rules ctx.Options.ProjectRoot artifact with
       | Some rule ->
         async {
           let (Action r) = rule artifact
@@ -96,67 +78,62 @@ module XakeScript =
         Async.FromContinuations (fun (cont,_,_) -> cont())
 
     /// Executes several artifacts in parallel
-    let exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
+    let private exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
 
     /// Executes and awaits specified artifacts
-    let need ctx fileset = async {
+    let need fileset = action {
+        let! ctx = getCtx
         ctx.Throttler.Release() |> ignore
         do! fileset |> (getFiles >> exec ctx >> Async.Ignore)
         do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
       }
 
-    /// Runs execution of all artifact rules in parallel
-    let run ctx targets =
+    /// Executes the build script
+    let run script =
+
+      let (XakeScript (options,rules)) = script
+      let (throttler, pool) = WorkerPool.create options.Threads
+      let ctx = {TaskPool = pool; Throttler = throttler; Options = options; Rules = rules}
+
       try
-        targets |>
-          (List.map (~&) >> exec ctx >> Async.RunSynchronously >> ignore)
+        options.Want |> (List.map (~&) >> exec ctx >> Async.RunSynchronously >> ignore)
       with 
         | :? System.AggregateException as a ->
           let errors = a.InnerExceptions |> Seq.map (fun e -> e.Message) |> Seq.toArray
           exitWithError 255 (a.Message + "\n" + System.String.Join("\r\n      ", errors)) a
         | exn -> exitWithError 255 exn.Message exn
 
-  /// Creates the rule for specified file pattern.  
-  let ( *> ) pattern action =
-    Impl.makeFileRule pattern action
-
   /// Script builder.
   type RulesBuilder(options) =
+
+    let updRules (XakeScript (options,rules)) f = XakeScript (options, f(rules))
+    let updTargets (XakeScript (options,rules)) f = XakeScript ({options with Want = f(options.Want)}, rules)
+
     member o.Bind(x,f) = f x
-    member o.For(s,f) = for i in s do f i
     member o.Zero() = XakeScript (options, Rules Map.empty)
+    member o.Yield(())  = o.Zero()
 
     member this.Run(script) =
 
-      let (XakeScript (options,rules)) = script
-      let ctx = ExecScript.createContext script
-      
       let start = System.DateTime.Now
-      printfn "running"
-      printfn "Options: %A" options 
-
-      // TODO implement run above, no need in multiple exposed functions
-      ExecScript.run ctx options.Want
-
+      printfn "Options: %A" options
+      Impl.run script
       printfn "\nBuild completed in %A" (System.DateTime.Now - start)
       ()
 
-    [<CustomOperation("rule")>]   member this.Rule(XakeScript (options,rules), rule) = XakeScript (options, Impl.addRule rule rules)
-    [<CustomOperation("want")>]
-    member this.Want(XakeScript (options,rules), targets) =
-      XakeScript (
-        {options with
-          Want =
-            match options.Want with
-            | [] -> targets
-            | _ as o -> o
-            }, rules)
+    [<CustomOperation("rule")>] member this.Rule(script, rule)                  = updRules script (Impl.addRule rule)
+    [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action) = updRules script (Impl.makeFileRule pattern action |> Impl.addRule)
+    [<CustomOperation("rules")>] member this.Rules(script, rules)     = (rules |> List.map Impl.addRule |> List.fold (>>) id) |> updRules script
 
+    [<CustomOperation("want")>] member this.Want(script, targets)                = updTargets script ((@) targets)
+    [<CustomOperation("wantOverride")>] member this.WantOverride(script,targets) = updTargets script (fun _ -> targets)
+
+  /// creates xake build script
   let xake options = new RulesBuilder(options)
 
   /// key function implementation
-  let need targets = action {
-    let! ctx = getCtx
-    // printfn "need([%A]) in %A" targets ctx
-    do! (ExecScript.need ctx targets)
-  }
+  let need = Impl.need
+
+  /// Creates the rule for specified file pattern.  
+  let ( *> ) pattern action =
+    Impl.makeFileRule pattern action

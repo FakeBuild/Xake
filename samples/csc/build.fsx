@@ -9,8 +9,6 @@ open System
 
 do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
 
-  let a = 1
-
   want ([1..20] |> List.map (sprintf "a%i.exe"))
   //want ["a1.exe"; "a2.exe"; "a3.exe"; "a4.exe"; "a5.exe"; "a6.exe"; "a7.exe"]
 
@@ -22,7 +20,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         Src = FileList [&"a.cs"]}
   })
 
-  rule("*.exe" *> fun exe -> action {
+  addRule "*.exe" (fun exe -> action {
 
     do log Level.Info "Building %s" (fullname exe)
     //do! Async.Sleep(Random().Next(1500, 2500)) // simulate long operation

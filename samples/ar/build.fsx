@@ -32,51 +32,121 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
 
   want ((dlls |> List.map ardll) @ [arexe "Viewer"])
 
-  rule (ardll "Extensibility" *> fun outname -> action {
+  rules [
+    ardll "Extensibility" *> fun outname -> action {
 
-    let sources = fileset {
-      includes "Extensibility/**/*.cs"
-      includes "SL/CommonFiles/SafeGraphics.cs"
-      join commonSrcFiles
-    }
+      let sources = fileset {
+        includes "Extensibility/**/*.cs"
+        includes "SL/CommonFiles/SafeGraphics.cs"
+        join commonSrcFiles
+      }
 
-    do! Csc {
-      CscSettings with
-        Out = outname
-        Src = sources
-        Ref = FileList [libs.nunit]
-    }
-  })
+      do! Csc {
+        CscSettings with
+          Out = outname
+          Src = sources
+          Ref = FileList [libs.nunit]
+      }
+      }
+  
+    ardll "Diagnostics" *> fun outname -> action {
 
-  rule (ardll "Diagnostics" *> fun outname -> action {
+      do! Csc {
+        CscSettings with
+          Out = outname
+          Src = !!"Diagnostics/**/*.cs" + commonSrcFiles
+          Ref = FileList [libs.nunit]
+          }
+      }
 
-    do! Csc {
-      CscSettings with
-        Out = outname
-        Src = !!"Diagnostics/**/*.cs" + commonSrcFiles
-        Ref = FileList [libs.nunit]
-        }
-  })
+    ardll "Testing.Tools" *> fun outname -> action {
 
-  rule (ardll "Testing.Tools" *> fun outname -> action {
+      do! Csc {
+        CscSettings with
+          Out = outname
+          Src = !! "Testing/Testing.Tools/**/*.cs" + commonSrcFiles
+          Ref = FileList [libs.nunit; libs.xmldiff; &ardll "Extensibility"]
+          }
+      }
 
-    do! Csc {
-      CscSettings with
-        Out = outname
-        Src = !! "Testing/Testing.Tools/**/*.cs" + commonSrcFiles
-        Ref = FileList [libs.nunit; libs.xmldiff; &ardll "Extensibility"]
-        }
-  })
+    ardll("Chart") *> fun outname -> action {
+      (* example of simplified syntax*)
+      do! (csc {
+        out outname
+        define ["ARNET"]
+        src (!! "SL/ARChart/**/*.cs" + commonSrcFiles)
+        refs (FileList [libs.nunit])    
+      })
+      }
 
-  rule (ardll("Chart") *> fun outname -> action {
-    (* example of simplified syntax*)
-    do! (csc {
-      out outname
-      define ["ARNET"]
-      src (!! "SL/ARChart/**/*.cs" + commonSrcFiles)
-      refs (FileList [libs.nunit])    
-    })
-  })
+    ardll("OracleClient") *> fun outname -> action {
+      do! Csc {
+        CscSettings with
+          Target = Library
+          Out = outname
+          Src = ls "Reports/OracleClient/**/*.cs" + commonSrcFiles
+          Ref = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"])
+          RefGlobal = ["System.Data.OracleClient.dll"]
+          }
+      }
+
+    ardll("RdfExport") *> fun outname -> action {
+      do! Csc {
+        CscSettings with
+          Target = Library
+          Out = outname
+          Src = ls "RDFExport/**/*.cs"
+            + "Reports/ReportsCore/Rendering/CumulativeTotalsHelper.cs"
+            + commonSrcFiles
+          Ref = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"])
+          }
+      }
+
+    ardll("XmlExport") *> fun outname -> action {
+      do! Csc {
+        CscSettings with
+          Target = Library
+          Out = outname
+          Src = fileset {
+            includes "XmlExport/**/*.cs"
+            includes "SL/CommonFiles/SafeGraphics.cs"
+            includes "SL/Exports/*.cs"
+            includes "SL/DDLib.Net/Shared/*.cs"
+            includes "SL/Document/Document/LayoutUtils.cs"
+            join commonSrcFiles
+            }
+          Ref = FileList [libs.nunit; libs.moq; libs.moqseq]
+            + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "RdfExport"])
+          }
+      }
+
+    ardll("Image.Unsafe") *> fun outname -> action {
+      do! Csc {
+        CscSettings with
+          Target = Library
+          Unsafe = true
+          Out = outname
+          Src = ls "SL/DDLib.Net/Drawing/MonochromeBitmapTool.cs" + commonSrcFiles
+          }
+      }
+
+    ardll("ImageExport") *> fun outname -> action {
+      do! Csc {
+        CscSettings with
+          Out = outname
+          Src = fileset {
+            includes "ImageExport/**/*.cs"
+            includes "Reports/ReportsCore/Rendering/Tools/Text/FontDescriptor.cs"
+            includes "Reports/ReportsCore/Rendering/Tools/Cache/Services.cs"
+            includes "SL/Exports/PageRangeParser.cs"
+            join commonSrcFiles
+            }
+          Ref = FileList [libs.nunit; libs.moq]
+            + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "Image.Unsafe"; "RdfExport"])
+          }
+      }
+
+    ]
 
   rule (ardll("Document") *> fun outname -> action {
 
@@ -142,77 +212,6 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         RefGlobal = ["Microsoft.VisualBasic.dll"]
         }
   })
-
-  rule (ardll("OracleClient") *> fun outname -> action {
-    do! Csc {
-      CscSettings with
-        Target = Library
-        Out = outname
-        Src = ls "Reports/OracleClient/**/*.cs" + commonSrcFiles
-        Ref = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"])
-        RefGlobal = ["System.Data.OracleClient.dll"]
-        }
-  })
-
-
-  rule (ardll("RdfExport") *> fun outname -> action {
-    do! Csc {
-      CscSettings with
-        Target = Library
-        Out = outname
-        Src = ls "RDFExport/**/*.cs"
-          + "Reports/ReportsCore/Rendering/CumulativeTotalsHelper.cs"
-          + commonSrcFiles
-        Ref = FileList [libs.nunit; libs.moq] + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"])
-        }
-  })
-
-
-  rule (ardll("XmlExport") *> fun outname -> action {
-    do! Csc {
-      CscSettings with
-        Target = Library
-        Out = outname
-        Src = fileset {
-          includes "XmlExport/**/*.cs"
-          includes "SL/CommonFiles/SafeGraphics.cs"
-          includes "SL/Exports/*.cs"
-          includes "SL/DDLib.Net/Shared/*.cs"
-          includes "SL/Document/Document/LayoutUtils.cs"
-          join commonSrcFiles
-          }
-        Ref = FileList [libs.nunit; libs.moq; libs.moqseq]
-          + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "RdfExport"])
-        }
-  })
-
-
-  rule (ardll("Image.Unsafe") *> fun outname -> action {
-    do! Csc {
-      CscSettings with
-        Target = Library
-        Unsafe = true
-        Out = outname
-        Src = ls "SL/DDLib.Net/Drawing/MonochromeBitmapTool.cs" + commonSrcFiles
-        }
-  })
-
-  rule (ardll("ImageExport") *> fun outname -> action {
-    do! Csc {
-      CscSettings with
-        Out = outname
-        Src = fileset {
-          includes "ImageExport/**/*.cs"
-          includes "Reports/ReportsCore/Rendering/Tools/Text/FontDescriptor.cs"
-          includes "Reports/ReportsCore/Rendering/Tools/Cache/Services.cs"
-          includes "SL/Exports/PageRangeParser.cs"
-          join commonSrcFiles
-          }
-        Ref = FileList [libs.nunit; libs.moq]
-          + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "Image.Unsafe"; "RdfExport"])
-        }
-  })
-
 
   rule (ardll("Viewer.Win") *> fun outname -> action {
     do! Csc {

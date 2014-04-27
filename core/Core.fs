@@ -36,7 +36,7 @@ module Action =
 
   let action = ActionBuilder()
 
-module Core =
+module WorkerPool =
 
   open System.IO
   open System.Threading
@@ -48,7 +48,7 @@ module Core =
   type ExecMessage =
     | Run of Artifact * Async<unit> * AsyncReplyChannel<Async<unit>>
 
-  let createActionPool maxThreads =
+  let create maxThreads =
     // controls how many threads are running in parallel
     let throttler = new SemaphoreSlim (maxThreads)
 

@@ -37,6 +37,7 @@ module variant3 =
   type RulesBuilder(options) =
     member this.Yield(()) = Rules[]
     [<CustomOperation("rule")>]   member this.Rule(rules, rule) = addRule rule rules
+    [<CustomOperation("addrule")>]   member this.AddRule(rules, pattern, action) = rules |> addRule (makeFileRule pattern action)
 
   let rules = new RulesBuilder()    
   
@@ -44,7 +45,8 @@ module variant3 =
       // setOptions "aaa"
       rule (makeFileRule "*.c" (fun x -> async{()}))
       rule ("*.cs" *> fun x -> async{()})
-      rule ("*.res" *> fun x -> async{()})
+      //"*.cs" *> fun x -> async{()}
+      addrule "*.res" (fun x -> async{()})
       }
 
 module ``variant 4 - All together `` =
@@ -169,12 +171,19 @@ module variant5 =
   type RulesBuilder(options) =
     member this.Yield(()) = Rules[]
     member this.YieldFrom(x) = x
+    member this.For(Rules s,f) = Rules (s @ [f])
+
     [<CustomOperation("rule")>]   member this.Rule(rules, rule) = addRule rule rules
+    [<CustomOperation("rules")>]   member this.Rules(Rules rules, moreRules) = Rules (rules @ moreRules)
 
   let rules = new RulesBuilder()    
   
-//  let script = rules {
-//      // setOptions "aaa"
-//      ("*.cs" *> fun x -> ())
-//      ("*.res" *> fun x -> ())
-//      }
+  let script = rules {
+      // setOptions "aaa"
+      //("*.cs" *> fun x -> ())
+
+      rules [
+        ("*.res" *> fun x -> ())
+        ("*.res" *> fun x -> ())
+      ]
+      }

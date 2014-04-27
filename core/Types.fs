@@ -4,4 +4,4 @@
 module DomainTypes =
 
   type Artifact = System.IO.FileInfo 
-  type BuildAction = BuildAction of (Artifact -> Async<unit>)
+  // TODO have no idea where to put this type and related methods (see fileset.fs) to
