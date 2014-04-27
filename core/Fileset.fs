@@ -25,12 +25,10 @@ module Fileset =
 
   type FilesetOptions = {FailOnError:bool; BaseDir:string option}
 
-  // Fileset is a set of rules
+  // Fileset is either set of rules or list of files (materialized)
   type FilesetType =
     | Fileset of FilesetOptions * FilesetElement list
     | FileList of FileInfo list
-
-    // TODO better name for both options: FileNames, FilesetRules, FilesetPattern
 
   /// Default fileset options
   let DefaultOptions = {FilesetOptions.BaseDir = None; FailOnError = false}
@@ -79,13 +77,12 @@ module Fileset =
       
     /// Recursively applied the pattern rules to every item is start list
     let listFiles =
+      let scanall dir = Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
       let applyPart (paths:#seq<string>) = function
       | Disk d          -> seq {yield d + "\\"}
       | FsRoot          -> paths |> Seq.map Directory.GetDirectoryRoot
       | Parent          -> paths |> Seq.map (Directory.GetParent >> fullname)
-      | Recurse         ->
-            paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories))
-            |> Seq.append paths
+      | Recurse         -> paths |> Seq.collect scanall |> Seq.append paths
       | DirectoryMask m -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, m, SearchOption.TopDirectoryOnly))
       | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> Seq.filter Directory.Exists
       | FileMask mask   -> paths |> Seq.collect (fun dir -> Directory.EnumerateFiles(dir, mask))
@@ -137,18 +134,15 @@ module Fileset =
       let (Pattern fileParts) = parseFileMask file
       matchPathsImpl mask fileParts
 
+    let private ifNone v2 = function | None -> v2 | Some v -> v
+
     /// Draft implementation of fileset execute
     /// "Materializes fileset to a filelist
-    let scan = function
-      | FileList list as ff -> ff
+    let scan root = function
+      | FileList _ as list -> list
       | Fileset (options,filesetItems) ->
-        let startDir =
-          match options.BaseDir with
-          | None -> Directory.GetCurrentDirectory()   // TODO use project root
-          | Some path -> path
-
+        let startDir = options.BaseDir |> ifNone root
         // TODO check performance, build function
-
         let includes (Pattern pat) src = listFiles [startDir] pat |> Seq.append src
         let excludes pat src =
           let matchFile = matchesPattern (joinPattern (startDir |> parseDir) pat) in
@@ -159,7 +153,6 @@ module Fileset =
           | Excludes pat -> excludes pat i
 
         filesetItems |> Seq.ofList |> Seq.fold folditem Seq.empty<string> |> Seq.map (fun f -> FileInfo f) |> List.ofSeq |> FileList
-
 
     // combines two fileset options
     let combineOptions (o1:FilesetOptions) (o2:FilesetOptions) =
@@ -176,8 +169,7 @@ module Fileset =
       match f1,f2 with
       | (Fileset (o2, set2)),(Fileset (o1,set1)) -> Fileset(combineOptions o1 o2, set1 @ set2)
       | FileList list1, FileList list2 -> FileList (list1 @ list2)
-      | FileList _, _ -> combineWith f1 (scan f2)
-      | _, FileList _ -> combineWith (scan f1) f2
+      | FileList _, _ | _, FileList _ -> failwith "Cannot combine list and fileset(not implemented)" //combineWith (scan f1) f2
 
     /// More strict analog of combineWith, important to combine includes excludes
     let combineFilesetWith (Fileset (o2, set2)) (Fileset (o1,set1)) = Fileset(combineOptions o1 o2, set1 @ set2)
@@ -195,7 +187,7 @@ module Fileset =
 
   open Impl
 
-  // lists the files
+  // creates a new fileset with default options
   let ls (filePattern:FilePattern) : FilesetType =
     Fileset (DefaultOptions, [filePattern |> parseFileMask |> Includes])
 
@@ -204,11 +196,23 @@ module Fileset =
 
   // TODO move Artifact stuff out of here
   /// Gets the artifact file name
-  let fullname (file:Artifact) = file.FullName
+  let getFullname = function
+    | FileArtifact file -> file.FullName
 
-  // gets an rule for file
-  let ( ~& ) path :Artifact = (System.IO.FileInfo path)
+  // Gets the short artifact name
+  let getShortname = function
+    | FileArtifact file -> file.Name
 
+  // Gets whether artifact exists
+  let exists = function
+    | FileArtifact file -> file.Exists
+
+  // Gets whether artifact exists
+  let toFileinfo file = FileInfo file
+
+  // Gets whether artifact exists
+  let toArtifact = toFileinfo >> FileArtifact
+  
   // changes file extension
   let (-.) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
 
@@ -221,14 +225,15 @@ module Fileset =
     Impl.matchesPattern <| joinPattern (rootPath |> parseDir) (filePattern |> parseFileMask)
       
   /// "Materializes fileset to a filelist
-  let rec getFiles = function
-    | FileList list -> list
-    | _ as fileset -> Impl.scan fileset |> getFiles
+  let rec toFileList root fs =
+    let (FileList list) = Impl.scan root fs in
+    list
 
   /// Defines the empty fileset with a specified base dir
   let (~+) dir =
     Fileset ({DefaultOptions with BaseDir = Some dir}, [])
 
+  // defines various operations
   type FilesetType with
     static member (+) (fs1: FilesetType, fs2: FilesetType) :FilesetType = fs1 |> combineWith fs2
     static member (+) (fs1: FilesetType, pat: FilePattern) = fs1 ++ pat

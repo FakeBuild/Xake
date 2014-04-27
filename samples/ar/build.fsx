@@ -3,11 +3,12 @@
 //#r @"..\..\bin\Xake.Core.dll"
 #r @"\projects\Mine\xake\bin\Xake.Core.dll"
 open Xake
+open System.IO
 
 ////// utility methods
 let ardll name = "out\\GrapeCity.ActiveReports." + name + ".v9.dll"
 let arexe name = "out\\GrapeCity.ActiveReports." + name + ".v9.exe"
-let ardep = List.map (ardll >> (~&)) >> FileList
+let ardep = List.map (ardll >> toFileinfo) >> FileList
 
 let commonSrcFiles = fileset {
   includes "CommonAssemblyInfo.cs"
@@ -18,13 +19,13 @@ let commonSrcFiles = fileset {
 
 // TODO consider making filesets
 module libs =
-  let nunit = &"Tools/NUnit/nunit.framework.dll"
-  let xmldiff = &"Tools/XmlDiff/XmlDiffPatch.dll"
-  let moq = &"Tools/Moq.3.1/moq.dll"
-  let moqseq = &"Tools/Moq.3.1/moq.sequences.dll"
-  let iTextSharp = &"ExternalLibs/iTextSharp/build/iTextSharp.dll"
-  let OpenXml = &"ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
-  let qwhale = &"ExternalLibs\QwhaleEditor\Qwhale.All.dll"
+  let nunit    = FileInfo "Tools/NUnit/nunit.framework.dll"
+  let xmldiff  = FileInfo "Tools/XmlDiff/XmlDiffPatch.dll"
+  let moq      = FileInfo "Tools/Moq.3.1/moq.dll"
+  let moqseq   = FileInfo "Tools/Moq.3.1/moq.sequences.dll"
+  let iTextSharp=FileInfo "ExternalLibs/iTextSharp/build/iTextSharp.dll"
+  let OpenXml  = FileInfo "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
+  let qwhale   = FileInfo "ExternalLibs\QwhaleEditor\Qwhale.All.dll"
 
 let dlls = ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart"; "Document"; "Core"; (* "Core1"; "Core2"; "Core3"; *) "OracleClient"; "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "Viewer.Win" ]
 
@@ -65,7 +66,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         CscSettings with
           Out = outname
           Src = !! "Testing/Testing.Tools/**/*.cs" + commonSrcFiles
-          Ref = FileList [libs.nunit; libs.xmldiff; &ardll "Extensibility"]
+          Ref = FileList [libs.nunit; libs.xmldiff; FileInfo (ardll "Extensibility")]
           }
       }
 
@@ -146,6 +147,32 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
           }
       }
 
+    ardll("Viewer.Win") *> fun outname -> action {
+      do! Csc {
+        CscSettings with
+          Out = outname
+          Src = fileset {
+            includes "UnifiedViewer/Base/Common/**/*.cs"
+            includes "UnifiedViewer/Base/Properties/BaseResources.Designer.cs"
+            includes "UnifiedViewer/Base/Tests/**/*.cs"
+            includes "UnifiedViewer/Base/WinFormsSpecific/**/*.cs"
+            includes "UnifiedViewer/WinForms/**/*.cs"
+            join commonSrcFiles
+            }
+          Ref = FileList [libs.nunit; libs.moq]
+            + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "ImageExport"])
+        }
+      }
+
+    arexe("Viewer") *> fun outname -> action {
+      do! Csc {
+        CscSettings with
+          Out = outname
+          Src = ls "WinViewer/**/*.cs" + "Designer/Export/*.cs" + commonSrcFiles
+          Ref = FileList [libs.nunit; libs.moq]
+            + (ardep ["Extensibility"; "Document"; "Chart"; "Core"; "ImageExport"; "RdfExport"; "Viewer.Win"])
+          }
+      }
     ]
 
   rule (ardll("Document") *> fun outname -> action {
@@ -210,33 +237,6 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         Src = src
         Ref = FileList [libs.nunit] + (ardep ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Document"; "Chart"])
         RefGlobal = ["Microsoft.VisualBasic.dll"]
-        }
-  })
-
-  rule (ardll("Viewer.Win") *> fun outname -> action {
-    do! Csc {
-      CscSettings with
-        Out = outname
-        Src = fileset {
-          includes "UnifiedViewer/Base/Common/**/*.cs"
-          includes "UnifiedViewer/Base/Properties/BaseResources.Designer.cs"
-          includes "UnifiedViewer/Base/Tests/**/*.cs"
-          includes "UnifiedViewer/Base/WinFormsSpecific/**/*.cs"
-          includes "UnifiedViewer/WinForms/**/*.cs"
-          join commonSrcFiles
-          }
-        Ref = FileList [libs.nunit; libs.moq]
-          + (ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "ImageExport"])
-        }
-  })
-
-  rule (arexe("Viewer") *> fun outname -> action {
-    do! Csc {
-      CscSettings with
-        Out = outname
-        Src = ls "WinViewer/**/*.cs" + "Designer/Export/*.cs" + commonSrcFiles
-        Ref = FileList [libs.nunit; libs.moq]
-          + (ardep ["Extensibility"; "Document"; "Chart"; "Core"; "ImageExport"; "RdfExport"; "Viewer.Win"])
         }
   })
 

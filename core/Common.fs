@@ -60,4 +60,4 @@ let cmd cmdline (args : string list) =
 
 // reads the file and returns all text
 let readtext artifact =
-  artifact |> fullname |> File.ReadAllText
+  artifact |> getFullname |> File.ReadAllText

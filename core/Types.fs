@@ -3,5 +3,5 @@
 [<AutoOpen>]
 module DomainTypes =
 
-  type Artifact = System.IO.FileInfo 
+  type Artifact = FileArtifact of System.IO.FileInfo 
   // TODO have no idea where to put this type and related methods (see fileset.fs) to

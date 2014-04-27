@@ -57,9 +57,9 @@ module XakeScript =
     // locates the rule
     let private locateRule (Rules rules) projectRoot (artifact:Artifact) : BuildAction<_> option =
       let matchRule (FilePattern pattern) b = 
-        match Fileset.matches pattern projectRoot artifact.FullName with
+        match Fileset.matches pattern projectRoot (getFullname artifact) with
           | true ->
-            Logging.log Verbose "Found pattern '%s' for %s" pattern artifact.Name
+            Logging.log Verbose "Found pattern '%s' for %s" pattern (getShortname artifact)
             Some (b)
           | false -> None
       rules |> Map.tryPick matchRule
@@ -74,7 +74,7 @@ module XakeScript =
           return! task
         }
       | None ->
-        if not artifact.Exists then exitWithError 2 (sprintf "Neither rule nor file is found for '%s'" (fullname artifact)) ""
+        if not <| exists artifact then exitWithError 2 (sprintf "Neither rule nor file is found for '%s'" (getFullname artifact)) ""
         Async.FromContinuations (fun (cont,_,_) -> cont())
 
     /// Executes several artifacts in parallel
@@ -84,7 +84,7 @@ module XakeScript =
     let need fileset = action {
         let! ctx = getCtx
         ctx.Throttler.Release() |> ignore
-        do! fileset |> (getFiles >> exec ctx >> Async.Ignore)
+        do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map FileArtifact >> exec ctx >> Async.Ignore)
         do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
       }
 
@@ -96,7 +96,7 @@ module XakeScript =
       let ctx = {TaskPool = pool; Throttler = throttler; Options = options; Rules = rules}
 
       try
-        options.Want |> (List.map (~&) >> exec ctx >> Async.RunSynchronously >> ignore)
+        options.Want |> (List.map toArtifact >> exec ctx >> Async.RunSynchronously >> ignore)
       with 
         | :? System.AggregateException as a ->
           let errors = a.InnerExceptions |> Seq.map (fun e -> e.Message) |> Seq.toArray
@@ -137,3 +137,9 @@ module XakeScript =
   /// Creates the rule for specified file pattern.  
   let ( *> ) pattern action =
     Impl.makeFileRule pattern action
+
+  // Helper method to obtain script options within rule/task implementation
+  let getCtxOptions = action {
+    let! (ctx: ExecContext) = getCtx
+    return ctx.Options
+  }

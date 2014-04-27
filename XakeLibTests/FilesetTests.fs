@@ -11,7 +11,6 @@ open NUnit.Framework
 type FilesetTests() =
 
   let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "..")
-  let mutable rememberDir = ""
 
   let name (file:FileInfo) = file.Name
   let fullname (file:FileInfo) = file.FullName
@@ -20,14 +19,7 @@ type FilesetTests() =
 
   let IsAny() = Is.Not.All.Not
 
-  [<TestFixtureSetUp>]
-  member o.Setup() =
-    rememberDir <- Directory.GetCurrentDirectory()
-    Directory.SetCurrentDirectory currentDir
-
-  [<TestFixtureTearDown>]
-  member o.Teardown() =
-    Directory.SetCurrentDirectory rememberDir
+  let getFiles = toFileList currentDir
 
   [<Test (Description = "Verifies ls function")>]
   member o.LsSimple() =

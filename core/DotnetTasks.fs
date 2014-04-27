@@ -43,7 +43,7 @@ module DotnetTasks =
   let CscSettings = {
     Platform = AnyCpu
     Target = Auto  // try to resolve the type from name etc
-    Out = null
+    Out = FileArtifact null
     Src = Fileset.Empty
     Ref = Fileset.Empty
     RefGlobal = []
@@ -116,20 +116,25 @@ module DotnetTasks =
   /// C# compiler task
   let Csc settings =
 
+    let (FileArtifact outFile) = settings.Out
+
     let resolveTarget (name:string) =
       if name.EndsWith (".dll", System.StringComparison.OrdinalIgnoreCase) then Library else
       if name.EndsWith (".exe", System.StringComparison.OrdinalIgnoreCase) then Exe else
       Library
-    
+
     let rec targetStr = function
       |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"
-      |Auto -> settings.Out.Name |> resolveTarget |> targetStr
+      |Auto -> outFile.Name |> resolveTarget |> targetStr
     let platformStr = function
       |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
 
     let pfx = newProcPrefix()
 
     action {
+      let! options = getCtxOptions
+      let getFiles = toFileList options.ProjectRoot
+
       let src = settings.Src |> getFiles
       let refs = settings.Ref |> getFiles
       let ress = settings.Resources |> getFiles
@@ -145,14 +150,14 @@ module DotnetTasks =
           if settings.Unsafe then
             yield "/unsafe"
 
-          if settings.Out <> null then
-            yield sprintf "/out:%s" settings.Out.FullName
+          if outFile <> null then
+            yield sprintf "/out:%s" outFile.FullName
 
           if not (List.isEmpty settings.Define) then
             yield "/define:" + System.String.Join(";", Array.ofList settings.Define)
 
-          yield! src |> List.map fullname
-          yield! refs |> List.map (fullname >> (+) "/r:")
+          yield! src |> List.map (FileArtifact >> getFullname)
+          yield! refs |> List.map (FileArtifact >> getFullname >> (+) "/r:")
           yield! settings.RefGlobal |> List.map ((+) "/r:")
           // TODO resources
         }
@@ -164,7 +169,7 @@ module DotnetTasks =
       File.WriteAllLines(rspFile, args |> Seq.map escapeArgument |> List.ofSeq)
       let commandLine = "@" + rspFile
 
-      do log Level.Info "%s compiling '%s'" pfx settings.Out.Name
+      do log Level.Info "%s compiling '%s'" pfx outFile.Name
 
       let options = {
         SystemOptions with
@@ -174,9 +179,9 @@ module DotnetTasks =
       let! exitCode = _system options csc_exe commandLine
       do File.Delete rspFile
 
-      do log Level.Info "%s done '%s'" pfx settings.Out.Name
+      do log Level.Info "%s done '%s'" pfx outFile.Name
       if exitCode <> 0 then
-        do log Level.Error "%s ('%s') failed with exit code '%i'" pfx settings.Out.Name exitCode
+        do log Level.Error "%s ('%s') failed with exit code '%i'" pfx outFile.Name exitCode
         if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
     }
 

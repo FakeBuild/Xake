@@ -57,14 +57,15 @@ module WorkerPool =
         let! msg = mbox.Receive()
         match msg with
         | Run(artifact, action, chnl) ->
-          match map |> Map.tryFind artifact.FullName with
+          let fullname = getFullname artifact
+          match map |> Map.tryFind fullname with
           | Some task ->
-            log Verbose "Task found for '%s'. Waiting for completion" artifact.Name
+            log Verbose "Task found for '%s'. Waiting for completion" (getShortname artifact)
             chnl.Reply(Async.AwaitTask task)
             return! loop(map)
 
           | None ->
-            do log Verbose "Starting new task for '%s'" artifact.Name
+            do log Verbose "Starting new task for '%s'" (getShortname artifact)
             do! throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
           
             let task = Async.StartAsTask (async {
@@ -74,7 +75,7 @@ module WorkerPool =
                 throttler.Release() |> ignore
             })
             chnl.Reply(Async.AwaitTask task)
-            return! loop(map |> Map.add artifact.FullName task)
+            return! loop(map |> Map.add fullname task)
       }
       loop(Map.empty) )
 
