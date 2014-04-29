@@ -16,14 +16,17 @@ module XakeScript =
 
     /// Console output verbosity level. Default is Warn
     ConLogLevel: Level
-    /// Overrides "want", i.e. target list 
+    /// Overrides "want", i.e. target list
     Want: string list
   }
 
-  type ArtifactMask = FilePattern of string
-  type BuildAction<'ctx> = Artifact -> Action<'ctx,unit>
-  type Rule<'ctx> = Rule of ArtifactMask * BuildAction<'ctx>
-  type Rules<'ctx> = Rules of Map<ArtifactMask,BuildAction<'ctx>>
+
+  type RuleTarget =
+      | FilePattern of string | PhonyTarget of string
+  type Rule<'ctx> = 
+      | FileRule of string * (Target -> Action<'ctx,unit>)
+      | PhonyRule of string * Action<'ctx,unit>
+  type Rules<'ctx> = Rules of Map<RuleTarget, Rule<'ctx>>
 
   type ExecContext = {
     TaskPool: MailboxProcessor<WorkerPool.ExecMessage>
@@ -49,43 +52,72 @@ module XakeScript =
   module private Impl =
     open WorkerPool
 
-    let makeFileRule pattern action = Rule ((FilePattern pattern), action)
+    let makeFileRule  pattern action = FileRule (pattern, action)
+    let makePhonyRule name action = PhonyRule (name, action)
 
-    let addRule (Rule (selector,action)) (Rules rules) :Rules<_> =
-      rules |> Map.add selector action |> Rules
+    let addRule rule (Rules rules) :Rules<_> = 
+      let target = match rule with
+        | FileRule (selector,_) -> (FilePattern selector)
+        | PhonyRule (name,_) -> (PhonyTarget name)
+      rules |> Map.add target rule |> Rules
 
     // locates the rule
-    let private locateRule (Rules rules) projectRoot (artifact:Artifact) : BuildAction<_> option =
-      let matchRule (FilePattern pattern) b = 
-        match Fileset.matches pattern projectRoot (getFullname artifact) with
-          | true ->
-            Logging.log Verbose "Found pattern '%s' for %s" pattern (getShortname artifact)
-            Some (b)
-          | false -> None
+    let private locateRule (Rules rules) projectRoot target =
+      let matchRule ruleTarget b = 
+        match ruleTarget, target with
+          |FilePattern pattern, FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
+              Logging.log Verbose "Found pattern '%s' for %s" pattern (getShortname target)
+              Some (b)
+          |PhonyTarget name, PhonyAction phony when phony = name ->
+              Logging.log Verbose "Found phony pattern '%s'" name
+              Some (b)
+          | _ -> None
       rules |> Map.tryPick matchRule
 
     // executes single artifact
-    let private execOne ctx artifact =
-      match locateRule ctx.Rules ctx.Options.ProjectRoot artifact with
-      | Some rule ->
+    let private execOne ctx target =
+      let action =
+        locateRule ctx.Rules ctx.Options.ProjectRoot target |>
+        Option.bind (function
+          | FileRule (_, action) -> let (Action r) = action target in Some r
+          | PhonyRule (_, Action r) -> Some r)
+
+      match action with
+      | Some action ->
         async {
-          let (Action r) = rule artifact
-          let! task = ctx.TaskPool.PostAndAsyncReply(fun chnl -> Run(artifact, r ctx, chnl))
+          let! task = ctx.TaskPool.PostAndAsyncReply(fun chnl -> Run(target, action ctx, chnl))
           return! task
         }
-      | None ->
-        if not <| exists artifact then exitWithError 2 (sprintf "Neither rule nor file is found for '%s'" (getFullname artifact)) ""
-        Async.FromContinuations (fun (cont,_,_) -> cont())
+      | None ->   // TODO should always fail for phony
+        if not <| exists target then exitWithError 2 (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
+        async {()}
+
 
     /// Executes several artifacts in parallel
     let private exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
 
     /// Executes and awaits specified artifacts
-    let need fileset = action {
+    let needTarget targets = action {
         let! ctx = getCtx
         ctx.Throttler.Release() |> ignore
-        do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map FileArtifact >> exec ctx >> Async.Ignore)
+        do! targets |> (exec ctx >> Async.Ignore)
         do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
+      }
+
+    /// Executes and awaits specified artifacts
+    let need fileset =
+      action {
+        let! ctx = getCtx
+        do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map FileTarget) |> needTarget
+      }
+      
+    /// Executes and awaits specified artifacts
+    let needFixed targets =
+      action {
+        let! ctx = getCtx
+        // TODO detect phony actions
+        let mf file = System.IO.FileInfo (System.IO.Path.Combine(ctx.Options.ProjectRoot,file))
+        do! targets |> (List.map (mf >> FileTarget)) |> needTarget
       }
 
     /// Executes the build script
@@ -95,8 +127,14 @@ module XakeScript =
       let (throttler, pool) = WorkerPool.create options.Threads
       let ctx = {TaskPool = pool; Throttler = throttler; Options = options; Rules = rules}
 
+      let (Rules rr) = rules
+      let mapNameToTarget name =
+        match rr.ContainsKey (PhonyTarget name) with
+        | true -> PhonyAction name
+        | false -> toFileTarget name
+
       try
-        options.Want |> (List.map toArtifact >> exec ctx >> Async.RunSynchronously >> ignore)
+        options.Want |> (List.map mapNameToTarget >> exec ctx >> Async.RunSynchronously >> ignore)
       with 
         | :? System.AggregateException as a ->
           let errors = a.InnerExceptions |> Seq.map (fun e -> e.Message) |> Seq.toArray
@@ -123,9 +161,10 @@ module XakeScript =
 
     [<CustomOperation("rule")>] member this.Rule(script, rule)                  = updRules script (Impl.addRule rule)
     [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action) = updRules script (Impl.makeFileRule pattern action |> Impl.addRule)
-    [<CustomOperation("rules")>] member this.Rules(script, rules)     = (rules |> List.map Impl.addRule |> List.fold (>>) id) |> updRules script
+    [<CustomOperation("phony")>] member this.Phony(script, name, action)        = updRules script (Impl.makePhonyRule name action |> Impl.addRule)
+    [<CustomOperation("rules")>] member this.Rules(script, rules)               = (rules |> List.map Impl.addRule |> List.fold (>>) id) |> updRules script
 
-    [<CustomOperation("want")>] member this.Want(script, targets)                = updTargets script ((@) targets)
+    [<CustomOperation("want")>] member this.Want(script, targets)                = updTargets script (function |[] -> targets | _ as x -> x)  // Options override script!
     [<CustomOperation("wantOverride")>] member this.WantOverride(script,targets) = updTargets script (fun _ -> targets)
 
   /// creates xake build script
@@ -133,10 +172,14 @@ module XakeScript =
 
   /// key function implementation
   let need = Impl.need
+  let needTgt = Impl.needTarget
+  let needFixed = Impl.needFixed  // TODO one must stand
 
   /// Creates the rule for specified file pattern.  
-  let ( *> ) pattern action =
-    Impl.makeFileRule pattern action
+  let ( *> ) = Impl.makeFileRule
+
+  /// Creates phony action (check if I can unify the operator name)
+  let (=>) = Impl.makePhonyRule
 
   // Helper method to obtain script options within rule/task implementation
   let getCtxOptions = action {

@@ -37,7 +37,7 @@ module Fileset =
   let EmptyList = FileList []
 
   /// Implementation module
-  module internal Impl =
+  module private Impl =
 
     open System.Text.RegularExpressions
 
@@ -199,24 +199,30 @@ module Fileset =
   // TODO move Artifact stuff out of here
   /// Gets the artifact file name
   let getFullname = function
-    | FileArtifact file -> file.FullName
+    | FileTarget file -> file.FullName
+    | PhonyAction name -> name
 
   // Gets the short artifact name
   let getShortname = function
-    | FileArtifact file -> file.Name
+    | FileTarget file -> file.Name
+    | PhonyAction name -> name
 
   // Gets whether artifact exists
   let exists = function
-    | FileArtifact file -> file.Exists
+    | FileTarget file -> file.Exists
+    | PhonyAction _ ->  false // TODO this is suspicious
 
   // Gets whether artifact exists
   let toFileinfo file = FileInfo file
 
   // Gets whether artifact exists
-  let toArtifact = toFileinfo >> FileArtifact
+  let toFileTarget = toFileinfo >> FileTarget
   
   // changes file extension
   let (-.) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
+
+  let parseFileMask = Impl.parseDirFileMask false
+  let parseDirMask = Impl.parseDirFileMask true
 
   // let matches filePattern projectRoot
   let matches filePattern rootPath =
@@ -244,6 +250,7 @@ module Fileset =
 
     /// Conditional include/exclude operator
     static member (+?) (fs1: FilesetType, (condition:bool,pat: FilePattern)) = if condition then fs1 ++ pat else fs1
+    static member (+?) (fs1: FilesetType, (condition:bool,fs2: FilesetType)) :FilesetType = if condition then fs1 |> combineWith fs2 else fs1
     static member (-?) (fs1: FilesetType, (condition:bool,pat: FilePattern)) = if condition then fs1 -- pat else fs1
 
     /// Adds includes pattern to a fileset.
@@ -265,7 +272,7 @@ module Fileset =
     member this.Includes(fs:FilesetType,pattern) = fs ++ pattern
 
     [<CustomOperation("includesif")>]
-    member this.IncludesIf(fs:FilesetType,condition,pattern) =  fs +? (condition,pattern)
+    member this.IncludesIf(fs:FilesetType,condition, pattern:FilePattern) =  fs +? (condition,pattern)
 
     [<CustomOperation("join")>]
     member this.JoinFileset(fs1, fs2) = fs1 |> Impl.combineWith fs2

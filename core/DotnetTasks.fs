@@ -18,7 +18,7 @@ module DotnetTasks =
       /// Specifies the format of the output file.
       Target: TargetType
       /// Specifies the output file name (default: base name of file with main class or first file).
-      Out: Artifact
+      Out: Target
       /// Source files.
       Src: FilesetType
       /// References metadata from the specified assembly files.
@@ -43,7 +43,7 @@ module DotnetTasks =
   let CscSettings = {
     Platform = AnyCpu
     Target = Auto  // try to resolve the type from name etc
-    Out = FileArtifact null
+    Out = FileTarget null
     Src = Fileset.Empty
     Ref = Fileset.Empty
     RefGlobal = []
@@ -116,7 +116,7 @@ module DotnetTasks =
   /// C# compiler task
   let Csc settings =
 
-    let (FileArtifact outFile) = settings.Out
+    let (FileTarget outFile) = settings.Out
 
     let resolveTarget (name:string) =
       if name.EndsWith (".dll", System.StringComparison.OrdinalIgnoreCase) then Library else
@@ -156,8 +156,8 @@ module DotnetTasks =
           if not (List.isEmpty settings.Define) then
             yield "/define:" + System.String.Join(";", Array.ofList settings.Define)
 
-          yield! src |> List.map (FileArtifact >> getFullname)
-          yield! refs |> List.map (FileArtifact >> getFullname >> (+) "/r:")
+          yield! src |> List.map (FileTarget >> getFullname)
+          yield! refs |> List.map (FileTarget >> getFullname >> (+) "/r:")
           yield! settings.RefGlobal |> List.map ((+) "/r:")
           // TODO resources
         }

@@ -4,6 +4,8 @@
 #r @"\projects\Mine\xake\bin\Xake.Core.dll"
 open Xake
 
+let DEBUG = false
+
 ////// utility methods
 let ardll name = "out\\GrapeCity.ActiveReports." + name + ".v9.dll"
 let arexe name = "out\\GrapeCity.ActiveReports." + name + ".v9.exe"
@@ -30,7 +32,19 @@ let dlls = List.map ardll <| ["Extensibility"; "Diagnostics"; "Testing.Tools"; "
 
 do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
 
-  want (dlls @ [arexe "Viewer"])
+  want (["all"])
+  //want (["clean"] @ dlls @ [arexe "Viewer"])
+
+  rule ("clean" => action {
+    //do! cmd "del" ["/F /Q"; "out\\*.*"] |> Async.Ignore
+    ()
+  })
+
+  phony "all" (action {
+    do! needTgt [PhonyAction "clean"]
+    do log Level.Info "Starting file targets"
+    do! needFixed ([arexe "Viewer"] @ dlls)
+  })
 
   rules [
     ardll "Extensibility" *> fun outname -> action {
@@ -176,8 +190,6 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
 
   rule (ardll("Document") *> fun outname -> action {
 
-    let DEBUG = false
-
     let src = fileset {
       includes "SL/CommonFiles/SafeGraphics.cs"
       includesif DEBUG "SL/CommonFiles/DebugShims.cs"
@@ -198,7 +210,9 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         Out = outname
         Define = ["ARVIEWER_BUILD"]
         Src = src + commonSrcFiles
-        Ref = libs.nunit + ardep ["Extensibility"; "Testing.Tools"]
+        Ref = !! (ardll "Extensibility")
+          +? (DEBUG, libs.nunit)
+          +? (DEBUG, ardll "Testing.Tools")
         }
   })
 

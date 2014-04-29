@@ -46,7 +46,7 @@ module WorkerPool =
 
   // execution context
   type ExecMessage =
-    | Run of Artifact * Async<unit> * AsyncReplyChannel<Async<unit>>
+    | Run of Target * Async<unit> * AsyncReplyChannel<Async<unit>>
 
   let create maxThreads =
     // controls how many threads are running in parallel
