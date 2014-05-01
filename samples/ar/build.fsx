@@ -36,14 +36,13 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
   //want (["clean"] @ dlls @ [arexe "Viewer"])
 
   rule ("clean" => action {
-    //do! cmd "del" ["/F /Q"; "out\\*.*"] |> Async.Ignore
-    ()
+    do! rm ["out" </> "*.*"]
   })
 
   phony "all" (action {
-    do! needTgt [PhonyAction "clean"]
+    do! need ["clean"]
     do log Level.Info "Starting file targets"
-    do! needFixed ([arexe "Viewer"] @ dlls)
+    do! need ([arexe "Viewer"] @ dlls)
   })
 
   rules [
@@ -152,7 +151,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
             includes "ImageExport/**/*.cs"
             includes "Reports/ReportsCore/Rendering/Tools/Text/FontDescriptor.cs"
             includes "Reports/ReportsCore/Rendering/Tools/Cache/Services.cs"
-            includes "SL/Exports/PageRangeParser.cs"
+            //includes "SL/Exports/PageRangeParser.cs"
             join commonSrcFiles
             }
           Ref = libs.nunit + libs.moq
@@ -216,7 +215,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         }
   })
 
-  rule (ardll("Core*") *> fun outname -> action {
+  rule (ardll("Core") *> fun outname -> action {
 
     let src = fileset {
       includes "SL/CommonFiles/*.cs"

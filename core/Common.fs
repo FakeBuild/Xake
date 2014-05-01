@@ -41,7 +41,7 @@ let internal joinArgs (args:#seq<string>) =
 
 // executes external process and waits until it completes
 let system cmd args =
-  async {
+  action {
     do log Level.Info "[system] starting '%s'" cmd
     let! exitCode = _system SystemOptions cmd (joinArgs args)
     do log Level.Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
@@ -51,7 +51,7 @@ let system cmd args =
 
 // executes command
 let cmd cmdline (args : string list) =
-  async {
+  action {
     do log Level.Info "[cmd] starting '%s'" cmdline
     let! exitCode = _system SystemOptions "cmd.exe" (joinArgs (["/c"; cmdline] @ args))
     do log Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode

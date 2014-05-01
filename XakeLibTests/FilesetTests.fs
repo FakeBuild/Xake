@@ -70,6 +70,22 @@ type FilesetTests() =
     fileset |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
 
   [<Test>]
+  member o.ExplicitFileYieldsFile() =
+
+    let sampleFileName = "NonExistingFile.rdl"
+
+    let fileset = fileset {
+      basedir @"c:\!\bak"
+
+      includes "Mat*.rdl"
+      includes sampleFileName
+    }
+
+    let result = fileset |> getFiles |> List.map name
+    Assert.IsTrue(result |> List.exists (fun f -> f.Equals(sampleFileName)))
+    // fileset |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
+
+  [<Test>]
   member o.ShortForm() =
 
     let fileset =
@@ -78,7 +94,7 @@ type FilesetTests() =
     let fileset1 =
         + @"c:\!\bak" + "*.rdl" +? (false,"*.rdlx") + "../jparsec/src/main/**/A*.java"
 
-    fileset |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
+    fileset |> getFiles |> List.map name |> List.iter System.Console.WriteLine
 
   [<Test>]
   [<ExpectedException>]
@@ -99,7 +115,7 @@ type FilesetTests() =
 
   [<Test>]
   member o.CombineFilesets() =
-    let fs1 = fileset {includes @"c:\!\bak\bak\*.css"}
+    let fs1 = fileset {includes @"c:\!\bak\*.css"}
     let fs2 = fileset {includes @"c:\!\bak\*.rdl"}
 
     (fs1 + fs2) |> getFiles |> ignore

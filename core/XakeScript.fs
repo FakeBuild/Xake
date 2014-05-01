@@ -96,8 +96,15 @@ module XakeScript =
     /// Executes several artifacts in parallel
     let private exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
 
+    let private dumpTarget = function
+      | FileTarget f -> "file " + f.Name
+      | PhonyAction a -> "action " + a
+
     /// Executes and awaits specified artifacts
     let needTarget targets = action {
+
+        //log Level.Info "targets %A" (targets |> List.map dumpTarget)
+
         let! ctx = getCtx
         ctx.Throttler.Release() |> ignore
         do! targets |> (exec ctx >> Async.Ignore)
@@ -105,19 +112,24 @@ module XakeScript =
       }
 
     /// Executes and awaits specified artifacts
-    let need fileset =
+    let needFileset fileset =
       action {
         let! ctx = getCtx
         do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map FileTarget) |> needTarget
       }
       
     /// Executes and awaits specified artifacts
-    let needFixed targets =
+    let need targets =
       action {
         let! ctx = getCtx
-        // TODO detect phony actions
-        let mf file = System.IO.FileInfo (System.IO.Path.Combine(ctx.Options.ProjectRoot,file))
-        do! targets |> (List.map (mf >> FileTarget)) |> needTarget
+        let (Rules rules) = ctx.Rules
+        let isPhony s = rules |> Map.containsKey(PhonyTarget s)
+
+        // phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
+        let mf name = match isPhony name with
+          | true -> PhonyAction name
+          | _ ->    FileTarget <| System.IO.FileInfo (ctx.Options.ProjectRoot </> name)
+        do! targets |> (List.map mf) |> needTarget
       }
 
     /// Executes the build script
@@ -171,9 +183,9 @@ module XakeScript =
   let xake options = new RulesBuilder(options)
 
   /// key function implementation
-  let need = Impl.need
+  let needFileset = Impl.needFileset
   let needTgt = Impl.needTarget
-  let needFixed = Impl.needFixed  // TODO one must stand
+  let need = Impl.need  // TODO one must stand
 
   /// Creates the rule for specified file pattern.  
   let ( *> ) = Impl.makeFileRule

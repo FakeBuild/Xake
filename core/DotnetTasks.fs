@@ -135,10 +135,11 @@ module DotnetTasks =
       let! options = getCtxOptions
       let getFiles = toFileList options.ProjectRoot
 
+      // TODO use filesets here but Combine does not support various roots currently
       let src = settings.Src |> getFiles
       let refs = settings.Ref |> getFiles
       let ress = settings.Resources |> getFiles
-      do! need (FileList (src @ refs @ ress))
+      do! needFileset (FileList (src @ refs @ ress))
 
       let args =
         seq {

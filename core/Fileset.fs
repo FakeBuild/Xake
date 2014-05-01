@@ -74,8 +74,7 @@ module Fileset =
       let fsroot = if dir <> null && (dir.StartsWith("\\") || dir.StartsWith("/")) then [FsRoot] else []
       let filepart = if parseDir then [] else [pattern |> Path.GetFileName |> (iif isMask FileMask FileName)]
 
-      fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
-      |> Pattern
+      Pattern <| fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
       
     /// Recursively applied the pattern rules to every item is start list
     let listFiles =
@@ -86,9 +85,9 @@ module Fileset =
       | Parent          -> paths |> Seq.map (Directory.GetParent >> fullname)
       | Recurse         -> paths |> Seq.collect scanall |> Seq.append paths
       | DirectoryMask m -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, m, SearchOption.TopDirectoryOnly))
-      | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> Seq.filter Directory.Exists
+      | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) //|> Seq.filter Directory.Exists
       | FileMask mask   -> paths |> Seq.collect (fun dir -> Directory.EnumerateFiles(dir, mask))
-      | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) |> Seq.filter File.Exists
+      | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) //|> Seq.filter File.Exists
       in
       List.fold applyPart
     
@@ -220,6 +219,7 @@ module Fileset =
   
   // changes file extension
   let (-.) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
+  let (</>) path1 path2 = Path.Combine(path1, path2)
 
   let parseFileMask = Impl.parseDirFileMask false
   let parseDirMask = Impl.parseDirFileMask true
