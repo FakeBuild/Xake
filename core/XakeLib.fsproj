@@ -57,6 +57,8 @@
     <None Include="Script.fsx" />
     <None Include="filesets.fsx" />
     <None Include="readme.md" />
+    <None Include="implnotes.md" />
+    <None Include="todo.md" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>

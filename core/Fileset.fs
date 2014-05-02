@@ -76,20 +76,27 @@ module Fileset =
 
       Pattern <| fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
       
-    /// Recursively applied the pattern rules to every item is start list
-    let listFiles =
+    /// Recursively applies the pattern rules to every item is start list
+    let listFiles startIn (Pattern pat) =
+
       let scanall dir = Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
+
+      // The pattern without mask become "explicit" file reference which is always included in resulting file list, regardless file presence. See impl notes for details.
+      let isExplicitRule = pat |> List.exists (function | DirectoryMask _ | FileMask _ -> true | _ -> false)
+      let filterDir = if isExplicitRule then Seq.filter Directory.Exists else id
+      let filterFile = if isExplicitRule then Seq.filter File.Exists else id
+
       let applyPart (paths:#seq<string>) = function
       | Disk d          -> seq {yield d + "\\"}
       | FsRoot          -> paths |> Seq.map Directory.GetDirectoryRoot
       | Parent          -> paths |> Seq.map (Directory.GetParent >> fullname)
       | Recurse         -> paths |> Seq.collect scanall |> Seq.append paths
       | DirectoryMask m -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, m, SearchOption.TopDirectoryOnly))
-      | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) //|> Seq.filter Directory.Exists
+      | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> filterDir
       | FileMask mask   -> paths |> Seq.collect (fun dir -> Directory.EnumerateFiles(dir, mask))
-      | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) //|> Seq.filter File.Exists
+      | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) |> filterFile
       in
-      List.fold applyPart
+      pat |> List.fold applyPart startIn
     
     /// Parses file mask
     let parseFileMask = parseDirFileMask false
@@ -138,13 +145,13 @@ module Fileset =
     let private ifNone v2 = function | None -> v2 | Some v -> v
 
     /// Draft implementation of fileset execute
-    /// "Materializes fileset to a filelist
+    /// "Materializes" fileset to a filelist
     let scan root = function
       | FileList _ as list -> list
       | Fileset (options,filesetItems) ->
         let startDir = options.BaseDir |> ifNone root
         // TODO check performance, build function
-        let includes (Pattern pat) src = listFiles [startDir] pat |> Seq.append src
+        let includes pat src = listFiles [startDir] pat |> Seq.append src
         let excludes pat src =
           let matchFile = matchesPattern (joinPattern (startDir |> parseDir) pat) in
           src |> Seq.filter (matchFile >> not)

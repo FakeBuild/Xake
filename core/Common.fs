@@ -39,6 +39,13 @@ let internal _system settings cmd args =
 let internal joinArgs (args:#seq<string>) =
   (" ", args |> Array.ofSeq) |> System.String.Join
 
+// executes command
+let internal _cmd cmdline (args : string list) =
+  action {
+    let! exitCode = _system SystemOptions "cmd.exe" (joinArgs (["/c"; cmdline] @ args))
+    return exitCode
+  } 
+
 // executes external process and waits until it completes
 let system cmd args =
   action {
@@ -53,7 +60,7 @@ let system cmd args =
 let cmd cmdline (args : string list) =
   action {
     do log Level.Info "[cmd] starting '%s'" cmdline
-    let! exitCode = _system SystemOptions "cmd.exe" (joinArgs (["/c"; cmdline] @ args))
+    let! exitCode = _cmd cmdline args
     do log Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
     return exitCode
   } 
