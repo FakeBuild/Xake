@@ -17,12 +17,13 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
     do! Csc {
       CscSettings with
         Out = exe
-        Src = FileList ["a.cs"]}
-  })
+        Src = !! "a.cs"
+      }
+    })
 
   addRule "*.exe" (fun exe -> action {
 
-    do! writeLog Level.Info "Building %s" (fullname exe)
+    do! writeLog Level.Info "Building %s" exe.FullName
     //do! Async.Sleep(Random().Next(1500, 2500)) // simulate long operation
   //  [1..1000000] |> List.map (float >> System.Math.Sqrt) |> ignore
   //  do! Async.Sleep(500) // simulate long operation

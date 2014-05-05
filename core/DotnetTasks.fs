@@ -18,7 +18,7 @@ module DotnetTasks =
       /// Specifies the format of the output file.
       Target: TargetType
       /// Specifies the output file name (default: base name of file with main class or first file).
-      Out: Target
+      Out: Artifact
       /// Source files.
       Src: FilesetType
       /// References metadata from the specified assembly files.
@@ -43,7 +43,7 @@ module DotnetTasks =
   let CscSettings = {
     Platform = AnyCpu
     Target = Auto  // try to resolve the type from name etc
-    Out = FileTarget null
+    Out = null
     Src = Fileset.Empty
     Ref = Fileset.Empty
     RefGlobal = []
@@ -116,7 +116,7 @@ module DotnetTasks =
   /// C# compiler task
   let Csc settings =
 
-    let (FileTarget outFile) = settings.Out
+    let outFile = settings.Out
 
     let resolveTarget (name:string) =
       if name.EndsWith (".dll", System.StringComparison.OrdinalIgnoreCase) then Library else

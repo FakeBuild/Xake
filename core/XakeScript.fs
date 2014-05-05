@@ -24,7 +24,7 @@ module XakeScript =
   type RuleTarget =
       | FilePattern of string | PhonyTarget of string
   type Rule<'ctx> = 
-      | FileRule of string * (Target -> Action<'ctx,unit>)
+      | FileRule of string * (Artifact -> Action<'ctx,unit>)
       | PhonyRule of string * Action<'ctx,unit>
   type Rules<'ctx> = Rules of Map<RuleTarget, Rule<'ctx>>
 
@@ -65,8 +65,8 @@ module XakeScript =
       Printf.kprintf write fmt
 
 
-    let makeFileRule  pattern action = FileRule (pattern, action)
-    let makePhonyRule name action = PhonyRule (name, action)
+    let makeFileRule  pattern fnRule = FileRule (pattern, fnRule)
+    let makePhonyRule name fnRule = PhonyRule (name, fnRule)
 
     let addRule rule (Rules rules) :Rules<_> = 
       let target = match rule with
@@ -92,7 +92,9 @@ module XakeScript =
       let action =
         locateRule ctx.Rules ctx.Options.ProjectRoot target |>
         Option.bind (function
-          | FileRule (_, action) -> let (Action r) = action target in Some r
+          | FileRule (_, action) ->
+            let (FileTarget artifact) = target in
+            let (Action r) = action artifact in Some r
           | PhonyRule (_, Action r) -> Some r)
 
       match action with

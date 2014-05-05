@@ -215,7 +215,8 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
         }
   })
 
-  rule (ardll("Core") *> fun outname -> action {
+  // this is the other syntax to define rule (seems to be redundant
+  addRule (ardll "Core") (fun outname -> action {
 
     let src = fileset {
       includes "SL/CommonFiles/*.cs"
