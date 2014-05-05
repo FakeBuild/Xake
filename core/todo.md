@@ -1,8 +1,7 @@
 ﻿## TODO
-  * clean (phony actions)
+  * incremental builds
   * multiple outputs
   * условное правило (функция вместо маски)
-  * incremental builds
   * complete abstraction over artifact (do not use fileinfo, resolve files when started using project dir)
   * rules versioning
   * ресурсы (CPU и пр.) для управления очередностью
@@ -17,6 +16,7 @@
 ## In progress
   * диагностика и лог (детально в файл, кратко на экран)
   * exception handling and reporting
+  * clean (phony actions)
 
 ## Done
  * имя файла-результата как аргумент (для оператора **>)
@@ -35,3 +35,7 @@
  * артефакты: файлы + виртуальные артефакты. Со вторыми проблемы:
  * файлсет (как список артефактов) теряет смысл
  * усложнение правила - как матчинг правил, так и описание действия
+ * idea: rule settings
+  * "clean" {FailOnError = true} \*\*> file a -> action {}
+  * "clean" \*\*> file a -> action ({FailOnError = true}) {}
+ * tracing mode: actions are not performed, only need is processed so that we get a dependency graph

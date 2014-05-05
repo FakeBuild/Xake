@@ -12,10 +12,10 @@ module XakeScript =
 
     /// Log file and verbosity level
     FileLog: string
-    FileLogLevel: Level
+    FileLogLevel: Verbosity
 
     /// Console output verbosity level. Default is Warn
-    ConLogLevel: Level
+    ConLogLevel: Verbosity
     /// Overrides "want", i.e. target list
     Want: string list
   }
@@ -33,6 +33,7 @@ module XakeScript =
     Throttler: SemaphoreSlim
     Options: XakeOptionsType
     Rules: Rules<ExecContext>
+    Logger: ILogger
   }
 
   /// Main type.
@@ -42,15 +43,27 @@ module XakeScript =
   let XakeOptions = {
     ProjectRoot = System.IO.Directory.GetCurrentDirectory()
     Threads = 4
-    ConLogLevel = Level.Warning
+    ConLogLevel = Normal
 
-    FileLog = ""
-    FileLogLevel = Level.Error
+    FileLog = "build.log"
+    FileLogLevel = Chatty
     Want = []
     }
 
   module private Impl =
     open WorkerPool
+
+    // logs the message
+    let logCtx ctx = ctx.Logger.Log
+
+    /// Writes the message with formatting to a log
+    let writeLog (level:Logging.Level) fmt  =
+      let write s = action {
+        let! (ctx:ExecContext) = getCtx
+        return ctx.Logger.Log level "%s" s
+      }
+      Printf.kprintf write fmt
+
 
     let makeFileRule  pattern action = FileRule (pattern, action)
     let makePhonyRule name action = PhonyRule (name, action)
@@ -66,10 +79,10 @@ module XakeScript =
       let matchRule ruleTarget b = 
         match ruleTarget, target with
           |FilePattern pattern, FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
-              Logging.log Verbose "Found pattern '%s' for %s" pattern (getShortname target)
+              // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
               Some (b)
           |PhonyTarget name, PhonyAction phony when phony = name ->
-              Logging.log Verbose "Found phony pattern '%s'" name
+              // writeLog Verbose "Found phony pattern '%s'" name
               Some (b)
           | _ -> None
       rules |> Map.tryPick matchRule
@@ -102,9 +115,6 @@ module XakeScript =
 
     /// Executes and awaits specified artifacts
     let needTarget targets = action {
-
-        //log Level.Info "targets %A" (targets |> List.map dumpTarget)
-
         let! ctx = getCtx
         ctx.Throttler.Release() |> ignore
         do! targets |> (exec ctx >> Async.Ignore)
@@ -125,6 +135,7 @@ module XakeScript =
         let (Rules rules) = ctx.Rules
         let isPhony s = rules |> Map.containsKey(PhonyTarget s)
 
+        // TODO active pattern here!
         // phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
         let mf name = match isPhony name with
           | true -> PhonyAction name
@@ -136,8 +147,16 @@ module XakeScript =
     let run script =
 
       let (XakeScript (options,rules)) = script
-      let (throttler, pool) = WorkerPool.create options.Threads
-      let ctx = {TaskPool = pool; Throttler = throttler; Options = options; Rules = rules}
+      let logger = match options.FileLog with
+        | "" -> ConsoleLogger options.ConLogLevel
+        | logFileName -> CombineLogger (ConsoleLogger options.ConLogLevel) (FileLogger logFileName options.FileLogLevel)
+
+      let (throttler, pool) = WorkerPool.create logger options.Threads
+
+      let start = System.DateTime.Now
+      let ctx = {TaskPool = pool; Throttler = throttler; Options = options; Rules = rules; Logger = logger}
+
+      logger.Log Message "Options: %A" options
 
       let (Rules rr) = rules
       let mapNameToTarget name =
@@ -153,6 +172,8 @@ module XakeScript =
           exitWithError 255 (a.Message + "\n" + System.String.Join("\r\n      ", errors)) a
         | exn -> exitWithError 255 exn.Message exn
 
+      logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start) // TODO output Always
+
   /// Script builder.
   type RulesBuilder(options) =
 
@@ -163,14 +184,8 @@ module XakeScript =
     member o.Zero() = XakeScript (options, Rules Map.empty)
     member o.Yield(())  = o.Zero()
 
-    member this.Run(script) =
-
-      let start = System.DateTime.Now
-      printfn "Options: %A" options
-      Impl.run script
-      printfn "\nBuild completed in %A" (System.DateTime.Now - start)
-      ()
-
+    member this.Run(script) = Impl.run script
+      
     [<CustomOperation("rule")>] member this.Rule(script, rule)                  = updRules script (Impl.addRule rule)
     [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action) = updRules script (Impl.makeFileRule pattern action |> Impl.addRule)
     [<CustomOperation("phony")>] member this.Phony(script, name, action)        = updRules script (Impl.makePhonyRule name action |> Impl.addRule)
@@ -186,6 +201,9 @@ module XakeScript =
   let needFileset = Impl.needFileset
   let needTgt = Impl.needTarget
   let need = Impl.need  // TODO one must stand
+  
+  /// Writes a message to a log
+  let writeLog = Impl.writeLog
 
   /// Creates the rule for specified file pattern.  
   let ( *> ) = Impl.makeFileRule

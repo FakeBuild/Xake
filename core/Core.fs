@@ -23,6 +23,7 @@ module Action =
     // binds both monadic and for async computations
     member this.Bind(m, f) = bind m f
     member this.Bind(m, f) = bindA m f
+    member this.Bind((), f) = bind (this.Zero()) f
 
     member this.Combine(r1, r2) = bind r1 (fun () -> r2)
     member this.For(s:seq<_>, f)  = Action (fun x -> async {
@@ -48,9 +49,10 @@ module WorkerPool =
   type ExecMessage =
     | Run of Target * Async<unit> * AsyncReplyChannel<Async<unit>>
 
-  let create maxThreads =
+  let create (logger:ILogger) maxThreads =
     // controls how many threads are running in parallel
     let throttler = new SemaphoreSlim (maxThreads)
+    let log = logger.Log
 
     throttler, MailboxProcessor.Start(fun mbox ->
       let rec loop(map) = async {
@@ -60,17 +62,18 @@ module WorkerPool =
           let fullname = getFullname artifact
           match map |> Map.tryFind fullname with
           | Some task ->
-            log Verbose "Task found for '%s'. Waiting for completion" (getShortname artifact)
+            log Debug "Task found for '%s'. Waiting for completion" (getShortname artifact)
             chnl.Reply(Async.AwaitTask task)
             return! loop(map)
 
           | None ->
-            do log Verbose "Starting new task for '%s'" (getShortname artifact)
+            do log Command "Queued '%s'" (getShortname artifact)
             do! throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
           
             let task = Async.StartAsTask (async {
               try
                 do! action
+                do log Command "Done '%s'" (getShortname artifact)
               finally
                 throttler.Release() |> ignore
             })
@@ -80,9 +83,10 @@ module WorkerPool =
       loop(Map.empty) )
 
   let exitWithError errorCode error details =
-    log Error "Error '%s'. See build.log for details" error
-    log Verbose "Error details are:\n%A\n\n" details
-    //exit errorCode
+//    log Error "Error '%s'. See build.log for details" error
+//    log Verbose "Error details are:\n%A\n\n" details
+    failwithf "Script failed (error code: %A)\n%A" error details
+    exit errorCode
 
   // TODO how does it work?
   // actionPool.Error.Add(fun e -> exitWithError 1 e.Message e)

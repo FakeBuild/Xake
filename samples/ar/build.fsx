@@ -41,7 +41,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
 
   phony "all" (action {
     do! need ["clean"]
-    do log Level.Info "Starting file targets"
+    do! writeLog Command "Starting file %s" "targets"
     do! need ([arexe "Viewer"] @ dlls)
   })
 
@@ -59,7 +59,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
           Out = outname
           Src = sources
           Ref = libs.nunit
-      }
+        }
       }
   
     ardll "Diagnostics" *> fun outname -> action {

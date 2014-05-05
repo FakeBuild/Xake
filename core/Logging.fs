@@ -6,30 +6,41 @@ open System
 
 /// Log levels.
 type Level =
-  // | Quiet
+  | Message
   | Error
+  | Command
   | Warning
   | Info
   | Debug
   | Verbose
 
-let LevelToString level =
-  match level with
-    | Error -> "Err"
-    | Warning -> "Warn"
-    | Info -> "Info"
-    | Debug -> "Debug"
-    | Verbose -> "Verbose"
+type Verbosity =
+  | Silent
+  | Quiet
+  | Normal
+  | Loud
+  | Chatty
+  | Diag
 
-let rec private logFilter = function
-  | Error -> set [Error]
-  | Warning -> set [Error; Warning]
-  | Info -> set [Error; Warning; Info]
-  | Debug -> set [Error; Warning; Info; Debug]
-  | Verbose -> set [Error; Warning; Info; Debug; Verbose]
+let LevelToString = function
+  | Message -> "Msg"
+  | Error -> "Err"
+  | Command -> "Cmd"
+  | Warning -> "Warn"
+  | Info -> "Info"
+  | Debug -> "Debug"
+  | Verbose -> "Verbose"
+
+let private logFilter = function
+  | Silent -> set []
+  | Quiet -> set [Message; Error]
+  | Normal -> set [Message; Error; Command]
+  | Loud -> set [Message; Error; Command; Warning]
+  | Chatty -> set [Message; Error; Command; Warning; Info]
+  | Diag -> set [Message; Error; Command; Warning; Info; Debug; Verbose]
   
 // defines output detail level
-let private filterLevels = logFilter Info
+let private filterLevels = logFilter Chatty
 
 /// The inteface loggers need to implement.
 type ILogger = abstract Log : Level -> Printf.StringFormat<'a,unit> -> 'a
@@ -46,8 +57,8 @@ let createFileLogger fileName = MailboxProcessor.Start(fun mbox ->
 /// Writes to file.
 let FileLogger name maxLevel =
   let filterLevels = logFilter maxLevel
-  System.IO.File.Delete "build.log"
-  let logger = createFileLogger "build.log"
+  System.IO.File.Delete name
+  let logger = createFileLogger name
   { 
   new ILogger with
     member __.Log level format =
@@ -82,14 +93,3 @@ let CombineLogger (log1:ILogger) (log2:ILogger) =
 
       Printf.kprintf write fmt
   }
-
-/// Defines which logger to use.
-let mutable DefaultLogger =
-  CombineLogger (ConsoleLogger Level.Info) (FileLogger "build.log" Level.Verbose)
-
-/// Logs a message with the specified logger.
-let logUsing (logger: ILogger) = logger.Log
-
-/// Logs a message using the default logger.
-let log level message = logUsing DefaultLogger level message
-let logInfo message = logUsing DefaultLogger Level.Info message

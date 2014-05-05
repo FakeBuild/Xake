@@ -12,7 +12,10 @@ let internal SystemOptions = {LogPrefix = ""; StdOutLevel = Level.Info; ErrOutLe
 
 // internal implementation
 let internal _system settings cmd args =
-  async {
+  action {
+    let! ctx = getCtx
+    let log = ctx.Logger.Log
+
     let pinfo =
       ProcessStartInfo
         (cmd, args,
@@ -49,19 +52,18 @@ let internal _cmd cmdline (args : string list) =
 // executes external process and waits until it completes
 let system cmd args =
   action {
-    do log Level.Info "[system] starting '%s'" cmd
+    do! writeLog Info "[system] starting '%s'" cmd
     let! exitCode = _system SystemOptions cmd (joinArgs args)
-    do log Level.Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
+    do! writeLog Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
     return exitCode
   }
-
 
 // executes command
 let cmd cmdline (args : string list) =
   action {
-    do log Level.Info "[cmd] starting '%s'" cmdline
+    do! writeLog Level.Info "[cmd] starting '%s'" cmdline
     let! exitCode = _cmd cmdline args
-    do log Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
+    do! writeLog Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
     return exitCode
   } 
 
