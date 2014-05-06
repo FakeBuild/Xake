@@ -10,6 +10,9 @@ module XakeScript =
     /// Maximum number of threads to run the rules
     Threads: int
 
+    // custom logger
+    CustomLogger: ILogger
+
     /// Log file and verbosity level
     FileLog: string
     FileLogLevel: Verbosity
@@ -18,6 +21,9 @@ module XakeScript =
     ConLogLevel: Verbosity
     /// Overrides "want", i.e. target list
     Want: string list
+
+    /// Defines whether `run` should throw exception if script fails
+    FailOnError: bool
   }
 
 
@@ -45,16 +51,15 @@ module XakeScript =
     Threads = 4
     ConLogLevel = Normal
 
+    CustomLogger = CustomLogger (fun _ -> false) ignore
     FileLog = "build.log"
     FileLogLevel = Chatty
     Want = []
+    FailOnError = false
     }
 
   module private Impl =
     open WorkerPool
-
-    // logs the message
-    let logCtx ctx = ctx.Logger.Log
 
     /// Writes the message with formatting to a log
     let writeLog (level:Logging.Level) fmt  =
@@ -87,6 +92,14 @@ module XakeScript =
           | _ -> None
       rules |> Map.tryPick matchRule
 
+    let private reportError ctx error details =
+      do ctx.Logger.Log Error "Error '%s'. See build.log for details" error
+      do ctx.Logger.Log Verbose "Error details are:\n%A\n\n" details
+
+    let private raiseError ctx error details =
+      do reportError ctx error details
+      raise (XakeException(sprintf "Script failed (error code: %A)\n%A" error details))
+
     // executes single artifact
     let private execOne ctx target =
       let action =
@@ -104,7 +117,7 @@ module XakeScript =
           return! task
         }
       | None ->   // TODO should always fail for phony
-        if not <| exists target then exitWithError 2 (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
+        if not <| exists target then raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
         async {()}
 
 
@@ -114,6 +127,14 @@ module XakeScript =
     let private dumpTarget = function
       | FileTarget f -> "file " + f.Name
       | PhonyAction a -> "action " + a
+
+    // phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
+    let makeTarget ctx name =
+      let (Rules rr) = ctx.Rules
+      if rr |> Map.containsKey(PhonyTarget name) then
+        PhonyAction name
+      else
+        FileTarget (System.IO.FileInfo (ctx.Options.ProjectRoot </> name))
 
     /// Executes and awaits specified artifacts
     let needTarget targets = action {
@@ -134,24 +155,18 @@ module XakeScript =
     let need targets =
       action {
         let! ctx = getCtx
-        let (Rules rules) = ctx.Rules
-        let isPhony s = rules |> Map.containsKey(PhonyTarget s)
-
-        // TODO active pattern here!
-        // phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
-        let mf name = match isPhony name with
-          | true -> PhonyAction name
-          | _ ->    FileTarget <| System.IO.FileInfo (ctx.Options.ProjectRoot </> name)
-        do! targets |> (List.map mf) |> needTarget
+        do! targets |> (List.map (makeTarget ctx)) |> needTarget
       }
 
     /// Executes the build script
     let run script =
 
       let (XakeScript (options,rules)) = script
+      let logger = CombineLogger (ConsoleLogger options.ConLogLevel) options.CustomLogger
+
       let logger = match options.FileLog with
-        | "" -> ConsoleLogger options.ConLogLevel
-        | logFileName -> CombineLogger (ConsoleLogger options.ConLogLevel) (FileLogger logFileName options.FileLogLevel)
+        | null | "" -> logger
+        | logFileName -> CombineLogger logger (FileLogger logFileName options.FileLogLevel)
 
       let (throttler, pool) = WorkerPool.create logger options.Threads
 
@@ -160,21 +175,21 @@ module XakeScript =
 
       logger.Log Message "Options: %A" options
 
-      let (Rules rr) = rules
-      let mapNameToTarget name =
-        match rr.ContainsKey (PhonyTarget name) with
-        | true -> PhonyAction name
-        | false -> toFileTarget name
+      let rec unwindAggEx (e:System.Exception) = seq {
+        match e with
+          | :? System.AggregateException as a -> yield! a.InnerExceptions |> Seq.collect unwindAggEx
+          | a -> yield a
+        }
 
       try
-        options.Want |> (List.map mapNameToTarget >> exec ctx >> Async.RunSynchronously >> ignore)
+        options.Want |> (List.map (makeTarget ctx) >> exec ctx >> Async.RunSynchronously >> ignore)
+        logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
       with 
-        | :? System.AggregateException as a ->
-          let errors = a.InnerExceptions |> Seq.map (fun e -> e.Message) |> Seq.toArray
-          exitWithError 255 (a.Message + "\n" + System.String.Join("\r\n      ", errors)) a
-        | exn -> exitWithError 255 exn.Message exn
-
-      logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start) // TODO output Always
+        | exn ->
+          let th = if options.FailOnError then raiseError else reportError
+          let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) |> Seq.toArray in
+          th ctx (exn.Message + "\n" + System.String.Join("\r\n      ", errors)) exn
+          logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
 
   /// Script builder.
   type RulesBuilder(options) =

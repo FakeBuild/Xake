@@ -82,11 +82,6 @@ module WorkerPool =
       }
       loop(Map.empty) )
 
-  let exitWithError errorCode error details =
-//    log Error "Error '%s'. See build.log for details" error
-//    log Verbose "Error details are:\n%A\n\n" details
-    failwithf "Script failed (error code: %A)\n%A" error details
-    exit errorCode
 
   // TODO how does it work?
   // actionPool.Error.Add(fun e -> exitWithError 1 e.Message e)

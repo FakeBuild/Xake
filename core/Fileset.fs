@@ -218,12 +218,6 @@ module Fileset =
     | FileTarget file -> file.Exists
     | PhonyAction _ ->  false // TODO this is suspicious
 
-  // Gets whether artifact exists
-  let toFileinfo file = FileInfo file
-
-  // Gets whether artifact exists
-  let toFileTarget = toFileinfo >> FileTarget
-  
   // changes file extension
   let (-.) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
   let (</>) path1 path2 = Path.Combine(path1, path2)

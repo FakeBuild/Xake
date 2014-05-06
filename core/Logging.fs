@@ -54,6 +54,18 @@ let createFileLogger fileName = MailboxProcessor.Start(fun mbox ->
   }
   loop() )
 
+let CustomLogger filter writeFn =
+  {
+  new ILogger with
+    member __.Log level format =
+      let write = 
+        if filter level then
+          sprintf "[%s] %s" (LevelToString level) >> writeFn
+        else
+          ignore
+      Printf.kprintf write format
+  }
+
 /// Writes to file.
 let FileLogger name maxLevel =
   let filterLevels = logFilter maxLevel
@@ -78,7 +90,6 @@ let ConsoleLogger maxLevel =
       let write = 
         match Set.contains level filterLevels with
         | true -> sprintf "[%s] %s" (LevelToString level) >> System.Console.WriteLine
-        // | true -> sprintf "[%s] [%A] %s" (LevelToString level) System.DateTime.Now >> System.Console.WriteLine
         | false -> ignore
       Printf.kprintf write format
   }
