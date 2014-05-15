@@ -170,22 +170,22 @@ module DotnetTasks =
       File.WriteAllLines(rspFile, args |> Seq.map escapeArgument |> List.ofSeq)
       let commandLine = "@" + rspFile
 
-      let! ctx = getCtx
-      let log = ctx.Logger.Log
-      log Level.Info "%s compiling '%s'" pfx outFile.Name
+      do! whenNeeded outFile <| action {
+        do! writeLog Info "%s compiling '%s'" pfx outFile.Name
 
-      let options = {
-        SystemOptions with
-          LogPrefix = pfx
-          StdOutLevel = Level.Verbose   // consider standard compiler output too noisy
-        }
-      let! exitCode = _system options csc_exe commandLine
-      do File.Delete rspFile
+        let options = {
+          SystemOptions with
+            LogPrefix = pfx
+            StdOutLevel = Level.Verbose   // consider standard compiler output too noisy
+          }
+        let! exitCode = _system options csc_exe commandLine
+        do File.Delete rspFile
 
-      log Level.Info "%s done '%s'" pfx outFile.Name
-      if exitCode <> 0 then
-        ctx.Logger.Log Level.Error "%s ('%s') failed with exit code '%i'" pfx outFile.Name exitCode
-        if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
+        do! writeLog Info "%s done '%s'" pfx outFile.Name
+        if exitCode <> 0 then
+          do! writeLog Error "%s ('%s') failed with exit code '%i'" pfx outFile.Name exitCode
+          if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
+      }
     }
 
   (* csc options builder *)

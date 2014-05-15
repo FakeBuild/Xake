@@ -1,5 +1,6 @@
 ﻿## TODO
   * incremental builds
+  * alwaysRerun
   * multiple outputs
   * условное правило (функция вместо маски)
   * complete abstraction over artifact (do not use fileinfo, resolve files when started using project dir)
@@ -14,9 +15,6 @@
 
 
 ## In progress
-  * диагностика и лог (детально в файл, кратко на экран)
-  * exception handling and reporting
-  * clean (phony actions)
 
 ## Done
  * имя файла-результата как аргумент (для оператора **>)
@@ -30,6 +28,9 @@
  * CPU affinity as a script option
  * xake exec parameters (number of threads, log file, verbosity)
  * параметризация сценария, сценарий как объект (main + rules)
+ * диагностика и лог (детально в файл, кратко на экран)
+ * exception handling and reporting
+ * clean (phony actions)
 
 ## Thoughts
  * артефакты: файлы + виртуальные артефакты. Со вторыми проблемы:

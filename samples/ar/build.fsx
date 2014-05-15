@@ -40,7 +40,7 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
   })
 
   phony "all" (action {
-    do! need ["clean"]
+    // do! need ["clean"]
     do! writeLog Command "Starting file %s" "targets"
     do! need ([arexe "Viewer"] @ dlls)
   })

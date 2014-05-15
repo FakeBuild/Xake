@@ -113,7 +113,7 @@ module XakeScript =
       match action with
       | Some action ->
         async {
-          let! task = ctx.TaskPool.PostAndAsyncReply(fun chnl -> Run(target, action ctx, chnl))
+          let! task = ctx.TaskPool.PostAndAsyncReply(fun chnl -> Run(target, action (Valid,ctx) |> Async.Ignore, chnl))
           return! task
         }
       | None ->   // TODO should always fail for phony
@@ -134,7 +134,7 @@ module XakeScript =
       if rr |> Map.containsKey(PhonyTarget name) then
         PhonyAction name
       else
-        FileTarget (System.IO.FileInfo (ctx.Options.ProjectRoot </> name))
+        FileTarget (Artifact (ctx.Options.ProjectRoot </> name))
 
     /// Executes and awaits specified artifacts
     let needTarget targets = action {
@@ -142,20 +142,6 @@ module XakeScript =
         ctx.Throttler.Release() |> ignore
         do! targets |> (exec ctx >> Async.Ignore)
         do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
-      }
-
-    /// Executes and awaits specified artifacts
-    let needFileset fileset =
-      action {
-        let! ctx = getCtx
-        do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map FileTarget) |> needTarget
-      }
-      
-    /// Executes and awaits specified artifacts
-    let need targets =
-      action {
-        let! ctx = getCtx
-        do! targets |> (List.map (makeTarget ctx)) |> needTarget
       }
 
     /// Executes the build script
@@ -215,10 +201,35 @@ module XakeScript =
   let xake options = new RulesBuilder(options)
 
   /// key function implementation
-  let needFileset = Impl.needFileset
+  /// Executes and awaits specified artifacts
+  let needFileset fileset =
+      action {
+        let! ctx = getCtx
+        do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map FileTarget) |> Impl.needTarget
+      }
+
+  /// Executes and awaits specified artifacts
+  let need targets =
+      action {
+        let! ctx = getCtx
+        do! targets |> (List.map (Impl.makeTarget ctx)) |> Impl.needTarget
+      }
+
   let needTgt = Impl.needTarget
-  let need = Impl.need  // TODO one must stand
-  
+
+  /// Executes specified action only if artifact needs rebuild.
+  let whenNeeded (artifact:Artifact) (Action build) =
+    action {
+      let! status = getStatus
+      if status = Rebuild || not artifact.Exists then
+        let! ctx = getCtx
+        do! build (Valid,ctx) |> Async.Ignore
+      else
+        do! Impl.writeLog Command "'%s' is up to date. Skipped." artifact.Name
+      return () // TODO what to return?
+    }
+
+        
   /// Writes a message to a log
   let writeLog = Impl.writeLog
 

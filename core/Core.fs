@@ -2,17 +2,26 @@
 
 [<AutoOpen>]
 module Action =
-  // expression type
-  type Action<'a,'b> = Action of ('a -> Async<'b>)
 
-  let private runAction (Action r) ctx = r ctx
-  let private returnF a = Action (fun _ -> async {return a})
-  let private bind m f = Action (fun r -> async {
-      let! a = runAction m r in return! runAction (f a) r
+  type DepStatus =
+    | Valid
+    | Rebuild
+
+  // expression type
+  type Action<'a,'b> = Action of (DepStatus * 'a -> Async<DepStatus * 'b>)
+
+  // reset context for nested action
+  let private runAction (Action r) = r
+  let private returnF a = Action (fun (s,_) -> async {return (s,a)})
+
+  // bind action in expression like do! action {...}
+  let private bind m f = Action (fun (s,r) -> async {
+      let! (s',a) = runAction m (Valid,r) in
+      return! runAction (f a) (s',r)
       })
 
-  let private bindA ac f = Action (fun r -> async {
-      let! a = ac in return! runAction (f a) r
+  let private bindAsync ac f = Action (fun (s,r) -> async {
+      let! a = ac in return! runAction (f a) (s,r)
       })
   
   type ActionBuilder() =
@@ -22,20 +31,32 @@ module Action =
 
     // binds both monadic and for async computations
     member this.Bind(m, f) = bind m f
-    member this.Bind(m, f) = bindA m f
+    member this.Bind(m, f) = bindAsync m f
     member this.Bind((), f) = bind (this.Zero()) f
 
-    member this.Combine(r1, r2) = bind r1 (fun () -> r2)
-    member this.For(s:seq<_>, f)  = Action (fun x -> async {
-      for i in s do runAction (f i) x |> ignore
+    member this.Combine(r1, r2) = bind r1 (fun _ -> r2)
+    member this.For(seq:seq<_>, f)  = Action (fun (s,x) -> async {
+      for i in seq do
+        runAction (f i) x |> ignore // TODO collect DepStatus
+      return Valid,()
       })
+
+    // custom operations
+//    member o.Yield(())  = o.Zero()
+
+//    [<CustomOperation("ifneed")>]
+//    member this.IfNeed(a) =
+//      // TODO
+//      bind (returnF ()) a
+
+  /// Builder fot xake actions.
+  let action = ActionBuilder()
 
   // other (public) functions for Action
 
   /// Gets action context
-  let getCtx = Action (fun ctx -> async {return ctx})
-
-  let action = ActionBuilder()
+  let getCtx = Action (fun p -> async {return p})
+  let getStatus = Action (fun (s,_) -> async {return (s,s)})
 
 module WorkerPool =
 

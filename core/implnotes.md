@@ -45,6 +45,11 @@ The plan is as follows:
   * in case of any other status the exception is thrown, and user is suggested to change script to meet incremental build needs
 
 The other "naive" option is to check status in any task/function we implement and just skip execution. This approach does not expose enough "magic".
+
+Challenges:
+
+  * pass artifact name to context/Action<> monad
+  * skip execution of action in context enforces it
   
 ### Other
 
