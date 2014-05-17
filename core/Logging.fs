@@ -90,6 +90,12 @@ let ConsoleLogger maxLevel =
       let write = 
         match Set.contains level filterLevels with
         | true -> sprintf "[%s] %s" (LevelToString level) >> System.Console.WriteLine
+//          let origColor = System.Console.ForegroundColor
+//          System.Console.ForegroundColor <- ConsoleColor.Blue
+//          sprintf "[%s] " (LevelToString level) |> System.Console.Write
+//          System.Console.ForegroundColor <- origColor
+//          sprintf "%s" s |> System.Console.WriteLine
+
         | false -> ignore
       Printf.kprintf write format
   }

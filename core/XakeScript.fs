@@ -6,7 +6,7 @@ module XakeScript =
 
   type XakeOptionsType = {
     /// Defines project root folder
-    ProjectRoot : string
+    ProjectRoot : string  // TODO DirectoryInfo?
     /// Maximum number of threads to run the rules
     Threads: int
 

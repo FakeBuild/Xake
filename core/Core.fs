@@ -41,14 +41,6 @@ module Action =
       return Valid,()
       })
 
-    // custom operations
-//    member o.Yield(())  = o.Zero()
-
-//    [<CustomOperation("ifneed")>]
-//    member this.IfNeed(a) =
-//      // TODO
-//      bind (returnF ()) a
-
   /// Builder fot xake actions.
   let action = ActionBuilder()
 

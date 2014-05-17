@@ -1,12 +1,14 @@
 ﻿## TODO
-  * incremental builds
   * alwaysRerun
-  * multiple outputs
   * условное правило (функция вместо маски)
-  * complete abstraction over artifact (do not use fileinfo, resolve files when started using project dir)
   * rules versioning
   * ресурсы (CPU и пр.) для управления очередностью
+  * multiple outputs
   * ...
+  * dependency rule: environment variable
+  * dependency rule: compiler version
+  * dependency rule: custom rule
+  * performance of rules lookup (takes 2s now)
 
 ## Tasks TODO
   * command-line tool
@@ -15,6 +17,9 @@
 
 
 ## In progress
+  * incremental builds
+   * database
+   * dependency rule: files
 
 ## Done
  * имя файла-результата как аргумент (для оператора **>)
@@ -26,6 +31,7 @@
  * parameterized filesets (оператор для условной конкатенации списков ["a.cs"] &? debug ["debug.cs"])
  * два вида fileset - правила и вычисленный список
  * CPU affinity as a script option
+ * complete abstraction over artifact (do not use fileinfo, resolve files when started using project dir)
  * xake exec parameters (number of threads, log file, verbosity)
  * параметризация сценария, сценарий как объект (main + rules)
  * диагностика и лог (детально в файл, кратко на экран)
@@ -33,9 +39,6 @@
  * clean (phony actions)
 
 ## Thoughts
- * артефакты: файлы + виртуальные артефакты. Со вторыми проблемы:
- * файлсет (как список артефактов) теряет смысл
- * усложнение правила - как матчинг правил, так и описание действия
  * idea: rule settings
   * "clean" {FailOnError = true} \*\*> file a -> action {}
   * "clean" \*\*> file a -> action ({FailOnError = true}) {}
