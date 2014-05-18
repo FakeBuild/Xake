@@ -6,32 +6,13 @@ module BuildLog =
   open System
 
   // structures, database processor and store
-  type Key(target:Target) =
-
-    let comparer = StringComparer.OrdinalIgnoreCase
-
-    member this.Value = target
-    member private this.FullName = target |> Target.getFullName
-
-    override me.Equals other =
-        match other with
-        | :? Key as otherKey -> comparer.Equals(me.FullName, otherKey.FullName)
-        | _ -> false
-
-    override me.GetHashCode() = target.GetHashCode()
-
-    interface IComparable with
-      member me.CompareTo other =
-        match other with
-        | :? Key as otherKey -> comparer.Compare(me.FullName, otherKey.FullName)
-        | _ -> 1
-
   type Timestamp = System.DateTime
+
   [<Measure>] type ms
   type StepInfo = StepInfo of string * int<ms>
 
   type Dependency =
-    | File of Target    // file/target
+    | File of Target    // file/target  TODO Artifact
     | EnvVar of string*string  // environment variable
     | Var of string*string     // any other data such as compiler version
 
@@ -43,7 +24,7 @@ module BuildLog =
   }
 
   type Database = {
-    Status: Map<Key,BuildResult>
+    Status: Map<Target,BuildResult>
   }
 
   (* API *)
@@ -56,7 +37,7 @@ module BuildLog =
   let newDatabase() = {Database.Status = Map.empty}
 
   /// Adds result to a database
-  let addResult db result = {db with Status = db.Status |> Map.add (Key result.Result) result}
+  let addResult db result = {db with Status = db.Status |> Map.add (result.Result) result}
 
 type Agent<'t> = MailboxProcessor<'t>
 
@@ -74,7 +55,7 @@ module Storage =
       altPU
         (function | FileTarget _ -> 0 | PhonyAction _ -> 1)
         [|
-          wrapPU ((fun f -> FileInfo f |> FileTarget), fun (FileTarget f) -> f.FullName) strPU
+          wrapPU ((fun f -> Artifact f |> FileTarget), fun (FileTarget f) -> f.Name) strPU
           wrapPU (PhonyAction, (fun (PhonyAction a) -> a)) strPU
         |]
 
@@ -100,21 +81,68 @@ module Storage =
         (quadPU targetPU datePU (listPU dependencyPU) (listPU stepPU))
 
   type DatabaseApi =
-    | GetResult of Key * AsyncReplyChannel<Option<BuildResult>>
+    | GetResult of Target * AsyncReplyChannel<Option<BuildResult>>
     | Store of BuildResult
+    | Close
 
-  let createDb path (logger:ILogger) = 
+  let resultPU = Persist.resultPU
+
+  open System.IO
+
+  let openDb path (logger:ILogger) = 
     let log = logger.Log
+    let dbpath,bkpath = path </> ".xake", path </> ".xake" <.> "bak"
 
-    Agent.Start(fun mbox ->
-    let rec loop(db) = async {
-      let! msg = mbox.Receive()
-      match msg with
-      | GetResult (key,chnl) ->
-        db.Status |> Map.tryFind key |> chnl.Reply
-        return! loop(db)
-      | Store result ->
-        // TODO write to a file
-        return! loop(result |> addResult db)
-    }
-    loop(newDatabase()) )
+    // if exists backup restore
+    if File.Exists(bkpath) then
+      log Level.Message "Backup file found ('%s'), restoring db" bkpath
+      try File.Delete(dbpath) with _ -> ()
+      File.Move (bkpath, dbpath)
+
+    let db = ref (newDatabase())
+    let fileRecords = ref 0
+
+    // read database
+    if File.Exists(dbpath) then
+      try
+        use reader = new BinaryReader (File.OpenRead(dbpath))
+        let stream = reader.BaseStream
+      
+        while stream.Position < stream.Length do
+          let result = Persist.resultPU.unpickle reader
+          db := addResult !db result
+          fileRecords := !fileRecords + 1
+
+      // if fails create new
+      with | ex ->
+        log Level.Error "Failed to read database, so recreating. Got \"%s\"" <| ex.ToString()
+        try File.Delete(dbpath) with _ -> ()
+
+    // check if we can cleanup db
+    if fileRecords.contents > db.contents.Status.Count * 5 then
+      log Level.Message "Compacting database"
+      File.Move(dbpath,bkpath)
+      
+      use writer = new BinaryWriter (File.Open(dbpath, FileMode.CreateNew))
+      db.contents.Status |> Map.toSeq |> Seq.map snd |> Seq.iter (fun r -> Persist.resultPU.pickle r writer)
+      
+      File.Delete(bkpath)
+
+    let dbwriter = new BinaryWriter (File.Open(dbpath, FileMode.Append, FileAccess.Write))
+
+    MailboxProcessor.Start(fun mbox ->
+      let rec loop(db) = async {
+        let! msg = mbox.Receive()
+        match msg with
+        | GetResult (key,chnl) ->
+          db.Status |> Map.tryFind key |> chnl.Reply
+          return! loop(db)
+        | Store result ->
+          Persist.resultPU.pickle result dbwriter
+          return! loop(result |> addResult db)
+        | Close ->
+          log Info "Closing database"
+          dbwriter.Dispose()
+          return ()
+      }
+      loop(!db) )

@@ -205,7 +205,7 @@ module XakeScript =
   let needFileset fileset =
       action {
         let! ctx = getCtx
-        do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map FileTarget) |> Impl.needTarget
+        do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)) |> Impl.needTarget
       }
 
   /// Executes and awaits specified artifacts

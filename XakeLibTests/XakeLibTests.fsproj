@@ -48,7 +48,7 @@
     <Compile Include="FilesetTests.fs" />
     <Compile Include="ScriptErrorTests.fs" />
     <Compile Include="Tests.fs" />
-    <None Include="Script.fsx" />
+    <Compile Include="StorageTests.fs" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

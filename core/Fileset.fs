@@ -221,6 +221,7 @@ module Fileset =
   // changes file extension
   let (-.) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
   let (</>) path1 path2 = Path.Combine(path1, path2)
+  let (<.>) path ext = if System.String.IsNullOrWhiteSpace(ext) then path else path + "." + ext
 
   let parseFileMask = Impl.parseDirFileMask false
   let parseDirMask = Impl.parseDirFileMask true

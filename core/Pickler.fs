@@ -3,7 +3,7 @@
 open System
 
 /// Pickler Combinators implementation
-module internal Pickler = 
+module Pickler = 
 
   type OutState = System.IO.BinaryWriter
   type InState = System.IO.BinaryReader
@@ -13,6 +13,7 @@ module internal Pickler =
   
   /// Unit pickler, does nothing
   let unitPU = {pickle = (fun () _ -> ());   unpickle = fun _ -> ()}
+  let idPU pu : PU<'a> = id pu
 
   /// Translates pickler of one type into another's
   let wrapPU (d:'a -> 'b, r: 'b -> 'a) (pu: PU<'a>) = {pickle = r >> pu.pickle; unpickle = pu.unpickle >> d}

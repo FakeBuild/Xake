@@ -43,7 +43,7 @@ module DotnetTasks =
   let CscSettings = {
     Platform = AnyCpu
     Target = Auto  // try to resolve the type from name etc
-    Out = null
+    Out = Artifact.Undefined
     Src = Fileset.Empty
     Ref = Fileset.Empty
     RefGlobal = []
@@ -151,14 +151,14 @@ module DotnetTasks =
           if settings.Unsafe then
             yield "/unsafe"
 
-          if outFile <> null then
+          if not outFile.IsUndefined then
             yield sprintf "/out:%s" outFile.FullName
 
           if not (List.isEmpty settings.Define) then
             yield "/define:" + System.String.Join(";", Array.ofList settings.Define)
 
-          yield! src |> List.map (FileTarget >> getFullname)
-          yield! refs |> List.map (FileTarget >> getFullname >> (+) "/r:")
+          yield! src |> List.map (fun f -> f.FullName) 
+          yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
           yield! settings.RefGlobal |> List.map ((+) "/r:")
           // TODO resources
         }
@@ -169,6 +169,8 @@ module DotnetTasks =
       let rspFile = Path.GetTempFileName()
       File.WriteAllLines(rspFile, args |> Seq.map escapeArgument |> List.ofSeq)
       let commandLine = "@" + rspFile
+
+      do! writeLog Level.Info "Command line: '%s'" (args |> Seq.map escapeArgument |> Array.ofSeq |> fun s -> System.String.Join("\r\n\t", s))
 
       do! whenNeeded outFile <| action {
         do! writeLog Info "%s compiling '%s'" pfx outFile.Name
