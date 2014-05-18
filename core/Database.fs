@@ -64,89 +64,40 @@ module Storage =
 
   open BuildLog
 
-  module private PersistBin = 
+  module private Persist = 
 
+    open Pickler
     open System
     open System.IO
 
-    type OutState = System.IO.BinaryWriter
-    type InState = System.IO.BinaryReader
-    type Pickler<'T> = 'T -> OutState -> unit
-    type Unpickler<'T> = InState -> 'T
+    let targetPU =
+      altPU
+        (function | FileTarget _ -> 0 | PhonyAction _ -> 1)
+        [|
+          wrapPU ((fun f -> FileInfo f |> FileTarget), fun (FileTarget f) -> f.FullName) strPU
+          wrapPU (PhonyAction, (fun (PhonyAction a) -> a)) strPU
+        |]
 
-    let byteP (b : byte) (st : OutState) = st.Write(b)
-    let byteU (st : InState) = st.ReadByte()
+    let stepPU =
+      wrapPU (
+        (fun (n,d) -> StepInfo (n,d * 1<ms>)), fun (StepInfo (n,d)) -> (n,d/1<ms>))
+        (pairPU strPU intPU)
 
-    let boolP b st = byteP (if b then 1uy else 0uy) st
-    let boolU st = let b = byteU st in (b = 1uy)
+    let dependencyPU =
+      altPU
+        (function | File _ -> 0 | EnvVar _ -> 1 |Var _ -> 2)
+        [|
+          wrapPU (Dependency.File, fun (File f) -> f) targetPU
+          wrapPU (EnvVar, fun (EnvVar (n,v)) -> n,v) (pairPU strPU strPU)
+          wrapPU (Var, fun (Var (n,v)) -> n,v) (pairPU strPU strPU)
+        |]
 
-    let intP (i : Int32) (st : OutState) = st.Write(i)
-    let intU (st : InState) = st.ReadInt32()
-
-    let int64P (i : Int64) (st : OutState) = st.Write(i)
-    let int64U (st : InState) = st.ReadInt64()
-
-    let strP (s : string) (st : OutState) = st.Write(s)
-    let strU (st : InState) = st.ReadString()
-
-    let dtP (d : DateTime) = int64P d.Ticks
-    let dtU st : DateTime = st |> (int64U >> DateTime.FromBinary)
-
-    let tup2P p1 p2 (a, b) (st : OutState) =       (p1 a st : unit); (p2 b st : unit)
-    let tup3P p1 p2 p3 (a, b, c) (st : OutState) = do p1 a st; do p2 b st; do p3 c st
-    let tup4P p1 p2 p3 p4 (a, b, c, d) (st : OutState) = do p1 a st; do p2 b st; do p3 c st; do p4 d st
-
-    let tup2U p1 p2 (st : InState) = p1 st, p2 st
-    let tup3U p1 p2 p3 (st : InState) = p1 st, p2 st, p3 st
-    let tup4U p1 p2 p3 p4 (st : InState) = p1 st, p2 st, p3 st, p4 st
-
-    /// Outputs a list into the given output stream by pickling each element via f.
-    /// A zero indicates the end of a list, a 1 indicates another element of a list.
-    let rec listP f lst st =
-      match lst with
-      | [] -> byteP 0uy st
-      | h :: t -> byteP 1uy st; f h st; listP f t st
-    // Reads a list from a given input stream by unpickling each element via f.
-    let listU f st =
-      let rec loop acc =
-        let tag = byteU st
-        match tag with
-        | 0uy -> List.rev acc
-        | 1uy -> let a = f st in loop (a :: acc)
-        | n -> failwithf "listU: found number %d" n
-      loop []
-
-    let targetP = function
-      | FileTarget f ->  tup2P byteP strP (1uy, f.FullName)
-      | PhonyAction a -> tup2P byteP strP (2uy, a)
-
-    let targetU st =
-      match tup2U byteU strU st with
-      | (1uy,fullname) -> FileTarget <| FileInfo fullname
-      | (2uy,name) -> PhonyAction name
-      | _ -> failwith "Not a target"
-
-    let stepP (StepInfo (n,d)) = tup2P strP intP (n,d/1<ms>)
-    let stepU:InState -> StepInfo = tup2U strU intU >> fun (n,d) -> StepInfo (n,d*1<ms>)
-
-    let dependencyP = function
-      | File f   -> tup2P byteP targetP (1uy, f)
-      | EnvVar (name,value) -> tup3P byteP strP strP (2uy, name, value)
-      | Var (name,value) -> tup3P byteP strP strP (3uy, name, value)
-
-    let dependencyU st =
-      match byteU st with
-      | 1uy -> Dependency.File <| targetU st
-      | 2uy -> EnvVar <| tup2U strU strU st
-      | 3uy -> Var <| tup2U strU strU st
-      | _ -> failwith "Not a dependency"
-
-    let resultP (r:BuildResult) =
-      tup4P targetP dtP (listP dependencyP) (listP stepP) (r.Result, r.Built, r.Depends, r.Steps)
-
-    let resultU st =
-      let (r, built, deps, steps) = tup4U targetU dtU (listU dependencyU) (listU stepU) st in
-      {Result = r; Built = built; Depends = deps; Steps = steps}
+    let resultPU =
+      wrapPU (
+        (fun (r, built, deps, steps) -> {Result = r; Built = built; Depends = deps; Steps = steps}),
+        fun r -> (r.Result, r.Built, r.Depends, r.Steps)
+        )
+        (quadPU targetPU datePU (listPU dependencyPU) (listPU stepPU))
 
   type DatabaseApi =
     | GetResult of Key * AsyncReplyChannel<Option<BuildResult>>
