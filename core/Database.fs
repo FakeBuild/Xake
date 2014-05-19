@@ -47,45 +47,46 @@ module Storage =
 
   module private Persist = 
 
-    open Pickler
     open System
-    open System.IO
+    // open System.IO
+    open Pickler
 
-    let targetPU =
-      altPU
+    let target =
+      alt
         (function | FileTarget _ -> 0 | PhonyAction _ -> 1)
         [|
-          wrapPU ((fun f -> Artifact f |> FileTarget), fun (FileTarget f) -> f.Name) strPU
-          wrapPU (PhonyAction, (fun (PhonyAction a) -> a)) strPU
+          wrap ((fun f -> Artifact f |> FileTarget), fun (FileTarget f) -> f.Name) str
+          wrap (PhonyAction, (fun (PhonyAction a) -> a)) str
         |]
 
-    let stepPU =
-      wrapPU (
+    let step =
+      wrap (
         (fun (n,d) -> StepInfo (n,d * 1<ms>)), fun (StepInfo (n,d)) -> (n,d/1<ms>))
-        (pairPU strPU intPU)
+        (pair str int)
 
-    let dependencyPU =
-      altPU
+    let dependency =
+      alt
         (function | File _ -> 0 | EnvVar _ -> 1 |Var _ -> 2)
         [|
-          wrapPU (Dependency.File, fun (File f) -> f) targetPU
-          wrapPU (EnvVar, fun (EnvVar (n,v)) -> n,v) (pairPU strPU strPU)
-          wrapPU (Var, fun (Var (n,v)) -> n,v) (pairPU strPU strPU)
+          wrap (Dependency.File, fun (File f) -> f) target
+          wrap (EnvVar, fun (EnvVar (n,v)) -> n,v) (pair str str)
+          wrap (Var, fun (Var (n,v)) -> n,v) (pair str str)
         |]
 
-    let resultPU =
-      wrapPU (
+    let result =
+      wrap (
         (fun (r, built, deps, steps) -> {Result = r; Built = built; Depends = deps; Steps = steps}),
         fun r -> (r.Result, r.Built, r.Depends, r.Steps)
         )
-        (quadPU targetPU datePU (listPU dependencyPU) (listPU stepPU))
+        (quad target date (list dependency) (list step))
 
   type DatabaseApi =
     | GetResult of Target * AsyncReplyChannel<Option<BuildResult>>
     | Store of BuildResult
     | Close
+    | CloseWait of AsyncReplyChannel<unit>
 
-  let resultPU = Persist.resultPU
+  let resultPU = Persist.result
 
   open System.IO
 
@@ -109,7 +110,7 @@ module Storage =
         let stream = reader.BaseStream
       
         while stream.Position < stream.Length do
-          let result = Persist.resultPU.unpickle reader
+          let result = resultPU.unpickle reader
           db := addResult !db result
           fileRecords := !fileRecords + 1
 
@@ -124,7 +125,7 @@ module Storage =
       File.Move(dbpath,bkpath)
       
       use writer = new BinaryWriter (File.Open(dbpath, FileMode.CreateNew))
-      db.contents.Status |> Map.toSeq |> Seq.map snd |> Seq.iter (fun r -> Persist.resultPU.pickle r writer)
+      db.contents.Status |> Map.toSeq |> Seq.map snd |> Seq.iter (fun r -> resultPU.pickle r writer)
       
       File.Delete(bkpath)
 
@@ -138,11 +139,16 @@ module Storage =
           db.Status |> Map.tryFind key |> chnl.Reply
           return! loop(db)
         | Store result ->
-          Persist.resultPU.pickle result dbwriter
+          resultPU.pickle result dbwriter
           return! loop(result |> addResult db)
         | Close ->
           log Info "Closing database"
           dbwriter.Dispose()
+          return ()
+        | CloseWait ch ->
+          log Info "Closing database"
+          dbwriter.Dispose()
+          ch.Reply()
           return ()
       }
       loop(!db) )

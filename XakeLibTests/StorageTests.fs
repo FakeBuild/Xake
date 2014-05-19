@@ -5,7 +5,6 @@ open System.IO
 open NUnit.Framework
 
 open Xake
-open Xake.Pickler
 open Xake.BuildLog
 open Xake.Storage
 
@@ -16,8 +15,10 @@ type Bookmark =
 [<TestFixture (Description = "Verious tests")>]
 type StorageTests() =
 
+  let dbname = "." </> ".xake"
+
   // stores object to a binary stream and immediately reads it
-  let writeAndRead pu testee =
+  let writeAndRead (pu:Pickler.PU<_>) testee =
     use buffer = new MemoryStream()
     pu.pickle testee (BinaryWriter buffer)
     buffer.Position <- 0L
@@ -26,20 +27,38 @@ type StorageTests() =
   let createStrLogger (errorlist:System.Collections.Generic.List<string>) =
     CustomLogger (fun _ -> true) errorlist.Add
 
+  let logger = ConsoleLogger Verbosity.Diag
+
+  let createResult name =
+    {(makeResult <| FileTarget (Artifact name)) with
+      Depends = [File <| FileTarget (Artifact "abc.c"); Var ("DEBUG", "false")]
+      Steps = [StepInfo ("compile", 217<ms>)]
+    }
+
+  let (<-*) (a:Agent<DatabaseApi>) t = a.PostAndReply(fun ch -> GetResult (t,ch))
+
+  // Is.Any predicate for assertions
+  let IsAny() = Is.Not.All.Not
+
+  [<SetUp>]
+  member this.Setup() =
+    // delete database file
+    try File.Delete(dbname) with _ -> ()
+
   [<Test (Description = "Verifies persisting of recursive types")>]
   [<Ignore ("Still no luck due to recursive types are not allowed in ML")>]
   member test.RecursiveType() =
 
-    let wrapL (d:'a -> 'b, r: 'b -> 'a) (pu: Lazy<PU<'a>>) = {pickle = r >> pu.Value.pickle; unpickle = pu.Value.unpickle >> d}
+    let wrapL (d:'a -> 'b, r: 'b -> 'a) (pu: Lazy<Pickler.PU<'a>>) = {Pickler.PU.pickle = r >> pu.Value.pickle; Pickler.PU.unpickle = pu.Value.unpickle >> d}
 
     let rec bookmarkPU =
-      altPU
+      Pickler.alt
         (function | Bookmark _ -> 0 | Folder _ -> 1)
         [|
-          wrapL (Bookmark, fun (Bookmark (name,url)) -> name,url) (lazy pairPU strPU strPU)
-          wrapL (Folder, fun (Folder (name,ls)) -> name,ls) (Lazy.Create (fun () -> pairPU strPU (bpu())))
+          wrapL (Bookmark, fun (Bookmark (name,url)) -> name,url) (lazy Pickler.pair Pickler.str Pickler.str)
+          wrapL (Folder, fun (Folder (name,ls)) -> name,ls) (Lazy.Create (fun () -> Pickler.pair Pickler.str (bpu())))
         |]
-    and bpu() = listPU bookmarkPU
+    and bpu() = Pickler.list bookmarkPU
 
     let testee =
       Folder ("root",
@@ -90,46 +109,77 @@ type StorageTests() =
   [<Test (Description = "Verifies persisting simple data")>]
   member test.WriteReadDb() =
 
-//    let errorlist = new System.Collections.Generic.List<string>()
-//    let logger = createStrLogger errorlist
-    let logger = ConsoleLogger Verbosity.Diag
-
-    let createResult name =
-      {(makeResult <| FileTarget (Artifact name)) with
-        Depends = [File <| FileTarget (Artifact "abc.c"); Var ("DEBUG", "false")]
-        Steps = [StepInfo ("compile", 217<ms>)]
-      }
-
-    let inline (<--) (agent: ^a) (msg: 'b) =
-      (^a: (member Post: 'b -> unit) (agent, msg));
-      agent
-
-    let inline (<-|) (agent: ^a) (msg: 'b) =
-      (^a: (member Post: 'b -> unit) (agent, msg))
-
-    try File.Delete("." </> ".xake") with _ -> ()
+    let inline (<--) (agent: ^a) (msg: 'b) = (^a: (member Post: 'b -> unit) (agent, msg)); agent
 
     use testee = Storage.openDb "." logger
     testee
       <-- Store (createResult "abc.exe")
       <-- Store (createResult "def.exe")
       <-- Store (createResult "fgh.exe")
-      <-| Close
-    Threading.Thread.Sleep(1000)
+      |> ignore
+
+    testee.PostAndReply CloseWait
 
     use testee = Storage.openDb "." logger
-    let abc = testee.PostAndReply(fun ch -> GetResult ((FileTarget <| Artifact "abc.exe"),ch))
 
+    let abc = testee <-* (FileTarget <| Artifact "abc.exe")
     Assert.IsTrue(Option.isSome abc)
 
-    let def = testee.PostAndReply(fun ch -> GetResult ((FileTarget <| Artifact "def.exe"),ch))
+    let def = testee <-* (FileTarget <| Artifact "def.exe")
     Assert.IsTrue(Option.isSome def)
 
-    let fgh = testee.PostAndReply(fun ch -> GetResult ((FileTarget <| Artifact "fgh.exe"),ch))
+    let fgh = testee <-* (FileTarget <| Artifact "fgh.exe")
     Assert.IsTrue(Option.isSome fgh)
 
     printfn "%A" abc
-    testee <-| Close
-    Threading.Thread.Sleep(100)
+    testee.PostAndReply CloseWait
 
-    // TODO Compacting test
+  [<Test (Description = "Verifies database self-compress")>]
+  member test.DatabaseClean() =
+
+    let msgs = System.Collections.Generic.List<string>()
+    let logger = createStrLogger msgs
+
+    let inline (<--) (agent: ^a) (msg: 'b) = (^a: (member Post: 'b -> unit) (agent, msg)); agent
+
+    use testee = Storage.openDb "." logger
+
+    for j in seq {1..20} do
+      for i in seq {1..20} do
+        let name = sprintf "a%A.exe" i
+        testee <-- Store (createResult name) |> ignore
+
+    testee.PostAndReply CloseWait
+    
+    let oldLen = (FileInfo dbname).Length
+
+    use testee = Storage.openDb "." logger
+    testee.PostAndReply CloseWait
+
+    let newLen = (FileInfo dbname).Length
+    printfn "old size: %A, new size: %A" oldLen newLen
+
+    Assert.Less((int newLen), (int oldLen)/3)
+    Assert.That(msgs, IsAny().Contains("Compacting database"))
+
+  [<Test (Description = "Verifies database update")>]
+  member test.DatabaseUpdate() =
+
+    let inline (<--) (agent: ^a) (msg: 'b) = (^a: (member Post: 'b -> unit) (agent, msg)); agent
+
+    use testee = Storage.openDb "." logger
+
+    let result = createResult "abc"
+    testee <-- Store result |> ignore
+
+    let updatedResult = {result with Depends = [Var ("DEBUG", "true")] }
+    testee <-- Store updatedResult |> ignore
+
+    testee.PostAndReply CloseWait
+    
+    use testee = Storage.openDb "." logger
+    let (Some read) = testee <-* (FileTarget <| Artifact "abc")
+    testee.PostAndReply CloseWait
+
+    Assert.AreEqual ([Var ("DEBUG", "true")], read.Depends)
+
