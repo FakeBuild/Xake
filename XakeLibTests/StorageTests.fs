@@ -183,3 +183,43 @@ type StorageTests() =
 
     Assert.AreEqual ([Var ("DEBUG", "true")], read.Depends)
 
+  [<Test (Description = "Verifies database restoration from backup")>]
+  member test.RestoreDb() =
+
+    let msgs = System.Collections.Generic.List<string>()
+    let logger = createStrLogger msgs
+    let inline (<--) (agent: ^a) (msg: 'b) = (^a: (member Post: 'b -> unit) (agent, msg)); agent
+
+    use testee = Storage.openDb "." logger
+    testee <-- Store (createResult "abc") |> ignore
+    testee.PostAndReply CloseWait
+
+    let bkdb = "." </> ".xake" <.> "bak"
+    File.Move (dbname, bkdb)
+
+    File.WriteAllText (dbname, "dummy text")
+    
+    use testee = Storage.openDb "." logger
+    let read = testee <-* (FileTarget <| Artifact "abc")
+    Assert.IsTrue(Option.isSome read)
+    testee.PostAndReply CloseWait
+
+    Assert.That(msgs, IsAny().Contains("restoring db"))
+
+  [<Test (Description = "Verifies broken db will be repaired")>]
+  member test.CleanBrokenDb() =
+
+    let msgs = System.Collections.Generic.List<string>()
+    let logger = createStrLogger msgs
+    let inline (<--) (agent: ^a) (msg: 'b) = (^a: (member Post: 'b -> unit) (agent, msg)); agent
+
+    File.WriteAllText (dbname, "dummy text")
+
+    use testee = Storage.openDb "." logger
+    testee <-- Store (createResult "abc") |> ignore
+    let read = testee <-* (FileTarget <| Artifact "abc")
+    Assert.IsTrue(Option.isSome read)
+    testee.PostAndReply CloseWait
+
+    Assert.That(msgs, IsAny().Contains("Failed to read database"))
+
