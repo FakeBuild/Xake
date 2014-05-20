@@ -55,51 +55,59 @@ module WorkerPool =
   open System.Threading
   open System.Threading.Tasks
 
-  open Xake
+  open BuildLog
+
+  type RunStatus =
+    | Running of Task<RunStatus>
+    | Completed of BuildResult
+    | Skipped
 
   // execution context
   type ExecMessage =
-    | Run of Target * Async<unit> * AsyncReplyChannel<Async<unit>>
+    | Run of Target * Async<BuildResult> * AsyncReplyChannel<RunStatus>
+    | UpdateStatus of Target * RunStatus
 
   let create (logger:ILogger) maxThreads =
     // controls how many threads are running in parallel
     let throttler = new SemaphoreSlim (maxThreads)
     let log = logger.Log
 
+    let mapKey (artifact:Target) = artifact |> getFullname
+
     throttler, MailboxProcessor.Start(fun mbox ->
       let rec loop(map) = async {
         let! msg = mbox.Receive()
+
         match msg with
+
+        | UpdateStatus (artifact,status) ->
+          let mkey = artifact |> mapKey
+          return! loop(map |> Map.remove mkey |> Map.add mkey status)
+
         | Run(artifact, action, chnl) ->
-          let fullname = getFullname artifact
-          match map |> Map.tryFind fullname with
-          | Some (task:Task<unit>) ->
- 
-            chnl.Reply(task.IsCompleted |> function
-              |true -> async{()}
-              | _ ->
-                log Debug "Task found for '%s'. Waiting for completion" (getShortname artifact)
-                Async.AwaitTask task)
- 
+          let mkey = artifact |> mapKey
+
+          match map |> Map.tryFind mkey with
+          | Some status ->
+            log Debug "Task found for '%s'. Status %A" (getShortname artifact) status
+            chnl.Reply status
             return! loop(map)
 
           | None ->
             do log Command "Queued '%s'" (getShortname artifact)
             do! throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
           
-            let task = Async.StartAsTask (async {
+            let status = Running <| Async.StartAsTask (async {
               try
-                do! action
+                let! buildResult = action
                 do log Command "Done '%s'" (getShortname artifact)
+
+                mbox.Post (UpdateStatus (artifact,Completed buildResult))
+                return Completed buildResult
               finally
                 throttler.Release() |> ignore
             })
-            chnl.Reply(Async.AwaitTask task)
-            return! loop(map |> Map.add fullname task)
+            chnl.Reply status
+            return! loop(map |> Map.add mkey status)
       }
       loop(Map.empty) )
-
-
-  // TODO how does it work?
-  // actionPool.Error.Add(fun e -> exitWithError 1 e.Message e)
-

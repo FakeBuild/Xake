@@ -18,6 +18,7 @@ module DomainTypes =
     member this.Name = name
     member this.FullName = fi.Value.FullName
     member this.Exists = fi.Value.Exists
+    member this.LastWriteTime = fi.Value.LastWriteTime
 
     member this.IsUndefined = System.String.IsNullOrWhiteSpace(name)
     static member Undefined = Artifact(null)

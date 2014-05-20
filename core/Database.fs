@@ -5,7 +5,7 @@ module BuildLog =
   open Xake
   open System
 
-  let XakeVersion = "0.1-a"
+  let XakeVersion = "0.1-b"
 
   // structures, database processor and store
   type Timestamp = System.DateTime
@@ -14,7 +14,7 @@ module BuildLog =
   type StepInfo = StepInfo of string * int<ms>
 
   type Dependency =
-    | File of Artifact * Timestamp
+    | File of Artifact * Timestamp  // TODO file itself contains LastWriteTime so remove it
     | ArtifactDep of Target
     | EnvVar of string*string  // environment variable
     | Var of string*string     // any other data such as compiler version

@@ -61,6 +61,7 @@ module XakeScript =
 
   module private Impl =
     open WorkerPool
+    open BuildLog
     open Storage
 
     /// Writes the message with formatting to a log
@@ -103,8 +104,16 @@ module XakeScript =
     // executes single artifact
     let private execOne ctx target =
 
-      // TODO retrieve the status from db
-      // if dependencies are not changed skip the step
+    // TODO might required special return status indicated whether it was rebuilt or not
+      let rec resultFromStatus (status:RunStatus) =
+        match status with
+        | Running task ->
+          async {
+            let! s = Async.AwaitTask task
+            return! resultFromStatus s
+          }
+        | Completed br -> async {return Some br}
+        | Skipped -> async {return None}          
 
       target
       |> locateRule ctx.Rules ctx.Options.ProjectRoot
@@ -116,18 +125,29 @@ module XakeScript =
       |> function
         | Some action ->
           async {
-            let! task = ctx.TaskPool.PostAndAsyncReply (fun chnl ->
+            let! status = ctx.TaskPool.PostAndAsyncReply (fun chnl ->
               Run(target,
                 async {
+                  // TODO check if rebuild is required
                   let! (result,_) = action (BuildLog.makeResult target,ctx)
-                  do Store result |> ctx.Db.Post |> ignore
-                  return ()
+                  do Store result |> ctx.Db.Post |> ignore // TODO store only ones
+                  return result
                 }, chnl))
-            return! task
+
+            let! resultStatus = resultFromStatus status
+            match resultStatus with
+            | Some buildResult ->
+                do Store buildResult |> ctx.Db.Post |> ignore // TODO store only ones
+                ctx.Logger.Log Debug "Stored build result for '%A'" target
+            | _ -> ()
+
+            return! async {return Dependency.ArtifactDep target}
           }
-        | None ->   // TODO should always fail for phony
-          if not <| exists target then raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
-          async {()}
+        | None ->
+          // should always fail for phony
+          let (FileTarget file) = target
+          if not file.Exists then raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
+          async {return Dependency.File (file,file.LastWriteTime)}
 
     /// Executes several artifacts in parallel
     let private exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel

@@ -10,6 +10,10 @@
   * dependency rule: custom rule
   * performance of rules lookup (takes 2s now)
 
+### Refactorings
+    * Artifact -> FileName of string, relative path
+
+
 ## Tasks TODO
   * command-line tool
   * CSC resources
