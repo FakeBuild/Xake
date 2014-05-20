@@ -52,13 +52,11 @@ type MiscTests() =
                   do! writeLog Error "Running inside 'hello' rule"
                   do! need ["hello.cs"]
 
-                  do! whenNeeded file <| action {
-                    do! writeLog Error "Rebuilding..."
-                    do! Csc {
-                      CscSettings with
-                        Out = file
-                        Src = !!"hello.cs"
-                    }
+                  do! writeLog Error "Rebuilding..."
+                  do! Csc {
+                    CscSettings with
+                      Out = file
+                      Src = !!"hello.cs"
                   }
 
 // this is option2, not implemented

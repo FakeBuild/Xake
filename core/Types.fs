@@ -33,6 +33,8 @@ module DomainTypes =
   type Target = FileTarget of Artifact | PhonyAction of string
   // TODO have no idea where to put this type and related methods (see fileset.fs) to
 
+  let toArtifact name = Artifact name
+
   /// Defines common exception type
   exception XakeException of string
 

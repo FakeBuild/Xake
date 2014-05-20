@@ -31,7 +31,7 @@ module Pickler =
     pickle = (fun (a,b) st -> (pu1.pickle a st : unit); (pu2.pickle b st))
     unpickle = fun st -> pu1.unpickle st, pu2.unpickle st}
   let triple pu1 pu2 pu3 = {
-    pickle = (fun (a,b,c) st -> (pu1.pickle a st : unit); (pu2.pickle a st : unit); (pu3.pickle b st))
+    pickle = (fun (a,b,c) st -> (pu1.pickle a st : unit); (pu2.pickle b st : unit); (pu3.pickle c st))
     unpickle = fun st -> pu1.unpickle st, pu2.unpickle st, pu3.unpickle st}
     
   let quad pu1 pu2 pu3 pu4 =

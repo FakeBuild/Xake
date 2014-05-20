@@ -147,8 +147,9 @@ module XakeScript =
         do! targets |> (exec ctx >> Async.Ignore)
         do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
 
+        // TODO
         let! result = getResult()
-        do! setResult {result with Depends = result.Depends @ (targets |> List.map BuildLog.Dependency.File)}
+        do! setResult {result with Depends = result.Depends @ (targets |> List.map BuildLog.Dependency.ArtifactDep)}
       }
 
     /// Executes the build script

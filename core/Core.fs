@@ -73,9 +73,14 @@ module WorkerPool =
         | Run(artifact, action, chnl) ->
           let fullname = getFullname artifact
           match map |> Map.tryFind fullname with
-          | Some task ->
-            log Debug "Task found for '%s'. Waiting for completion" (getShortname artifact)
-            chnl.Reply(Async.AwaitTask task)
+          | Some (task:Task<unit>) ->
+ 
+            chnl.Reply(task.IsCompleted |> function
+              |true -> async{()}
+              | _ ->
+                log Debug "Task found for '%s'. Waiting for completion" (getShortname artifact)
+                Async.AwaitTask task)
+ 
             return! loop(map)
 
           | None ->

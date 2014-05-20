@@ -31,7 +31,7 @@ type StorageTests() =
 
   let createResult name =
     {(makeResult <| FileTarget (Artifact name)) with
-      Depends = [File <| FileTarget (Artifact "abc.c"); Var ("DEBUG", "false")]
+      Depends = [ArtifactDep <| FileTarget (Artifact "abc.c"); Var ("DEBUG", "false")]
       Steps = [StepInfo ("compile", 217<ms>)]
     }
 
@@ -87,8 +87,8 @@ type StorageTests() =
     let testee =
       {testee with
         Depends = [
-                    File <| FileTarget (Artifact "abc.c")
-                    File <| FileTarget (Artifact "common.c")
+                    ArtifactDep <| FileTarget (Artifact "abc.c")
+                    File (Artifact "common.c", System.DateTime(1971, 11, 21))
                     EnvVar ("SDK", "4.5")
                     Var ("DEBUG", "false")
                   ]
