@@ -13,7 +13,7 @@ let internal SystemOptions = {LogPrefix = ""; StdOutLevel = Level.Info; ErrOutLe
 // internal implementation
 let internal _system settings cmd args =
   action {
-    let! ctx = getCtx
+    let! ctx = getCtx()
     let log = ctx.Logger.Log
 
     let pinfo =

@@ -36,6 +36,7 @@ module XakeScript =
 
   type ExecContext = {
     TaskPool: MailboxProcessor<WorkerPool.ExecMessage>
+    Db: MailboxProcessor<Storage.DatabaseApi>
     Throttler: SemaphoreSlim
     Options: XakeOptionsType
     Rules: Rules<ExecContext>
@@ -60,11 +61,12 @@ module XakeScript =
 
   module private Impl =
     open WorkerPool
+    open Storage
 
     /// Writes the message with formatting to a log
     let writeLog (level:Logging.Level) fmt  =
       let write s = action {
-        let! (ctx:ExecContext) = getCtx
+        let! (ctx:ExecContext) = getCtx()
         return ctx.Logger.Log level "%s" s
       }
       Printf.kprintf write fmt
@@ -74,9 +76,7 @@ module XakeScript =
     let makePhonyRule name fnRule = PhonyRule (name, fnRule)
 
     let addRule rule (Rules rules) :Rules<_> = 
-      let target = match rule with
-        | FileRule (selector,_) -> (FilePattern selector)
-        | PhonyRule (name,_) -> (PhonyTarget name)
+      let target = match rule with | FileRule (selector,_) -> (FilePattern selector) | PhonyRule (name,_) -> (PhonyTarget name)
       rules |> Map.add target rule |> Rules
 
     // locates the rule
@@ -102,31 +102,35 @@ module XakeScript =
 
     // executes single artifact
     let private execOne ctx target =
-      let action =
-        locateRule ctx.Rules ctx.Options.ProjectRoot target |>
-        Option.bind (function
+
+      // TODO retrieve the status from db
+      // if dependencies are not changed skip the step
+
+      target
+      |> locateRule ctx.Rules ctx.Options.ProjectRoot
+      |> Option.bind (function
           | FileRule (_, action) ->
             let (FileTarget artifact) = target in
             let (Action r) = action artifact in Some r
           | PhonyRule (_, Action r) -> Some r)
-
-      match action with
-      | Some action ->
-        async {
-          let! task = ctx.TaskPool.PostAndAsyncReply(fun chnl -> Run(target, action (Valid,ctx) |> Async.Ignore, chnl))
-          return! task
-        }
-      | None ->   // TODO should always fail for phony
-        if not <| exists target then raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
-        async {()}
-
+      |> function
+        | Some action ->
+          async {
+            let! task = ctx.TaskPool.PostAndAsyncReply (fun chnl ->
+              Run(target,
+                async {
+                  let! (result,_) = action (BuildLog.makeResult target,ctx)
+                  do Store result |> ctx.Db.Post |> ignore
+                  return ()
+                }, chnl))
+            return! task
+          }
+        | None ->   // TODO should always fail for phony
+          if not <| exists target then raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
+          async {()}
 
     /// Executes several artifacts in parallel
     let private exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
-
-    let private dumpTarget = function
-      | FileTarget f -> "file " + f.Name
-      | PhonyAction a -> "action " + a
 
     // phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
     let makeTarget ctx name =
@@ -138,10 +142,13 @@ module XakeScript =
 
     /// Executes and awaits specified artifacts
     let needTarget targets = action {
-        let! ctx = getCtx
+        let! ctx = getCtx()
         ctx.Throttler.Release() |> ignore
         do! targets |> (exec ctx >> Async.Ignore)
         do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
+
+        let! result = getResult()
+        do! setResult {result with Depends = result.Depends @ (targets |> List.map BuildLog.Dependency.File)}
       }
 
     /// Executes the build script
@@ -157,7 +164,8 @@ module XakeScript =
       let (throttler, pool) = WorkerPool.create logger options.Threads
 
       let start = System.DateTime.Now
-      let ctx = {TaskPool = pool; Throttler = throttler; Options = options; Rules = rules; Logger = logger}
+      let db = Storage.openDb options.ProjectRoot logger
+      let ctx = {TaskPool = pool; Throttler = throttler; Options = options; Rules = rules; Logger = logger; Db = db }
 
       logger.Log Message "Options: %A" options
 
@@ -168,14 +176,17 @@ module XakeScript =
         }
 
       try
-        options.Want |> (List.map (makeTarget ctx) >> exec ctx >> Async.RunSynchronously >> ignore)
-        logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
-      with 
-        | exn ->
-          let th = if options.FailOnError then raiseError else reportError
-          let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) |> Seq.toArray in
-          th ctx (exn.Message + "\n" + System.String.Join("\r\n      ", errors)) exn
-          logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
+        try
+          options.Want |> (List.map (makeTarget ctx) >> exec ctx >> Async.RunSynchronously >> ignore)
+          logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
+        with 
+          | exn ->
+            let th = if options.FailOnError then raiseError else reportError
+            let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) |> Seq.toArray in
+            th ctx (exn.Message + "\n" + System.String.Join("\r\n      ", errors)) exn
+            logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
+      finally
+        db.PostAndReply Storage.CloseWait
 
   /// Script builder.
   type RulesBuilder(options) =
@@ -204,32 +215,20 @@ module XakeScript =
   /// Executes and awaits specified artifacts
   let needFileset fileset =
       action {
-        let! ctx = getCtx
+        let! ctx = getCtx()
         do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)) |> Impl.needTarget
       }
 
   /// Executes and awaits specified artifacts
   let need targets =
       action {
-        let! ctx = getCtx
-        do! targets |> (List.map (Impl.makeTarget ctx)) |> Impl.needTarget
+        let! ctx = getCtx()
+        let t' = targets |> (List.map (Impl.makeTarget ctx))
+        do!  t' |> Impl.needTarget
       }
 
   let needTgt = Impl.needTarget
 
-  /// Executes specified action only if artifact needs rebuild.
-  let whenNeeded (artifact:Artifact) (Action build) =
-    action {
-      let! status = getStatus
-      if status = Rebuild || not artifact.Exists then
-        let! ctx = getCtx
-        do! build (Valid,ctx) |> Async.Ignore
-      else
-        do! Impl.writeLog Command "'%s' is up to date. Skipped." artifact.Name
-      return () // TODO what to return?
-    }
-
-        
   /// Writes a message to a log
   let writeLog = Impl.writeLog
 
@@ -240,7 +239,7 @@ module XakeScript =
   let (=>) = Impl.makePhonyRule
 
   // Helper method to obtain script options within rule/task implementation
-  let getCtxOptions = action {
-    let! (ctx: ExecContext) = getCtx
+  let getCtxOptions() = action {
+    let! (ctx: ExecContext) = getCtx()
     return ctx.Options
   }

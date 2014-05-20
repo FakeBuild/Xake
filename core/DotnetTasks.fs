@@ -132,7 +132,7 @@ module DotnetTasks =
     let pfx = newProcPrefix()
 
     action {
-      let! options = getCtxOptions
+      let! options = getCtxOptions()
       let getFiles = toFileList options.ProjectRoot
 
       // TODO use filesets here but Combine does not support various roots currently
@@ -172,22 +172,20 @@ module DotnetTasks =
 
       do! writeLog Level.Info "Command line: '%s'" (args |> Seq.map escapeArgument |> Array.ofSeq |> fun s -> System.String.Join("\r\n\t", s))
 
-      do! whenNeeded outFile <| action {
-        do! writeLog Info "%s compiling '%s'" pfx outFile.Name
+      do! writeLog Info "%s compiling '%s'" pfx outFile.Name
 
-        let options = {
-          SystemOptions with
-            LogPrefix = pfx
-            StdOutLevel = Level.Verbose   // consider standard compiler output too noisy
-          }
-        let! exitCode = _system options csc_exe commandLine
-        do File.Delete rspFile
+      let options = {
+        SystemOptions with
+          LogPrefix = pfx
+          StdOutLevel = Level.Verbose   // consider standard compiler output too noisy
+        }
+      let! exitCode = _system options csc_exe commandLine
+      do File.Delete rspFile
 
-        do! writeLog Info "%s done '%s'" pfx outFile.Name
-        if exitCode <> 0 then
-          do! writeLog Error "%s ('%s') failed with exit code '%i'" pfx outFile.Name exitCode
-          if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
-      }
+      do! writeLog Info "%s done '%s'" pfx outFile.Name
+      if exitCode <> 0 then
+        do! writeLog Error "%s ('%s') failed with exit code '%i'" pfx outFile.Name exitCode
+        if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
     }
 
   (* csc options builder *)
