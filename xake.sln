@@ -21,6 +21,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ar", "ar", "{B8F979DC-5E33-
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Research", "Research\Research.fsproj", "{70BE9B7A-B5BD-4B91-AA2C-8EDDE63C72E4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Wiki", "Wiki", "{75E5F305-BC77-4A89-A1C8-3433E212A9E9}"
+	ProjectSection(SolutionItems) = preProject
+		implnotes.md = implnotes.md
+		readme.md = readme.md
+		todo.md = todo.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
