@@ -13,6 +13,7 @@ type Level =
   | Info
   | Debug
   | Verbose
+  | Never
 
 type Verbosity =
   | Silent
@@ -30,6 +31,7 @@ let LevelToString = function
   | Info -> "Info"
   | Debug -> "Debug"
   | Verbose -> "Verbose"
+  | _ -> ""
 
 let private logFilter = function
   | Silent -> set []

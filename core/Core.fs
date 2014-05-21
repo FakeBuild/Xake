@@ -57,15 +57,9 @@ module WorkerPool =
 
   open BuildLog
 
-  type RunStatus =
-    | Running of Task<RunStatus>
-    | Completed of BuildResult
-    | Skipped
-
   // execution context
-  type ExecMessage =
-    | Run of Target * Async<BuildResult> * AsyncReplyChannel<RunStatus>
-    | UpdateStatus of Target * RunStatus
+  type ExecMessage<'r> =
+    | Run of Target * Async<'r> * AsyncReplyChannel<Async<'r>>
 
   let create (logger:ILogger) maxThreads =
     // controls how many threads are running in parallel
@@ -79,35 +73,28 @@ module WorkerPool =
         let! msg = mbox.Receive()
 
         match msg with
-
-        | UpdateStatus (artifact,status) ->
-          let mkey = artifact |> mapKey
-          return! loop(map |> Map.remove mkey |> Map.add mkey status)
-
         | Run(artifact, action, chnl) ->
           let mkey = artifact |> mapKey
 
           match map |> Map.tryFind mkey with
-          | Some status ->
-            log Debug "Task found for '%s'. Status %A" (getShortname artifact) status
-            chnl.Reply status
+          | Some (task:Task<'a>) ->
+            log Never "Task found for '%s'. Status %A" (getShortname artifact) task.Status
+            chnl.Reply <| Async.AwaitTask task
             return! loop(map)
 
           | None ->
             do log Command "Queued '%s'" (getShortname artifact)
             do! throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
           
-            let status = Running <| Async.StartAsTask (async {
+            let task = Async.StartAsTask (async {
               try
                 let! buildResult = action
                 do log Command "Done '%s'" (getShortname artifact)
-
-                mbox.Post (UpdateStatus (artifact,Completed buildResult))
-                return Completed buildResult
+                return buildResult
               finally
                 throttler.Release() |> ignore
             })
-            chnl.Reply status
-            return! loop(map |> Map.add mkey status)
+            chnl.Reply <| Async.AwaitTask task
+            return! loop(map |> Map.add mkey task)
       }
       loop(Map.empty) )

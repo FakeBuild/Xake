@@ -35,8 +35,8 @@ module XakeScript =
   type Rules<'ctx> = Rules of Map<RuleTarget, Rule<'ctx>>
 
   type ExecContext = {
-    TaskPool: MailboxProcessor<WorkerPool.ExecMessage>
-    Db: MailboxProcessor<Storage.DatabaseApi>
+    TaskPool: Agent<WorkerPool.ExecMessage<unit>>
+    Db: Agent<Storage.DatabaseApi>
     Throttler: SemaphoreSlim
     Options: XakeOptionsType
     Rules: Rules<ExecContext>
@@ -104,17 +104,6 @@ module XakeScript =
     // executes single artifact
     let private execOne ctx target =
 
-    // TODO might required special return status indicated whether it was rebuilt or not
-      let rec resultFromStatus (status:RunStatus) =
-        match status with
-        | Running task ->
-          async {
-            let! s = Async.AwaitTask task
-            return! resultFromStatus s
-          }
-        | Completed br -> async {return Some br}
-        | Skipped -> async {return None}          
-
       target
       |> locateRule ctx.Rules ctx.Options.ProjectRoot
       |> Option.bind (function
@@ -125,29 +114,24 @@ module XakeScript =
       |> function
         | Some action ->
           async {
-            let! status = ctx.TaskPool.PostAndAsyncReply (fun chnl ->
+            let! task = ctx.TaskPool.PostAndAsyncReply (fun chnl ->
               Run(target,
                 async {
                   // TODO check if rebuild is required
                   let! (result,_) = action (BuildLog.makeResult target,ctx)
-                  do Store result |> ctx.Db.Post |> ignore // TODO store only ones
-                  return result
+                  return ctx.Db.Post <| Store result
+                  ctx.Logger.Log Never "Storing result for '%A': %A" target result
                 }, chnl))
 
-            let! resultStatus = resultFromStatus status
-            match resultStatus with
-            | Some buildResult ->
-                do Store buildResult |> ctx.Db.Post |> ignore // TODO store only ones
-                ctx.Logger.Log Debug "Stored build result for '%A'" target
-            | _ -> ()
-
-            return! async {return Dependency.ArtifactDep target}
+            do! task
+            return Dependency.ArtifactDep target
           }
         | None ->
           // should always fail for phony
           let (FileTarget file) = target
-          if not file.Exists then raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
-          async {return Dependency.File (file,file.LastWriteTime)}
+          match file.Exists with
+          | false -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
+          | true -> async {return Dependency.File (file,file.LastWriteTime)}
 
     /// Executes several artifacts in parallel
     let private exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
@@ -164,12 +148,11 @@ module XakeScript =
     let needTarget targets = action {
         let! ctx = getCtx()
         ctx.Throttler.Release() |> ignore
-        do! targets |> (exec ctx >> Async.Ignore)
+        let! dependencies = targets |> exec ctx
         do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
 
-        // TODO
         let! result = getResult()
-        do! setResult {result with Depends = result.Depends @ (targets |> List.map BuildLog.Dependency.ArtifactDep)}
+        do! setResult {result with Depends = result.Depends @ Array.toList dependencies}
       }
 
     /// Executes the build script
