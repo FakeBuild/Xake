@@ -64,6 +64,8 @@ module XakeScript =
     open BuildLog
     open Storage
 
+    let TimeCompareToleranceMs = 100
+
     /// Writes the message with formatting to a log
     let writeLog (level:Logging.Level) fmt  =
       let write s = action {
@@ -104,6 +106,52 @@ module XakeScript =
     // executes single artifact
     let private execOne ctx target =
 
+      let reason msg file = function
+        | true ->
+          do ctx.Logger.Log Info "Rebuild %A: %s, src '%s'" (getShortname target) msg file
+          true
+        | _ -> false
+
+      let rec needRebuild = function
+        | File (a:Artifact,wrtime) ->
+          not(a.Exists && abs((a.LastWriteTime - wrtime).Milliseconds) < TimeCompareToleranceMs)
+          |> reason "removed or changed file" a.Name
+        | ArtifactDep target ->
+          match target with
+          | FileTarget file when not file.Exists ->
+            true |> reason "target doesn't exist" file.Name
+          | _ -> (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply |> isOutdated |> reason "dependency changed" "many"
+        | EnvVar (name,value) -> false  // TODO implement
+        | Var (name,value) -> false
+
+        (*
+        TODO Artifact dependency options (currently choosed #2, poor performance
+        1) run all targets (in one call for parallel), if all are skipped then skip
+        2) call needRebuild recursively
+          ! but ut will check certain targets multiple time, and we need to preserve result
+
+        TODO improve reasoning for rebuild        
+        *)
+
+      // check if rebuild is required
+      and isOutdated = function
+        | Some (result:BuildResult) ->
+          match result.Result with
+          | FileTarget file when not file.Exists -> true |> reason "target not found" file.Name
+          | _ -> result.Depends |> List.exists needRebuild |> reason "dependency changed" "many"
+        | _ -> true |> reason "new file?" "unk"
+
+      let run action chnl =
+        Run(target,
+          async {
+            let! lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndAsyncReply
+
+            if isOutdated lastBuild then
+              let! (result,_) = action (BuildLog.makeResult target,ctx)
+              //ctx.Logger.Log Never "Storing result for '%A': %A" target result
+              Store result |> ctx.Db.Post
+          }, chnl)
+
       target
       |> locateRule ctx.Rules ctx.Options.ProjectRoot
       |> Option.bind (function
@@ -114,24 +162,16 @@ module XakeScript =
       |> function
         | Some action ->
           async {
-            let! task = ctx.TaskPool.PostAndAsyncReply (fun chnl ->
-              Run(target,
-                async {
-                  // TODO check if rebuild is required
-                  let! (result,_) = action (BuildLog.makeResult target,ctx)
-                  return ctx.Db.Post <| Store result
-                  ctx.Logger.Log Never "Storing result for '%A': %A" target result
-                }, chnl))
-
-            do! task
+            let! waitTask = run action |> ctx.TaskPool.PostAndAsyncReply
+            do! waitTask
             return Dependency.ArtifactDep target
           }
         | None ->
           // should always fail for phony
           let (FileTarget file) = target
           match file.Exists with
-          | false -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
           | true -> async {return Dependency.File (file,file.LastWriteTime)}
+          | false -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
 
     /// Executes several artifacts in parallel
     let private exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
@@ -215,12 +255,18 @@ module XakeScript =
   /// creates xake build script
   let xake options = new RulesBuilder(options)
 
+  /// Gets the script options.
+  let getCtxOptions() = action {
+    let! (ctx: ExecContext) = getCtx()
+    return ctx.Options
+  }
+
   /// key function implementation
   /// Executes and awaits specified artifacts
   let needFileset fileset =
       action {
-        let! ctx = getCtx()
-        do! fileset |> (toFileList ctx.Options.ProjectRoot >> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)) |> Impl.needTarget
+        let! options = getCtxOptions()
+        do! fileset |> (toFileList options.ProjectRoot >> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)) |> Impl.needTarget
       }
 
   /// Executes and awaits specified artifacts
@@ -241,9 +287,3 @@ module XakeScript =
 
   /// Creates phony action (check if I can unify the operator name)
   let (=>) = Impl.makePhonyRule
-
-  // Helper method to obtain script options within rule/task implementation
-  let getCtxOptions() = action {
-    let! (ctx: ExecContext) = getCtx()
-    return ctx.Options
-  }
