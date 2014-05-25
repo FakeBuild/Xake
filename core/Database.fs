@@ -18,6 +18,7 @@ module BuildLog =
     | ArtifactDep of Target
     | EnvVar of string*string  // environment variable
     | Var of string*string     // any other data such as compiler version
+    | AlwaysRerun              // indicates always rebuild the target
 
   type BuildResult = {
     Result: Target
@@ -78,12 +79,13 @@ module Storage =
 
     let dependency =
       alt
-        (function | ArtifactDep _ -> 0 | File _ -> 1 | EnvVar _ -> 2 |Var _ -> 3)
+        (function | ArtifactDep _ -> 0 | File _ -> 1 | EnvVar _ -> 2 |Var _ -> 3 |AlwaysRerun _ -> 4)
         [|
           wrap (ArtifactDep, fun (ArtifactDep f) -> f) target
           wrap (File, fun (File (f,ts)) -> (f,ts)) (pair artifact date)
           wrap (EnvVar, fun (EnvVar (n,v)) -> n,v) (pair str str)
           wrap (Var, fun (Var (n,v)) -> n,v) (pair str str)
+          wrap ((fun () -> AlwaysRerun), fun _ -> ()) unit
         |]
 
     let result =

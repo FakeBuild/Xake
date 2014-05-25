@@ -1,5 +1,4 @@
 ﻿## TODO
-  * alwaysRerun
   * условное правило (функция вместо маски)
   * rules versioning
   * ресурсы (CPU и пр.) для управления очередностью
@@ -41,9 +40,14 @@
  * диагностика и лог (детально в файл, кратко на экран)
  * exception handling and reporting
  * clean (phony actions)
+ * do! alwaysRerun() to build target regardless dependencies are untouched
 
 ## Thoughts
  * idea: rule settings
   * "clean" {FailOnError = true} \*\*> file a -> action {}
+  * "clean" \!\*> file a -> action {}
   * "clean" \*\*> file a -> action ({FailOnError = true}) {}
  * tracing mode: actions are not performed, only need is processed so that we get a dependency graph
+ * folder as a target:
+  * want ["Viewer", "Designer"]
+  * rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}

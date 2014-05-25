@@ -74,7 +74,6 @@ module XakeScript =
       }
       Printf.kprintf write fmt
 
-
     let makeFileRule  pattern fnRule = FileRule (pattern, fnRule)
     let makePhonyRule name fnRule = PhonyRule (name, fnRule)
 
@@ -106,50 +105,56 @@ module XakeScript =
     // executes single artifact
     let private execOne ctx target =
 
-      let reason msg file = function
+      let reason tgt msg file = function
         | true ->
-          do ctx.Logger.Log Info "Rebuild %A: %s, src '%s'" (getShortname target) msg file
+          do ctx.Logger.Log Info "Rebuild %A: %s, src '%s'" (getShortname tgt) msg file
           true
         | _ -> false
 
-      let rec needRebuild = function
+      let rec needRebuild (tgt:Target) = function
         | File (a:Artifact,wrtime) ->
           not(a.Exists && abs((a.LastWriteTime - wrtime).Milliseconds) < TimeCompareToleranceMs)
-          |> reason "removed or changed file" a.Name
+          |> reason tgt "removed or changed file" a.Name
         | ArtifactDep target ->
           match target with
           | FileTarget file when not file.Exists ->
-            true |> reason "target doesn't exist" file.Name
-          | _ -> (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply |> isOutdated |> reason "dependency changed" "many"
+            true |> reason tgt "target doesn't exist" file.Name
+          | _ ->
+            let lastBuildResult = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
+            lastBuildResult |> isOutdated target |> reason tgt "dependency changed" "many"
         | EnvVar (name,value) -> false  // TODO implement
         | Var (name,value) -> false
+        | AlwaysRerun -> true |> reason tgt "alwaysRerun" "none"
 
         (*
         TODO Artifact dependency options (currently choosed #2, poor performance
         1) run all targets (in one call for parallel), if all are skipped then skip
         2) call needRebuild recursively
           ! but ut will check certain targets multiple time, and we need to preserve result
-
-        TODO improve reasoning for rebuild        
         *)
 
       // check if rebuild is required
-      and isOutdated = function
+      and isOutdated (tgt:Target) = function
+        | Some (result:BuildResult) when List.isEmpty result.Depends ->
+            true |> reason tgt "No dependencies" "none"
         | Some (result:BuildResult) ->
           match result.Result with
-          | FileTarget file when not file.Exists -> true |> reason "target not found" file.Name
-          | _ -> result.Depends |> List.exists needRebuild |> reason "dependency changed" "many"
-        | _ -> true |> reason "new file?" "unk"
+          | FileTarget file when not file.Exists -> true |> reason tgt "target not found" file.Name
+          | _ -> result.Depends |> List.exists (needRebuild result.Result)
+        | _ -> true |> reason tgt "new file?" "unk"
 
       let run action chnl =
         Run(target,
           async {
             let! lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndAsyncReply
 
-            if isOutdated lastBuild then
+            if isOutdated target lastBuild then
+              do ctx.Logger.Log Command "Started %s" (getShortname target)
+
               let! (result,_) = action (BuildLog.makeResult target,ctx)
-              //ctx.Logger.Log Never "Storing result for '%A': %A" target result
               Store result |> ctx.Db.Post
+
+              do ctx.Logger.Log Command "Completed %s" (getShortname target)
           }, chnl)
 
       target
@@ -253,7 +258,14 @@ module XakeScript =
     [<CustomOperation("wantOverride")>] member this.WantOverride(script,targets) = updTargets script (fun _ -> targets)
 
   /// creates xake build script
-  let xake options = new RulesBuilder(options)
+  let xake options =
+    new RulesBuilder(options)
+
+  /// Create xake build script using command-line arguments to define script options
+  let xakeArgs args options =
+    let _::targets = Array.toList args
+    // this is very basic implementation which only recognizes target names
+    new RulesBuilder({options with Want = targets})
 
   /// Gets the script options.
   let getCtxOptions() = action {
@@ -278,6 +290,12 @@ module XakeScript =
       }
 
   let needTgt = Impl.needTarget
+
+  let alwaysRerun () = action {
+    let! ctx = getCtx()
+    let! result = getResult()
+    do! setResult {result with Depends = BuildLog.Dependency.AlwaysRerun :: result.Depends}
+  }
 
   /// Writes a message to a log
   let writeLog = Impl.writeLog

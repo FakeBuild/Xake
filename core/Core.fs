@@ -83,13 +83,13 @@ module WorkerPool =
             return! loop(map)
 
           | None ->
-            do log Command "Queued '%s'" (getShortname artifact)
+            do log Info "Task queued '%s'" (getShortname artifact)
             do! throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
           
             let task = Async.StartAsTask (async {
               try
                 let! buildResult = action
-                do log Command "Done '%s'" (getShortname artifact)
+                do log Info "Task done '%s'" (getShortname artifact)
                 return buildResult
               finally
                 throttler.Release() |> ignore

@@ -30,18 +30,21 @@ module libs =
 
 let dlls = List.map ardll <| ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart"; "Document"; "Core"; (* "Core1"; "Core2"; "Core3"; *) "OracleClient"; "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "Viewer.Win" ]
 
-do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
+// do xake {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
+do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
 
-  want (["all"])
-  //want (["clean"] @ dlls @ [arexe "Viewer"])
+  want (["build"])
+
+  phony "all" (action {
+    do! need ["clean"]
+    do! need ["build"]
+  })
 
   rule ("clean" => action {
     do! rm ["out" </> "*.*"]
   })
 
-  phony "all" (action {
-    // do! need ["clean"]
-    do! writeLog Command "Starting file %s" "targets"
+  phony "build" (action {
     do! need ([arexe "Viewer"] @ dlls)
   })
 

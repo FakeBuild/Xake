@@ -29,6 +29,12 @@ Error handling assumes the following system behavior:
   * idea: dump the whole trace to the target
 
 ## Incremental build
+Xake attempts to reduce build time by analyzing results of last build. The following rules are implemented:
+
+ * if any of dependency source files are changed
+ * if dependency artifact was rebuilt
+ * if there no dependencies at all (e.g. "clean" task), otherwise with incremental builds it will never rebuild
+ * in case action is marked with alwaysRerun
 
 ### Option 1. Check the status on the fly
 The idea is that we track the "need" status internally and in case any of dependencies is built or refreshed (file date is different) the status is changed to
