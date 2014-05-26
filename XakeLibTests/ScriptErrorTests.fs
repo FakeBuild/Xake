@@ -77,3 +77,27 @@ type ScriptErrorTests() =
       }) |> ignore
 
     Assert.IsTrue(errorlist.Exists (fun (x:string) -> x.Contains("Neither rule nor file is found")))
+
+  [<Test (Description = "Verifies the script properly fails if rule does not exists")>]
+  member test.HangOnBrokenDb() =
+
+    let dbname = "." </> ".xake"
+    File.WriteAllText (dbname, "dummy text")
+    let errorlist = new List<string>()
+
+    //Assert.DoesNotThrow<XakeException> (fun () ->
+    do xake (MakeDebugOptions errorlist) {
+        want (["clean"; "make"])
+        phony "clean" (action {
+          do! rm ["*.failbroken"]
+          do! writeLog Info "Running inside 'clean' rule"
+        })
+        phony "make" (action {
+          File.WriteAllText ("1.failbroken", "abc")
+          File.WriteAllText ("2.failbroken", "def")
+          do! writeLog Info "Running inside 'build' rule"
+        })
+      }
+      //) |> ignore
+    printf "result is %A" errorlist
+    //Assert.IsTrue(errorlist.Exists (fun (x:string) -> x.Contains("Neither rule nor file is found")))

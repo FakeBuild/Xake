@@ -32,10 +32,14 @@ let internal _system settings cmd args =
     do proc.BeginOutputReadLine()
     do proc.BeginErrorReadLine()
 
-    proc.EnableRaisingEvents <- true
-    do! Async.AwaitEvent proc.Exited |> Async.Ignore
-
-    return proc.ExitCode
+    // task might be completed by that time
+    do! Async.Sleep 50
+    if proc.HasExited then
+      return proc.ExitCode
+    else
+      proc.EnableRaisingEvents <- true
+      do! Async.AwaitEvent proc.Exited |> Async.Ignore
+      return proc.ExitCode
   }
 
 // joins and escapes strings
