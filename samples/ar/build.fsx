@@ -86,7 +86,7 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
       }
 
     ardll("Chart") *> fun outname -> action {
-      (* example of simplified syntax*)
+      (* example of simplified syntax *)
       do! (csc {
         out outname
         define ["ARNET"]

@@ -25,6 +25,7 @@
    * dependency rule: files
 
 ## Done
+ * alwaysRerun, +rule with no deps
  * имя файла-результата как аргумент (для оператора **>)
  * задача system
  * правило для группы файлов ("\*.rc" \*\*> fun f -> ...)
