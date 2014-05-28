@@ -64,7 +64,7 @@ module XakeScript =
     open BuildLog
     open Storage
 
-    let TimeCompareToleranceMs = 100
+    let TimeCompareToleranceMs = 100.0
 
     /// Writes the message with formatting to a log
     let writeLog (level:Logging.Level) fmt  =
@@ -113,7 +113,7 @@ module XakeScript =
 
       let rec needRebuild (tgt:Target) = function
         | File (a:Artifact,wrtime) ->
-          not(a.Exists && abs((a.LastWriteTime - wrtime).Milliseconds) < TimeCompareToleranceMs)
+          not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs)
           |> reason tgt "removed or changed file" a.Name
         | ArtifactDep target ->
           match target with
@@ -278,7 +278,8 @@ module XakeScript =
   let needFileset fileset =
       action {
         let! options = getCtxOptions()
-        do! fileset |> (toFileList options.ProjectRoot >> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)) |> Impl.needTarget
+        let targets = fileset |> (toFileList options.ProjectRoot >> List.map (fun f -> new Artifact (f.FullName) |> FileTarget))
+        do! targets |> Impl.needTarget
       }
 
   /// Executes and awaits specified artifacts
@@ -288,8 +289,6 @@ module XakeScript =
         let t' = targets |> (List.map (Impl.makeTarget ctx))
         do!  t' |> Impl.needTarget
       }
-
-  let needTgt = Impl.needTarget
 
   let alwaysRerun () = action {
     let! ctx = getCtx()

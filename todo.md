@@ -1,4 +1,5 @@
 ﻿## TODO
+  * accept filemasks in 'need' parameters
   * условное правило (функция вместо маски)
   * rules versioning
   * ресурсы (CPU и пр.) для управления очередностью

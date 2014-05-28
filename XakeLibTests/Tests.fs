@@ -10,6 +10,10 @@ open BuildLog
 [<TestFixture (Description = "Verious tests")>]
 type MiscTests() =
 
+    [<SetUp>]
+    member test.Setup() =
+      try File.Delete("." </> ".xake") with _ -> ()
+
     [<Test (Description = "Verifies need is executed only once")>]
     member test.NeedExecutesOnes() =
 
@@ -46,7 +50,7 @@ type MiscTests() =
 
         let needExecuteCount = ref 0
     
-        do xake {XakeOptions with Threads = 1} {  // one thread to avoid simultaneous access to 'wasExecuted'
+        do xake {XakeOptions with Threads = 1; FileLog="skipbuild.log"} {  // one thread to avoid simultaneous access to 'wasExecuted'
             want (["hello"])
 
             rules [
@@ -81,9 +85,6 @@ type MiscTests() =
     member test.BuildLog() =
 
         let cdate = System.DateTime(2014, 1, 2, 3, 40, 50);
-
-        let dbname = "." </> ".xake"
-        try File.Delete(dbname) with _ -> ()
 
         // execute script, check what's in build log
         File.WriteAllText ("bbb.c", "// empty file")
@@ -147,3 +148,66 @@ type MiscTests() =
 
         finally
           testee.PostAndReply DatabaseApi.CloseWait
+
+    [<Test (Description = "Verifies need is executed only once")>]
+    member test.SkipOnRebuild() =
+
+        let needExecuteCount = ref 0
+        File.WriteAllText("hlo.cs", "empty file")
+    
+        let build () = xake {XakeOptions with Threads = 1; FileLog=""} {
+            want (["hlo"])
+
+            rules [
+              "hlo" *> fun file -> action {
+                  do! writeLog Error "Running inside 'hlo' rule"
+                  do! need ["hlo.cs"]
+                  needExecuteCount := !needExecuteCount + 1
+                  do! Async.Sleep 2000
+                  File.WriteAllText(file.FullName, "")
+              }
+            ]
+        }
+
+        do build()
+        Assert.AreEqual(1, !needExecuteCount)
+
+        // now build it again and ensure the count is not changed
+        do build()
+        Assert.AreEqual(1, !needExecuteCount)
+
+        // now "touch" the file
+        File.AppendAllText("hlo.cs", "ee")
+        do build()
+        Assert.AreEqual(2, !needExecuteCount)
+
+    [<Test (Description = "Verifies rebuild is done when fileset is changed")>]
+    member test.RebuildOnNewFile() =
+
+        let needExecuteCount = ref 0
+
+        Directory.EnumerateFiles(".", "hello*.cs") |> Seq.iter File.Delete
+
+        File.WriteAllText("hello.cs", "empty file")
+    
+        let build () = xake {XakeOptions with Threads = 1; FileLog=""} {
+            want (["hello"])
+
+            rules [
+              "hello" *> fun file -> action {
+                  do! writeLog Error "Running inside 'hello' rule"
+                  do! needFileset (!!"hello*.cs")
+                  needExecuteCount := !needExecuteCount + 1
+                  File.WriteAllText(file.FullName, "")
+              }
+            ]
+        }
+
+        do build()
+        do build()
+        Assert.AreEqual(1, !needExecuteCount)
+
+        // now add another file and make sure target ir rebuilt
+        File.WriteAllText("hello1.cs", "empty file")
+        do build()
+        Assert.AreEqual(2, !needExecuteCount)
