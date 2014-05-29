@@ -120,31 +120,27 @@ type MiscTests() =
         use testee = Storage.openDb "." (ConsoleLogger Verbosity.Diag)
         try
 
-          let (Some buildResult) = testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test"), ch)
-          let buildResult = {buildResult with Built = cdate}
+          Assert.IsTrue <|
+            match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test"), ch) with
+              | Some {
+                BuildResult.Result = PhonyAction "test"
+                BuildResult.Depends = [
+                  ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
+                  Dependency.File (fileDep, depDate)]
+                BuildResult.Steps = []
+                }
+                when fileDep = Artifact(@"C:\projects\Mine\xake\bin\bbb.c") && depDate = cdate
+                 -> true
+              | _ -> false
 
-          //printf
-          Assert.AreEqual (
-            {
-              BuildResult.Result = PhonyAction "test"
-              Built = cdate
-              Depends =
-                [ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested"); File (Artifact @"C:\projects\Mine\xake\bin\bbb.c", cdate)]
-              BuildResult.Steps = []
-            },
-            buildResult)
-
-          let (Some buildResult) = testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test1"), ch)
-
-          let buildResult = {buildResult with Built = cdate}
-          Assert.AreEqual (
-            {
-              BuildResult.Result = PhonyAction "test1"
-              BuildResult.Built = cdate
-              BuildResult.Depends = [ArtifactDep (PhonyAction "aaa")]
-              BuildResult.Steps = []
-            },
-            buildResult)
+          Assert.IsTrue <|
+            match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test1"), ch) with
+              | Some {
+                BuildResult.Result = PhonyAction "test1"
+                BuildResult.Depends = [ArtifactDep (PhonyAction "aaa")]
+                BuildResult.Steps = []
+                } -> true
+              | _ -> false
 
         finally
           testee.PostAndReply DatabaseApi.CloseWait
@@ -211,3 +207,41 @@ type MiscTests() =
         File.WriteAllText("hello1.cs", "empty file")
         do build()
         Assert.AreEqual(2, !needExecuteCount)
+
+    [<Test (Description = "Verifies rebuild on var change")>]
+    member test.BuildOnEnvChange() =
+
+        let needExecuteCount = ref 0
+        File.WriteAllText("hlo.cs", "empty file")
+
+        System.Environment.SetEnvironmentVariable("TTT", "1")
+    
+        let build () = xake {XakeOptions with Threads = 1; FileLog=""} {
+            want (["hlo"])
+
+            rules [
+              "hlo" *> fun file -> action {
+                  do! need ["hlo.cs"]
+                  let! var = getEnv("TTT")
+                  do! writeLog Command "Running inside 'hlo' rule with var:%s" var
+                  needExecuteCount := !needExecuteCount + 1
+                  do! Async.Sleep 2000
+                  File.WriteAllText(file.FullName, "")
+              }
+            ]
+        }
+
+        do build()
+        Assert.AreEqual(1, !needExecuteCount)
+
+        // now build it again and ensure the count is not changed
+        do build()
+        Assert.AreEqual(1, !needExecuteCount)
+
+        // now "touch" the file
+        System.Environment.SetEnvironmentVariable("TTT", "2")
+
+        do build()
+        Assert.AreEqual(2, !needExecuteCount)
+
+        System.Environment.SetEnvironmentVariable("TTT", "")

@@ -112,17 +112,20 @@ module XakeScript =
         | _ -> false
 
       let rec needRebuild (tgt:Target) = function
-        | File (a:Artifact,wrtime) ->
-          not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs)
-          |> reason tgt "removed or changed file" a.Name
-        | ArtifactDep target ->
-          match target with
-          | FileTarget file when not file.Exists ->
+        | File (a:Artifact, wrtime) ->
+            not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs)
+            |> reason tgt "removed or changed file" a.Name
+
+        | ArtifactDep (FileTarget file) when not file.Exists ->
             true |> reason tgt "target doesn't exist" file.Name
-          | _ ->
+        | ArtifactDep _ ->
             let lastBuildResult = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
             lastBuildResult |> isOutdated target |> reason tgt "dependency changed" "many"
-        | EnvVar (name,value) -> false  // TODO implement
+
+        | EnvVar (name,value) ->
+            let newValue = System.Environment.GetEnvironmentVariable(name) in
+            value <> newValue
+
         | Var (name,value) -> false
         | AlwaysRerun -> true |> reason tgt "alwaysRerun" "none"
 
@@ -135,13 +138,16 @@ module XakeScript =
 
       // check if rebuild is required
       and isOutdated (tgt:Target) = function
-        | Some (result:BuildResult) when List.isEmpty result.Depends ->
+
+        | Some {BuildResult.Depends = []} ->
             true |> reason tgt "No dependencies" "none"
-        | Some (result:BuildResult) ->
-          match result.Result with
-          | FileTarget file when not file.Exists -> true |> reason tgt "target not found" file.Name
-          | _ -> result.Depends |> List.exists (needRebuild result.Result)
-        | _ -> true |> reason tgt "new file?" "unk"
+
+        | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
+            true |> reason tgt "target not found" file.Name
+
+        | Some result -> result.Depends |> List.exists (needRebuild result.Result)
+        | _ ->
+            true |> reason tgt "new file?" "unk"
 
       let run action chnl =
         Run(target,
@@ -155,6 +161,8 @@ module XakeScript =
               Store result |> ctx.Db.Post
 
               do ctx.Logger.Log Command "Completed %s" (getShortname target)
+            else
+              do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)
           }, chnl)
 
       target
@@ -290,10 +298,23 @@ module XakeScript =
         do!  t' |> Impl.needTarget
       }
 
+  /// Instructs Xake to rebuild the target evem if dependencies are not changed
   let alwaysRerun () = action {
     let! ctx = getCtx()
     let! result = getResult()
     do! setResult {result with Depends = BuildLog.Dependency.AlwaysRerun :: result.Depends}
+  }
+
+  /// Gets the environment variable
+  let getEnv variableName = action {
+    let value = System.Environment.GetEnvironmentVariable(variableName)
+    let! ctx = getCtx()
+    
+    // record the dependency
+    let! result = getResult()
+    do! setResult {result with Depends = BuildLog.Dependency.EnvVar (variableName,value) :: result.Depends}
+
+    return value
   }
 
   /// Writes a message to a log

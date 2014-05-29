@@ -6,6 +6,11 @@ open Xake
 open System
 
 // System.IO.Directory.SetCurrentDirectory __SOURCE_DIRECTORY__
+type Ll<'a> = 
+  | (::) of 'a * Ll<'a>
+  | Nil
+
+let x = 1 :: 2 :: Nil
 
 do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
 

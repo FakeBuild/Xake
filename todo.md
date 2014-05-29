@@ -5,7 +5,6 @@
   * ресурсы (CPU и пр.) для управления очередностью
   * multiple outputs
   * ...
-  * dependency rule: environment variable
   * dependency rule: compiler version
   * dependency rule: custom rule
   * performance of rules lookup (takes 2s now)
@@ -22,8 +21,7 @@
 
 ## In progress
   * incremental builds
-   * database
-   * dependency rule: files
+   * dependency rule: fileset change
 
 ## Done
  * alwaysRerun, +rule with no deps
@@ -43,6 +41,10 @@
  * exception handling and reporting
  * clean (phony actions)
  * do! alwaysRerun() to build target regardless dependencies are untouched
+ * incremental builds
+   * database
+   * files
+   * dependency rule: environment variable
 
 ## Thoughts
  * idea: rule settings
