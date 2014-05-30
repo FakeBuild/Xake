@@ -165,13 +165,16 @@ module XakeScript =
               do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)
           }, chnl)
 
+
+      // result expression is...
       target
       |> locateRule ctx.Rules ctx.Options.ProjectRoot
-      |> Option.bind (function
-          | FileRule (_, action) ->
+      |> function
+          | Some (FileRule (_, action)) ->
             let (FileTarget artifact) = target in
             let (Action r) = action artifact in Some r
-          | PhonyRule (_, Action r) -> Some r)
+          | Some (PhonyRule (_, Action r)) -> Some r
+          | _ -> None
       |> function
         | Some action ->
           async {
