@@ -104,72 +104,65 @@ module XakeScript =
       do reportError ctx error details
       raise (XakeException(sprintf "Script failed (error code: %A)\n%A" error details))
 
+    /// Gets true if rebuild is required
+    let rec needRebuild ctx (tgt:Target) result =
+
+      // check simple rules (all but ArtifactDep) synchronously
+      // request "dependencies"
+      let isOutdated = function
+        | File (a:Artifact, wrtime) ->
+            not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs), sprintf "removed or changed file '%s'" a.Name
+
+        | ArtifactDep (FileTarget file) ->
+            not file.Exists, sprintf "target doesn't exist '%s'" file.Name
+
+        | ArtifactDep _ -> false, ""
+  
+        | EnvVar (name,value) ->
+            let newValue = System.Environment.GetEnvironmentVariable(name) in
+            value <> newValue, sprintf "Environment variable %s was changed to '%s'" name value
+
+        | Var (name,value) -> false, "Var not implemented"
+        | AlwaysRerun -> true, "alwaysRerun rule"
+
+      match result with
+        | Some {BuildResult.Depends = []} ->
+            true, "No dependencies", []
+
+        | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
+            true, "target not found", []
+
+        | Some result ->
+            let artifactDeps, immediateDeps = result.Depends |> List.partition (function |ArtifactDep (FileTarget file) when file.Exists -> true | _ -> false)
+
+            match immediateDeps |> List.tryFind (isOutdated >> fst) with
+            | Some d ->
+              let _,reason = isOutdated d in
+              true, reason, []
+            | _ ->
+              let targets = artifactDeps |> List.map (function |ArtifactDep dep -> dep) in
+              false, "", targets
+
+        | _ -> true, "reason unknown (new file&)", []
+      |> function
+        | true, reason, _ ->
+            do ctx.Logger.Log Info "Rebuild %A: %s" (getShortname tgt) reason
+            async {return true}
+        | _, _, (deps: Target list) ->
+            async {
+              let! status = execNeed ctx deps
+              return fst status = ExecStatus.Succeed
+            }
+
     // executes single artifact
-    let rec private execOne ctx target =
-
-      /// Gets true if rebuild is required
-      let needRebuild (tgt:Target) result =
-
-        let reason tgt msg file = function
-          | true ->
-            do ctx.Logger.Log Info "Rebuild %A: %s, src '%s'" (getShortname tgt) msg file
-            true
-          | _ -> false
-
-        // check simple rules (all but ArtifactDep) synchronously
-        // request "dependencies"
-        let isOutdated (tgt:Target) = function
-          | File (a:Artifact, wrtime) ->
-              not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs)
-              |> reason tgt "removed or changed file" a.Name
-
-          | ArtifactDep (FileTarget file) ->
-              not file.Exists |> reason tgt "target doesn't exist" file.Name
-  //        | ArtifactDep _ ->
-  //            let lastBuildResult = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
-  //            lastBuildResult |> isOutdatedResult target |> reason tgt "dependency changed" "many"
-
-          | EnvVar (name,value) ->
-              let newValue = System.Environment.GetEnvironmentVariable(name) in
-              value <> newValue
-
-          | Var (name,value) -> false
-          | AlwaysRerun -> true |> reason tgt "alwaysRerun" "none"
-
-        let result, reason, (deps: Target list) =
-          match result with
-          | Some {BuildResult.Depends = []} ->
-              true, "No dependencies", []
-
-          | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
-              true, sprintf "target not found: '%s'" file.Name, []
-
-          | Some result ->
-              let artifactDeps, immediateDeps = result.Depends |> List.partition (function |ArtifactDep (FileTarget file) when file.Exists -> true | _ -> false)
-
-              let outdated =  immediateDeps |> List.exists (isOutdated result.Result) in  // TODO pass reason
-              let targets = artifactDeps |> List.map (function |ArtifactDep dep -> dep)
-              in
-              outdated, "", targets
-              // result.Depends |> List.exists (isOutdated result.Result), ""
-
-          | _ -> true, "reason unknown (new file&)", []
-
-        if result = true then
-          do ctx.Logger.Log Info "Rebuild %A: %s" (getShortname tgt) reason
-          async {return true}
-        else
-          async {
-            let! status = needTarget1 ctx deps
-            return status = ExecStatus.Succeed
-          }
+    and private execOne ctx target =
 
       let run action chnl =
         Run(target,
           async {
             let! lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndAsyncReply
 
-            let! doRebuild = needRebuild target lastBuild
+            let! doRebuild = needRebuild ctx target lastBuild
 
             if doRebuild then
               do ctx.Logger.Log Command "Started %s" (getShortname target)
@@ -209,39 +202,21 @@ module XakeScript =
           | false -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
 
     /// Executes several artifacts in parallel
-    and private exec ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
+    and private execMany ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
 
-    /// Executes and awaits specified artifacts
-    /// Returns ExecStatus indicating is any target was built (files are considered untouched)
-    and needTarget targets =
-      action {
-        let! ctx = getCtx()
-        ctx.Throttler.Release() |> ignore
-        let! execStatuses = targets |> exec ctx
-        do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
-
-        let dependencies = execStatuses |> Array.map snd
-        let anyUpdated = execStatuses |> Array.map fst |> Array.exists ((=) ExecStatus.Succeed)
-
-        let! result = getResult()
-        do! setResult {result with Depends = result.Depends @ Array.toList dependencies}
-
-        // TODO how to check if any file was changed and what does result mean?
-        return if anyUpdated then ExecStatus.Succeed else ExecStatus.Skipped
-      }
-    and needTarget1 ctx targets =
-      // TODO get rid off of above method
-      // return list of statuses
+    /// Gets the status of dependency artifacts (obtained from 'need' calls)
+    and execNeed ctx targets : Async<ExecStatus * Dependency list> =
       async {
         ctx.Throttler.Release() |> ignore
-        let! execStatuses = targets |> exec ctx
+        let! statuses = targets |> execMany ctx
         do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
 
-        let dependencies = execStatuses |> Array.map snd
-        let anyUpdated = execStatuses |> Array.map fst |> Array.exists ((=) ExecStatus.Succeed)
+        let dependencies = statuses |> Array.map snd |> List.ofArray in
+        let status = match statuses |> Array.exists (fst >> (=) ExecStatus.Succeed) with
+                      | true -> ExecStatus.Succeed
+                      | _ -> ExecStatus.Skipped
 
-        // TODO how to check if any file was changed and what does result mean?
-        return if anyUpdated then ExecStatus.Succeed else ExecStatus.Skipped
+        return status,dependencies
       }
 
     // phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
@@ -278,7 +253,7 @@ module XakeScript =
 
       try
         try
-          options.Want |> (List.map (makeTarget ctx) >> exec ctx >> Async.RunSynchronously >> ignore)
+          options.Want |> (List.map (makeTarget ctx) >> execMany ctx >> Async.RunSynchronously >> ignore)
           logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
         with 
           | exn ->
@@ -329,17 +304,23 @@ module XakeScript =
   /// Executes and awaits specified artifacts
   let needFileset fileset =
       action {
-        let! options = getCtxOptions()
-        let targets = fileset |> (toFileList options.ProjectRoot >> List.map (fun f -> new Artifact (f.FullName) |> FileTarget))
-        do! targets |> Impl.needTarget |> ActIgnore
-      }
+        let! ctx = getCtx()
+        let targets = fileset |> (toFileList ctx.Options.ProjectRoot >> List.map (fun f -> new Artifact (f.FullName) |> FileTarget))
+        let! _,deps = targets |> Impl.execNeed ctx
+
+        let! result = getResult()
+        do! setResult {result with Depends = result.Depends @ deps}
+     }
 
   /// Executes and awaits specified artifacts
   let need targets =
       action {
         let! ctx = getCtx()
         let t' = targets |> (List.map (Impl.makeTarget ctx))
-        do!  t' |> Impl.needTarget |> ActIgnore
+        let! _,deps = t' |> Impl.execNeed ctx
+
+        let! result = getResult()
+        do! setResult {result with Depends = result.Depends @ deps}
       }
 
   /// Instructs Xake to rebuild the target evem if dependencies are not changed
