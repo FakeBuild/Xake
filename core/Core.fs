@@ -48,6 +48,9 @@ module Action =
   let getCtx()     = Action (fun (r,c) -> async {return (r,c)})
   let getResult()  = Action (fun (s,_) -> async {return (s,s)})
   let setResult s' = Action (fun (_,_) -> async {return (s',())})
+  
+  /// Ignores action result
+  let ActIgnore act = act >>= (fun _ -> returnF ())
 
 module WorkerPool =
 
