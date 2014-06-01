@@ -226,6 +226,21 @@ module Fileset =
   let parseFileMask = Impl.parseDirFileMask false
   let parseDirMask = Impl.parseDirFileMask true
 
+  /// Converts fileset pattern to a string
+  let patternToStr (Pattern ptn) =
+
+    let p2s = function
+      | FsRoot -> "/"
+      | Parent -> "../"
+      | Disk d -> d + ":/"
+      | DirectoryMask m -> m + "/"
+      | Directory d -> d + "/"
+      | Recurse -> "**/"
+      | FileMask m -> m
+      | FileName n -> n
+
+    ptn |> List.map p2s |> Array.ofList |> System.String.Concat
+
   // let matches filePattern projectRoot
   let matches filePattern rootPath =
     // IDEA: make relative path than match to pattern?

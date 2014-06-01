@@ -14,11 +14,12 @@ module BuildLog =
   type StepInfo = StepInfo of string * int<ms>
 
   type Dependency =
-    | File of Artifact * Timestamp  // TODO file itself contains LastWriteTime so remove it
+    | File of Artifact * Timestamp
     | ArtifactDep of Target
     | EnvVar of string*string  // environment variable
     | Var of string*string     // any other data such as compiler version
     | AlwaysRerun              // indicates always rebuild the target
+    | GetFiles of FilesetType * System.IO.FileInfo list
 
   type BuildResult = {
     Result: Target
@@ -77,15 +78,45 @@ module Storage =
         (fun (n,d) -> StepInfo (n,d * 1<ms>)), fun (StepInfo (n,d)) -> (n,d/1<ms>))
         (pair str int)
 
+    // Fileset of FilesetOptions * FilesetElement list
+    let filesetoptions =
+      wrap (
+        (fun(foe,bdir) -> {FilesetOptions.FailOnError = foe; BaseDir = bdir}),
+        fun o -> (o.FailOnError, o.BaseDir)
+        )
+        (pair bool (option str))
+
+    // TODO move to a respective module
+    let pattern = wrap(parseFileMask, patternToStr) str
+
+    let filesetElement =
+      alt
+        (function | Includes _ -> 0 | Excludes _ -> 1)
+        [|
+          wrap (Includes, fun (Includes p) -> p) pattern
+          wrap (Excludes, fun (Excludes p) -> p) pattern
+        |]
+
+    let fileinfo = wrap((fun n -> System.IO.FileInfo n), fun fi -> fi.FullName) str
+
+    let fileset =
+      alt
+        (function | Fileset _ -> 0 | FileList _ -> 1)
+        [|
+          wrap(Fileset, fun (Fileset (o,l)) -> o,l) (pair filesetoptions (list filesetElement))
+          wrap(FileList, fun (FileList l) -> l) (list fileinfo)
+        |]
+    
     let dependency =
       alt
-        (function | ArtifactDep _ -> 0 | File _ -> 1 | EnvVar _ -> 2 |Var _ -> 3 |AlwaysRerun _ -> 4)
+        (function | ArtifactDep _ -> 0 | File _ -> 1 | EnvVar _ -> 2 |Var _ -> 3 |AlwaysRerun _ -> 4 |GetFiles _ -> 5)
         [|
           wrap (ArtifactDep, fun (ArtifactDep f) -> f) target
           wrap (File, fun (File (f,ts)) -> (f,ts)) (pair artifact date)
           wrap (EnvVar, fun (EnvVar (n,v)) -> n,v) (pair str str)
           wrap (Var, fun (Var (n,v)) -> n,v) (pair str str)
           wrap ((fun () -> AlwaysRerun), fun _ -> ()) unit
+          wrap (GetFiles, fun (GetFiles (fs,fi)) -> fs,fi) (pair fileset (list fileinfo))
         |]
 
     let result =

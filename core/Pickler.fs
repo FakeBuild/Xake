@@ -25,6 +25,7 @@ module Pickler =
   let double   = {pickle = (fun (s:float) st -> st.Write(s)); unpickle = fun st -> st.ReadDouble()}
 
   let date = wrap (DateTime.FromBinary, fun (d:DateTime) -> d.Ticks) int64
+  let bool = wrap ((<>) 0uy, function | true -> 1uy |false -> 0uy) byte
 
   /// Tuple picklers
   let pair pu1 pu2 = {
@@ -59,3 +60,12 @@ module Pickler =
         let tag = st |> byte.unpickle |> Convert.ToInt32 in
         (puu.[tag].unpickle st)
     }
+
+  /// Option type pickler
+  let option pu =
+    alt
+      (function | None _ -> 0 | Some _ -> 1)
+      [|
+        wrap ((fun () -> None), fun _ -> ()) unit
+        wrap (Some, fun (Some x) -> x) pu
+      |]

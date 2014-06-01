@@ -2,6 +2,8 @@
 
 [<AutoOpen>]
 module XakeScript =
+
+  open BuildLog
   open System.Threading
 
   type XakeOptionsType = {
@@ -124,6 +126,8 @@ module XakeScript =
 
         | Var (name,value) -> false, "Var not implemented"
         | AlwaysRerun -> true, "alwaysRerun rule"
+        | GetFiles (fileset,files) -> false, "GetFiles not implemented"
+          // TODO implement comparison, pass basedir for easier
 
       match result with
         | Some {BuildResult.Depends = []} ->
@@ -300,16 +304,19 @@ module XakeScript =
     return ctx.Options
   }
 
-  /// key function implementation
+  /// key functions implementation
+
   /// Executes and awaits specified artifacts
   let needFileset fileset =
       action {
         let! ctx = getCtx()
-        let targets = fileset |> (toFileList ctx.Options.ProjectRoot >> List.map (fun f -> new Artifact (f.FullName) |> FileTarget))
+        let files = fileset |> toFileList ctx.Options.ProjectRoot
+        let targets = files |> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)
         let! _,deps = targets |> Impl.execNeed ctx
 
         let! result = getResult()
-        do! setResult {result with Depends = result.Depends @ deps}
+        let fileDep = Dependency.GetFiles (fileset,files)
+        do! setResult {result with Depends = result.Depends @ (fileDep :: deps)}
      }
 
   /// Executes and awaits specified artifacts
@@ -327,7 +334,7 @@ module XakeScript =
   let alwaysRerun () = action {
     let! ctx = getCtx()
     let! result = getResult()
-    do! setResult {result with Depends = BuildLog.Dependency.AlwaysRerun :: result.Depends}
+    do! setResult {result with Depends = Dependency.AlwaysRerun :: result.Depends}
   }
 
   /// Gets the environment variable
@@ -337,10 +344,22 @@ module XakeScript =
     
     // record the dependency
     let! result = getResult()
-    do! setResult {result with Depends = BuildLog.Dependency.EnvVar (variableName,value) :: result.Depends}
+    do! setResult {result with Depends = Dependency.EnvVar (variableName,value) :: result.Depends}
 
     return value
   }
+
+  /// Executes and awaits specified artifacts
+  let getFiles fileset =
+      action {
+        let! ctx = getCtx()
+        let files = fileset |> toFileList ctx.Options.ProjectRoot
+
+        let! result = getResult()
+        do! setResult {result with Depends = result.Depends @ [Dependency.GetFiles (fileset,files)]}
+
+        return files
+     }
 
   /// Writes a message to a log
   let writeLog = Impl.writeLog
