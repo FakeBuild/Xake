@@ -5,7 +5,7 @@ module BuildLog =
   open Xake
   open System
 
-  let XakeVersion = "0.1-b"
+  let XakeVersion = "0.2-b"
 
   // structures, database processor and store
   type Timestamp = System.DateTime
@@ -79,33 +79,6 @@ module Storage =
         (pair str int)
 
     // Fileset of FilesetOptions * FilesetElement list
-    let filesetoptions =
-      wrap (
-        (fun(foe,bdir) -> {FilesetOptions.FailOnError = foe; BaseDir = bdir}),
-        fun o -> (o.FailOnError, o.BaseDir)
-        )
-        (pair bool (option str))
-
-    // TODO move to a respective module
-    let pattern = wrap(parseFileMask, patternToStr) str
-
-    let filesetElement =
-      alt
-        (function | Includes _ -> 0 | Excludes _ -> 1)
-        [|
-          wrap (Includes, fun (Includes p) -> p) pattern
-          wrap (Excludes, fun (Excludes p) -> p) pattern
-        |]
-
-    let fileinfo = wrap((fun n -> System.IO.FileInfo n), fun fi -> fi.FullName) str
-
-    let fileset =
-      alt
-        (function | Fileset _ -> 0 | FileList _ -> 1)
-        [|
-          wrap(Fileset, fun (Fileset (o,l)) -> o,l) (pair filesetoptions (list filesetElement))
-          wrap(FileList, fun (FileList l) -> l) (list fileinfo)
-        |]
     
     let dependency =
       alt
@@ -115,8 +88,8 @@ module Storage =
           wrap (File, fun (File (f,ts)) -> (f,ts)) (pair artifact date)
           wrap (EnvVar, fun (EnvVar (n,v)) -> n,v) (pair str str)
           wrap (Var, fun (Var (n,v)) -> n,v) (pair str str)
-          wrap ((fun () -> AlwaysRerun), fun _ -> ()) unit
-          wrap (GetFiles, fun (GetFiles (fs,fi)) -> fs,fi) (pair fileset (list fileinfo))
+          wrap0 AlwaysRerun
+          wrap (GetFiles, fun (GetFiles (fs,fi)) -> fs,fi) (pair filesetPickler (list fileinfoPickler))
         |]
 
     let result =

@@ -48,8 +48,8 @@
   <ItemGroup>
     <Compile Include="Logging.fs" />
     <Compile Include="Types.fs" />
-    <Compile Include="Fileset.fs" />
     <Compile Include="Pickler.fs" />
+    <Compile Include="Fileset.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Core.fs" />
     <Compile Include="XakeScript.fs" />

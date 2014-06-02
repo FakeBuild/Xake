@@ -126,8 +126,15 @@ module XakeScript =
 
         | Var (name,value) -> false, "Var not implemented"
         | AlwaysRerun -> true, "alwaysRerun rule"
-        | GetFiles (fileset,files) -> false, "GetFiles not implemented"
-          // TODO implement comparison, pass basedir for easier
+        | GetFiles (fileset,files) ->
+        
+          let newfiles = fileset |> toFileList ctx.Options.ProjectRoot
+          let diff = compareFileList (FileList files) (FileList newfiles)
+
+          if List.isEmpty diff then
+            false, ""
+          else
+            true, sprintf "File list is changed for changeset %A: %A" fileset diff
 
       match result with
         | Some {BuildResult.Depends = []} ->

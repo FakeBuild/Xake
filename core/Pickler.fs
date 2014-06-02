@@ -17,6 +17,9 @@ module Pickler =
   /// Translates pickler of one type into another's
   let wrap (d:'a -> 'b, r: 'b -> 'a) (pu: PU<'a>) = {pickle = r >> pu.pickle; unpickle = pu.unpickle >> d}
 
+  /// 'wrap' helper for argumentless variants
+  let wrap0 r = wrap ((fun () -> r), fun _ -> ()) unit
+
   let byte  = {pickle = (fun (b:byte) st -> st.Write(b));   unpickle = fun st -> st.ReadByte()}
   let int   = {pickle = (fun (i:Int32) st -> st.Write(i));  unpickle = fun st -> st.ReadInt32()}
   let int64 = {pickle = (fun (i:Int64) st -> st.Write(i));  unpickle = fun st -> st.ReadInt64()}
