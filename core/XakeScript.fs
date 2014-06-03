@@ -129,7 +129,7 @@ module XakeScript =
         | GetFiles (fileset,files) ->
         
           let newfiles = fileset |> toFileList ctx.Options.ProjectRoot
-          let diff = compareFileList (FileList files) (FileList newfiles)
+          let diff = compareFileList files newfiles
 
           if List.isEmpty diff then
             false, ""
@@ -313,29 +313,31 @@ module XakeScript =
 
   /// key functions implementation
 
-  /// Executes and awaits specified artifacts
-  let needFileset fileset =
+  let private needImpl targets =
       action {
         let! ctx = getCtx()
-        let files = fileset |> toFileList ctx.Options.ProjectRoot
-        let targets = files |> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)
         let! _,deps = targets |> Impl.execNeed ctx
 
         let! result = getResult()
-        let fileDep = Dependency.GetFiles (fileset,files)
-        do! setResult {result with Depends = result.Depends @ (fileDep :: deps)}
-     }
+        do! setResult {result with Depends = result.Depends @ deps}
+      }
 
   /// Executes and awaits specified artifacts
   let need targets =
       action {
         let! ctx = getCtx()
         let t' = targets |> (List.map (Impl.makeTarget ctx))
-        let! _,deps = t' |> Impl.execNeed ctx
 
-        let! result = getResult()
-        do! setResult {result with Depends = result.Depends @ deps}
+        do! needImpl t'
       }
+
+  let needFiles (Filelist files) =
+      action {
+        let! ctx = getCtx()
+        let targets = files |> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)
+
+        do! needImpl targets
+     }
 
   /// Instructs Xake to rebuild the target evem if dependencies are not changed
   let alwaysRerun () = action {

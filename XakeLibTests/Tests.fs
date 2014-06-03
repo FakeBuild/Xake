@@ -192,7 +192,8 @@ type MiscTests() =
             rules [
               "hello" *> fun file -> action {
                   do! writeLog Error "Running inside 'hello' rule"
-                  do! needFileset (!!"hello*.cs")
+                  let! files = (!!"hello*.cs") |> getFiles 
+                  do! needFiles files
                   needExecuteCount := !needExecuteCount + 1
                   File.WriteAllText(file.FullName, "")
               }

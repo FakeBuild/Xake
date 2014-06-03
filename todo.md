@@ -1,9 +1,9 @@
 ﻿## TODO
-  * accept filemasks in 'need' parameters
   * условное правило (функция вместо маски)
   * rules versioning
   * ресурсы (CPU и пр.) для управления очередностью
   * multiple outputs
+  * accept filemasks in 'need' parameters (WHY?)
   * ...
   * dependency rule: compiler version
   * dependency rule: custom rule
@@ -20,8 +20,6 @@
 
 
 ## In progress
-  * incremental builds
-   * dependency rule: fileset change
 
 ## Done
  * alwaysRerun, +rule with no deps
@@ -45,6 +43,7 @@
    * database
    * files
    * dependency rule: environment variable
+   * dependency rule: fileset change
 
 ## Thoughts
  * idea: rule settings

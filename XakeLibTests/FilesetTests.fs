@@ -19,7 +19,9 @@ type FilesetTests() =
 
   let IsAny() = Is.Not.All.Not
 
-  let getFiles = toFileList currentDir
+  let getFiles f =
+    let (Filelist files) = f |> toFileList currentDir
+    in files
 
   [<Test (Description = "Verifies ls function")>]
   member o.LsSimple() =

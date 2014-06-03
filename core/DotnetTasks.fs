@@ -20,13 +20,13 @@ module DotnetTasks =
       /// Specifies the output file name (default: base name of file with main class or first file).
       Out: Artifact
       /// Source files.
-      Src: FilesetType
+      Src: Fileset
       /// References metadata from the specified assembly files.
-      Ref: FilesetType
+      Ref: Fileset
       /// References the specified assemblies from GAC.
       RefGlobal: string list
       /// Embeds the specified resource.
-      Resources: FilesetType
+      Resources: Fileset
       /// Defines conditional compilation symbols.
       Define: string list
       /// Allows unsafe code.
@@ -136,10 +136,10 @@ module DotnetTasks =
       let getFiles = toFileList options.ProjectRoot
 
       // TODO use filesets here but Combine does not support various roots currently
-      let src = settings.Src |> getFiles
-      let refs = settings.Ref |> getFiles
-      let ress = settings.Resources |> getFiles
-      do! needFileset (FileList (src @ refs @ ress))
+      let (Filelist src)  = settings.Src |> getFiles
+      let (Filelist refs) = settings.Ref |> getFiles
+      let (Filelist ress) = settings.Resources |> getFiles
+      do! needFiles (Filelist (src @ refs @ ress))
 
       let args =
         seq {
