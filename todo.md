@@ -1,12 +1,11 @@
 ﻿## TODO
-  * условное правило (функция вместо маски)
   * rules versioning
   * ресурсы (CPU и пр.) для управления очередностью
   * multiple outputs
   * accept filemasks in 'need' parameters (WHY?)
   * ...
   * dependency rule: compiler version
-  * dependency rule: custom rule
+  * dependency rule: custom rule (Var)
   * performance of rules lookup (takes 2s now)
 
 ### Refactorings
@@ -44,6 +43,7 @@
    * files
    * dependency rule: environment variable
    * dependency rule: fileset change
+ * условное правило (*?> функция вместо маски)
 
 ## Thoughts
  * idea: rule settings

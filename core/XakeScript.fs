@@ -29,12 +29,11 @@ module XakeScript =
   }
 
 
-  type RuleTarget =
-      | FilePattern of string | PhonyTarget of string
   type Rule<'ctx> = 
       | FileRule of string * (Artifact -> Action<'ctx,unit>)
       | PhonyRule of string * Action<'ctx,unit>
-  type Rules<'ctx> = Rules of Map<RuleTarget, Rule<'ctx>>
+      | FileConditionRule of (string -> bool) * (Artifact -> Action<'ctx,unit>)
+  type Rules<'ctx> = Rules of Rule<'ctx> list
 
   type ExecStatus = | Succeed | Skipped | JustFile
 
@@ -78,25 +77,24 @@ module XakeScript =
       }
       Printf.kprintf write fmt
 
-    let makeFileRule  pattern fnRule = FileRule (pattern, fnRule)
-    let makePhonyRule name fnRule = PhonyRule (name, fnRule)
-
-    let addRule rule (Rules rules) :Rules<_> = 
-      let target = match rule with | FileRule (selector,_) -> (FilePattern selector) | PhonyRule (name,_) -> (PhonyTarget name)
-      rules |> Map.add target rule |> Rules
+    let addRule rule (Rules rules) :Rules<_> =  Rules (rule :: rules)
 
     // locates the rule
     let private locateRule (Rules rules) projectRoot target =
-      let matchRule ruleTarget b = 
-        match ruleTarget, target with
-          |FilePattern pattern, FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
-              // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
-              Some (b)
-          |PhonyTarget name, PhonyAction phony when phony = name ->
+      let matchRule rule = 
+        match rule, target with
+          |FileConditionRule (f,_), FileTarget file when (f file.FullName) = true ->
               // writeLog Verbose "Found phony pattern '%s'" name
-              Some (b)
+              Some (rule)
+          |FileRule (pattern,_), FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
+              // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
+              Some (rule)
+          |PhonyRule (name,_), PhonyAction phony when phony = name ->
+              // writeLog Verbose "Found phony pattern '%s'" name
+              Some (rule)
           | _ -> None
-      rules |> Map.tryPick matchRule
+        
+      rules |> List.tryPick matchRule
 
     let private reportError ctx error details =
       do ctx.Logger.Log Error "Error '%s'. See build.log for details" error
@@ -193,9 +191,11 @@ module XakeScript =
       target
       |> locateRule ctx.Rules ctx.Options.ProjectRoot
       |> function
-          | Some (FileRule (_, action)) ->
+          | Some (FileRule (_, action))
+          | Some (FileConditionRule (_, action)) ->
             let (FileTarget artifact) = target in
-            let (Action r) = action artifact in Some r
+            let (Action r) = action artifact in
+            Some r
           | Some (PhonyRule (_, Action r)) -> Some r
           | _ -> None
       |> function
@@ -233,7 +233,7 @@ module XakeScript =
     // phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
     let makeTarget ctx name =
       let (Rules rr) = ctx.Rules
-      if rr |> Map.containsKey(PhonyTarget name) then
+      if rr |> List.exists (function |PhonyRule (n,_) when n = name -> true | _ -> false) then
         PhonyAction name
       else
         FileTarget (Artifact (ctx.Options.ProjectRoot </> name))    
@@ -275,6 +275,13 @@ module XakeScript =
       finally
         db.PostAndReply Storage.CloseWait
 
+  /// Creates the rule for specified file pattern.  
+  let ( *> ) pattern fnRule = FileRule (pattern, fnRule)
+  let ( *?> ) fn fnRule = FileConditionRule (fn, fnRule)
+
+  /// Creates phony action (check if I can unify the operator name)
+  let (=>) name fnRule = PhonyRule (name,fnRule)
+
   /// Script builder.
   type RulesBuilder(options) =
 
@@ -282,14 +289,14 @@ module XakeScript =
     let updTargets (XakeScript (options,rules)) f = XakeScript ({options with Want = f(options.Want)}, rules)
 
     member o.Bind(x,f) = f x
-    member o.Zero() = XakeScript (options, Rules Map.empty)
+    member o.Zero() = XakeScript (options, Rules [])
     member o.Yield(())  = o.Zero()
 
     member this.Run(script) = Impl.run script
       
     [<CustomOperation("rule")>] member this.Rule(script, rule)                  = updRules script (Impl.addRule rule)
-    [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action) = updRules script (Impl.makeFileRule pattern action |> Impl.addRule)
-    [<CustomOperation("phony")>] member this.Phony(script, name, action)        = updRules script (Impl.makePhonyRule name action |> Impl.addRule)
+    [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action) = updRules script (pattern *> action |> Impl.addRule)
+    [<CustomOperation("phony")>] member this.Phony(script, name, action)        = updRules script (name => action |> Impl.addRule)
     [<CustomOperation("rules")>] member this.Rules(script, rules)               = (rules |> List.map Impl.addRule |> List.fold (>>) id) |> updRules script
 
     [<CustomOperation("want")>] member this.Want(script, targets)                = updTargets script (function |[] -> targets | _ as x -> x)  // Options override script!
@@ -373,8 +380,4 @@ module XakeScript =
   /// Writes a message to a log
   let writeLog = Impl.writeLog
 
-  /// Creates the rule for specified file pattern.  
-  let ( *> ) = Impl.makeFileRule
-
-  /// Creates phony action (check if I can unify the operator name)
-  let (=>) = Impl.makePhonyRule
+ 

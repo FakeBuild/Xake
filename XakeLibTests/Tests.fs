@@ -177,6 +177,27 @@ type MiscTests() =
         do build()
         Assert.AreEqual(2, !needExecuteCount)
 
+    [<Test (Description = "Verifies conditional rule execution")>]
+    member test.ConditionalRule() =
+
+        let needExecuteCount = ref 0
+    
+        let build () = xake {XakeOptions with Threads = 1; FileLog=""} {
+            want (["hlo"])
+
+            rules [
+              // TODO want ((=) "hlo") *?> ...
+              (fun n -> n.EndsWith("hlo")) *?> fun file -> action {
+                  do! writeLog Error "Running inside 'hlo' rule"
+                  needExecuteCount := !needExecuteCount + 1
+                  do! Async.Sleep 500
+              }
+            ]
+        }
+
+        do build()
+        Assert.AreEqual(1, !needExecuteCount)
+
     [<Test (Description = "Verifies rebuild is done when fileset is changed")>]
     member test.RebuildOnNewFile() =
 
