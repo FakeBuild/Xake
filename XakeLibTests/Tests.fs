@@ -267,3 +267,37 @@ type MiscTests() =
         Assert.AreEqual(2, !needExecuteCount)
 
         System.Environment.SetEnvironmentVariable("TTT", "")
+
+    [<Test (Description = "Verifies resource set instaniation")>]
+    member this.NewResourceSet() =
+
+        let resset = resourceset {
+            prefix "Sample.Application"
+            dynamic true
+
+            files (fileset {
+                includes "*.resx"
+            })
+        }
+
+        let resourceSetCollection = [
+            resourceset {
+                prefix "Sample.Application"
+                dynamic true
+
+                files (fileset {
+                    includes "*.resx"
+                })
+            }
+            resourceset {
+                prefix "Sample.Application1"
+                dynamic true
+
+                files (fileset {
+                    includes "*.res"
+                })
+            }
+        ]
+
+        printfn "%A" resset
+        ()

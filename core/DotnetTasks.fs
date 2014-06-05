@@ -26,7 +26,7 @@ module DotnetTasks =
       /// References the specified assemblies from GAC.
       RefGlobal: string list
       /// Embeds the specified resource.
-      Resources: Fileset
+      Resources: ResourceFileset list
       /// Defines conditional compilation symbols.
       Define: string list
       /// Allows unsafe code.
@@ -47,7 +47,7 @@ module DotnetTasks =
     Src = Fileset.Empty
     Ref = Fileset.Empty
     RefGlobal = []
-    Resources = Fileset.Empty
+    Resources = []
     Define = []
     Unsafe = false
     CommandArgs = []
@@ -135,11 +135,13 @@ module DotnetTasks =
       let! options = getCtxOptions()
       let getFiles = toFileList options.ProjectRoot
 
+      let getResFiles (ResourceFileset (_,fs)) = let (Filelist l) = getFiles fs in l
+
       // TODO use filesets here but Combine does not support various roots currently
       let (Filelist src)  = settings.Src |> getFiles
       let (Filelist refs) = settings.Ref |> getFiles
-      let (Filelist ress) = settings.Resources |> getFiles
-      do! needFiles (Filelist (src @ refs @ ress))
+      let resfiles = settings.Resources |> List.collect getResFiles
+      do! needFiles (Filelist (src @ refs @ resfiles))
 
       let args =
         seq {

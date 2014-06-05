@@ -23,14 +23,14 @@ module Fileset =
 
     type FilesetElement = | Includes of Pattern | Excludes of Pattern
 
-    type FilesetOptions = {FailOnError:bool; BaseDir:string option}
+    type FilesetOptions = {FailOnEmpty:bool; BaseDir:string option}
 
     // Fileset is either set of rules or list of files (materialized)
     type Fileset = Fileset of FilesetOptions * FilesetElement list
     type Filelist = Filelist of FileInfo list
 
     /// Default fileset options
-    let DefaultOptions = {FilesetOptions.BaseDir = None; FailOnError = false}
+    let DefaultOptions = {FilesetOptions.BaseDir = None; FailOnEmpty = false}
     
     let Empty = Fileset (DefaultOptions,[])
     let EmptyList = Filelist []
@@ -168,7 +168,7 @@ module Fileset =
                     | Some _, Some _ -> failwith "Cannot combine filesets with basedirs defined in both (not implemented)"
                     | Some _, None -> o1.BaseDir
                     | _ -> o2.BaseDir
-                FailOnError = o1.FailOnError || o2.FailOnError}
+                FailOnEmpty = o1.FailOnEmpty || o2.FailOnEmpty}
 
         // combines two filesets
         let combineWith (Fileset (o2, set2)) (Fileset (o1,set1)) = Fileset(combineOptions o1 o2, set1 @ set2)
@@ -179,8 +179,8 @@ module Fileset =
             Fileset (opts, fs @ elements)
             // TODO filter comments, empty lines? |> Array.filter
 
-        let changeBasedir dir (Fileset (opts,ps)) =
-            Fileset ({opts with BaseDir = Some dir}, ps)
+        let changeBasedir dir (Fileset (opts,ps)) =   Fileset ({opts with BaseDir = Some dir}, ps)
+        let changeFailonEmpty f (Fileset (opts,ps)) = Fileset ({opts with FailOnEmpty = f}, ps)
 
     // end of module Impl
 
@@ -191,8 +191,8 @@ module Fileset =
 
         let filesetoptions =
             wrap(
-                (fun(foe,bdir) -> {FilesetOptions.FailOnError = foe; BaseDir = bdir}),
-                fun o -> (o.FailOnError, o.BaseDir))
+                (fun(foe,bdir) -> {FilesetOptions.FailOnEmpty = foe; BaseDir = bdir}),
+                fun o -> (o.FailOnEmpty, o.BaseDir))
                 (pair bool (option str))
 
         let patternpart=
@@ -300,10 +300,11 @@ module Fileset =
 
     // defines various operations
     type Fileset with
-        static member (+) (fs1: Fileset, fs2: Fileset) :Fileset = fs1 |> combineWith fs2
-        static member (+) (fs1: Fileset, pat: FilePattern) = fs1 ++ pat
-        static member (-) (fs1: Fileset, pat: FilePattern) = fs1 -- pat
-        static member (@@) (fs1: Fileset, basedir: string) = fs1 |> Impl.changeBasedir basedir
+        static member (+) (fs1, fs2: Fileset) :Fileset = fs1 |> combineWith fs2
+        static member (+) (fs1: Fileset, pat) = fs1 ++ pat
+        static member (-) (fs1: Fileset, pat) = fs1 -- pat
+        static member (@@) (fs1, basedir) = fs1 |> Impl.changeBasedir basedir
+        static member (@@) (Fileset (_,lst), options) = Fileset (options,lst)
 
         /// Conditional include/exclude operator
         static member (+?) (fs1: Fileset, (condition:bool,pat: FilePattern)) = if condition then fs1 ++ pat else fs1
@@ -321,6 +322,9 @@ module Fileset =
 
     (******** builder ********)
     type FilesetBuilder() =
+
+        [<CustomOperation("failonempty")>]
+        member this.FailOnEmpty(fs,f) = fs |> changeFailonEmpty f
 
         [<CustomOperation("basedir")>]
         member this.Basedir(fs,dir) = fs |> changeBasedir dir
