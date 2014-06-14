@@ -3,10 +3,10 @@
 [<AutoOpen>]
 module ResourceFileset =
 
-    type ResourceSetOptions = {Prefix:string; DynamicsPrefix:bool}
+    type ResourceSetOptions = {Prefix:string option; DynamicsPrefix:bool}
     type ResourceFileset = ResourceFileset of ResourceSetOptions * Fileset
 
-    let DefaultOptions = {ResourceSetOptions.Prefix = ""; DynamicsPrefix = false}
+    let DefaultOptions = {ResourceSetOptions.Prefix = None; DynamicsPrefix = false}
     let Empty = ResourceFileset (DefaultOptions,Fileset.Empty)
 
     module private Impl =
@@ -16,16 +16,15 @@ module ResourceFileset =
         let changeFileset value (ResourceFileset (opts,ff)) = ResourceFileset (opts, value)
         
     type ResourceFilesetBuilder() =
-        inherit FilesetBuilder()
 
-        [<CustomOperation("prefix")>]
-        member this.Prefix(fs,prefix) = fs |> Impl.changePrefix prefix
+        [<CustomOperation("prefix")>]      member this.Prefix(fs,prefix) = fs |> Impl.changePrefix (Some prefix)
+        [<CustomOperation("dynamic")>]     member this.DynamicPrefix(resset,d) = resset |> Impl.changeDynamicPrefix d
+        [<CustomOperation("files")>]       member this.ResourceFiles(resset,fs) = resset |> Impl.changeFileset fs
 
-        [<CustomOperation("dynamic")>]
-        member this.DynamicPrefix(resset,d) = resset |> Impl.changeDynamicPrefix d
-
-        [<CustomOperation("files")>]
-        member this.ResourceFiles(resset,fs) = resset |> Impl.changeFileset fs
+        // the following methods duplicate fileset operations
+        [<CustomOperation("basedir")>]     member this.BaseDir (ResourceFileset(opts,fs), (value:string)) = ResourceFileset (opts, fs @@ value)
+        [<CustomOperation("includes")>]    member this.Includes(ResourceFileset(opts,fs), value) = ResourceFileset (opts, fs ++ value)
+        [<CustomOperation("excludes")>]    member this.Excludes(ResourceFileset(opts,fs), value) = ResourceFileset (opts, fs -- value)
 
         member this.Yield(())    = Empty
         member this.Delay(f) = f()

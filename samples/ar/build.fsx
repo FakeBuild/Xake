@@ -20,18 +20,18 @@ let commonSrcFiles = fileset {
 
 // "External" libraries
 module libs =
-    let nunit        = !! "Tools/NUnit/nunit.framework.dll"
+    let nunit      = !! "Tools/NUnit/nunit.framework.dll"
     let xmldiff    = !! "Tools/XmlDiff/XmlDiffPatch.dll"
-    let moq            = !! "Tools/Moq.3.1/moq.dll"
-    let moqseq        = !! "Tools/Moq.3.1/moq.sequences.dll"
-    let iTextSharp= !! "ExternalLibs/iTextSharp/build/iTextSharp.dll"
-    let OpenXml     = !! "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
-    let qwhale        = !! "ExternalLibs\QwhaleEditor\Qwhale.All.dll"
+    let moq        = !! "Tools/Moq.3.1/moq.dll"
+    let moqseq     = !! "Tools/Moq.3.1/moq.sequences.dll"
+    let iTextSharp = !! "ExternalLibs/iTextSharp/build/iTextSharp.dll"
+    let OpenXml    = !! "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
+    let qwhale     = !! "ExternalLibs\QwhaleEditor\Qwhale.All.dll"
 
-let dlls = List.map ardll <| ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart"; "Document"; "Core"; (* "Core1"; "Core2"; "Core3"; *) "OracleClient"; "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "Viewer.Win" ]
+let dlls = List.map ardll <| ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart"; "Document"; "Core"; "OracleClient"; "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "Viewer.Win" ]
 
 // do xake {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
-do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
+do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Normal; Threads = 4 } {
 
     want (["build"])
 
@@ -92,6 +92,18 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                 define ["ARNET"]
                 src (!! "SL/ARChart/**/*.cs" + commonSrcFiles)
                 refs libs.nunit
+                resources (resourceset {
+                    prefix "GrapeCity.ActiveReports.Chart.Wizard.Pictures"
+                    dynamic true
+                    basedir "SL/ARChart/ActiveReports.Chart/Wizard/Pictures"
+                    includes "DataMemberTreeItems.bmp"
+                })
+                resources (resourceset {
+                    prefix "GrapeCity.ActiveReports.Chart"
+                    dynamic true
+                    basedir "SL/ARChart/ActiveReports.Chart"
+                    includes "**/*.resx"
+                })
             })
             }
 
@@ -174,12 +186,41 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                         includes "UnifiedViewer/WinForms/**/*.cs"
                         join commonSrcFiles
                         }
+                    Resources =
+                        [
+                            resourceset {
+                                prefix "GrapeCity.ActiveReports.Viewer.Win"
+                                dynamic true
+                                basedir ("UnifiedViewer\\WinForms")
+                                includes "**/*.resx"
+                                includes "Properties/resources/Viewer.bmp"
+                            }
+                            resourceset {
+                                prefix "GrapeCity.Viewer.Properties"
+                                files (!! "**/*.resx" @@ @"UnifiedViewer\Base\Properties")
+                            }
+                        ]
                     Ref = libs.nunit + libs.moq
                         + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "ImageExport"]
                 }
             }
 
         arexe("Viewer") *> fun outname -> action {
+
+// example of resource "compilation"
+//            do! ResGen {
+//                ResgenSettings with
+//                    Resources =
+//                      [
+//                        resourceset {
+//                            prefix "GrapeCity.ActiveReports.Viewer.Win"
+//                            dynamic true
+//                            files (!!"Designer/Export/*.resx" + "**/*.resx" @@ {FailOnEmpty = false; BaseDir = Some "WinViewer"})
+//                        }
+//                      ]
+//                    TargetDir = System.IO.DirectoryInfo "out"
+//                }
+
             do! Csc {
                 CscSettings with
                     Out = outname
@@ -191,7 +232,9 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                         resourceset {
                             prefix "GrapeCity.ActiveReports.Viewer.Win"
                             dynamic true
-                            files (!!"Designer/Export/*.resx" + "**/*.resx" @@ {FailOnEmpty = false; BaseDir = Some "Viewer"})
+                            basedir "WinViewer"
+                            includes "Designer/Export/*.resx"
+                            includes "**/*.resx"
                         }
                     ]
                 }
@@ -261,6 +304,42 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                 Src = src
                 Ref = libs.nunit + ardep ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Document"; "Chart"]
                 RefGlobal = ["Microsoft.VisualBasic.dll"]
+
+                Resources =
+                [
+                    resourceset {
+                        prefix "GrapeCity.ActiveReports.ReportsCore"
+                        dynamic true
+                        basedir "Reports/ReportsCore"
+                        includes "ReportObjectModel/Rdl/*.xsd"
+                        includes "AssemblyResources/*.bmp"
+                        includes "AssemblyResources/*.png"
+                        includes "AssemblyResources/IconSet/*.png"
+                        includes "AssemblyResources/*.GIF"
+                        includes "AssemblyResources/*.ent"
+                        includes "AssemblyResources/*.dtd"
+                        includes "**/*.resx"
+                        includes "AssemblyResources/*.xsd"
+                        includes "AssemblyResources/*.xml"
+                    }
+
+                    resourceset {
+                        dynamic true
+                        basedir "SL/AREngine"
+                        prefix "GrapeCity.ActiveReports"
+                        includes "Resources/*.bmp"
+                        includes "Resources/*.png"
+                        includes "**/*.resx"
+                        excludes "ja\**\*.resx"
+                    }
+
+                    resourceset {
+                        dynamic true
+                        prefix "GrapeCity.ActiveReports.CSS"
+                        basedir "SL/CSS"
+                        includes "**/*.resx"
+                    }
+                ]
                 }
     })
 

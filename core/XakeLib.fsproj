@@ -26,7 +26,7 @@
     <StartAction>Program</StartAction>
     <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\Fsi.exe</StartProgram>
     <StartWorkingDirectory>C:\projects\ar9\Source</StartWorkingDirectory>
-    <StartArguments>\projects\Mine\xake\samples\ar\build.fsx clean</StartArguments>
+    <StartArguments>\projects\Mine\xake\samples\ar\build.fsx</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -44,6 +44,7 @@
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Logging.fs" />
