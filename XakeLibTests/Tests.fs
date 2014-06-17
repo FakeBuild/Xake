@@ -245,7 +245,7 @@ type MiscTests() =
               "hlo" *> fun file -> action {
                   do! need ["hlo.cs"]
                   let! var = getEnv("TTT")
-                  do! writeLog Command "Running inside 'hlo' rule with var:%s" var
+                  do! writeLog Command "Running inside 'hlo' rule with var:%A" var
                   needExecuteCount := !needExecuteCount + 1
                   do! Async.Sleep 2000
                   File.WriteAllText(file.FullName, "")

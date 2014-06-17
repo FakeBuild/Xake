@@ -31,7 +31,8 @@ module libs =
 let dlls = List.map ardll <| ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart"; "Document"; "Core"; "OracleClient"; "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "Viewer.Win" ]
 
 // do xake {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
-do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Normal; Threads = 4 } {
+do xakeArgs fsi.CommandLineArgs {
+    XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4; Vars = [("NETFX", "3.5")] } {
 
     want (["build"])
 
@@ -62,6 +63,17 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                     Out = outname
                     Src = sources
                     Ref = libs.nunit
+
+                    Resources =
+                    [
+                        // TODO basedir "." redundant
+                        resourceset {
+                            prefix "GrapeCity.ActiveReports"
+                            dynamic true
+                            basedir "."
+                            includes "Extensibility/**/*.resx"
+                        }
+                    ]
                 }
             }
     
@@ -72,7 +84,16 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                     Out = outname
                     Src = !!"Diagnostics/**/*.cs" + commonSrcFiles
                     Ref = libs.nunit
-                    }
+                    Resources =
+                    [
+                        resourceset {
+                            prefix "GrapeCity.ActiveReports"
+                            dynamic true
+                            basedir "."
+                            includes "Diagnostics/**/*.resx"
+                        }
+                    ]
+                }
             }
 
         ardll "Testing.Tools" *> fun outname -> action {
@@ -92,18 +113,20 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                 define ["ARNET"]
                 src (!! "SL/ARChart/**/*.cs" + commonSrcFiles)
                 refs libs.nunit
-                resources (resourceset {
-                    prefix "GrapeCity.ActiveReports.Chart.Wizard.Pictures"
-                    dynamic true
-                    basedir "SL/ARChart/ActiveReports.Chart/Wizard/Pictures"
-                    includes "DataMemberTreeItems.bmp"
-                })
-                resources (resourceset {
-                    prefix "GrapeCity.ActiveReports.Chart"
-                    dynamic true
-                    basedir "SL/ARChart/ActiveReports.Chart"
-                    includes "**/*.resx"
-                })
+                resourceslist [
+                    resourceset {
+                        prefix "GrapeCity.ActiveReports.Chart.Wizard.Pictures"
+                        dynamic true
+                        basedir "SL/ARChart/ActiveReports.Chart/Wizard/Pictures"
+                        includes "DataMemberTreeItems.bmp"
+                    }
+                    resourceset {
+                        prefix "GrapeCity.ActiveReports.Chart"
+                        dynamic true
+                        basedir "SL/ARChart/ActiveReports.Chart"
+                        includes "**/*.resx"
+                    }
+                ]
             })
             }
 
@@ -196,8 +219,8 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                                 includes "Properties/resources/Viewer.bmp"
                             }
                             resourceset {
-                                prefix "GrapeCity.Viewer.Properties"
-                                files (!! "**/*.resx" @@ @"UnifiedViewer\Base\Properties")
+                                prefix "GrapeCity.Viewer"
+                                files (!! "Properties/**/*.resx" @@ "UnifiedViewer/Base")
                             }
                         ]
                     Ref = libs.nunit + libs.moq
@@ -330,7 +353,7 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                         includes "Resources/*.bmp"
                         includes "Resources/*.png"
                         includes "**/*.resx"
-                        excludes "ja\**\*.resx"
+                        excludes "ja/**/*.resx"
                     }
 
                     resourceset {
@@ -340,7 +363,7 @@ do xakeArgs fsi.CommandLineArgs {XakeOptions with FileLog = "build.log"; FileLog
                         includes "**/*.resx"
                     }
                 ]
-                }
+        }
     })
 
     // TODO Designer, Xaml, Word, Html, Excel, Dashboard, Design.Win

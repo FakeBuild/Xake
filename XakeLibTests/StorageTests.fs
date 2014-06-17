@@ -31,7 +31,7 @@ type StorageTests() =
 
   let createResult name =
     {(makeResult <| FileTarget (Artifact name)) with
-      Depends = [ArtifactDep <| FileTarget (Artifact "abc.c"); Var ("DEBUG", "false")]
+      Depends = [ArtifactDep <| FileTarget (Artifact "abc.c"); Var ("DEBUG", Some "false")]
       Steps = [StepInfo ("compile", 217<ms>)]
     }
 
@@ -89,8 +89,8 @@ type StorageTests() =
         Depends = [
                     ArtifactDep <| FileTarget (Artifact "abc.c")
                     File (Artifact "common.c", System.DateTime(1971, 11, 21))
-                    EnvVar ("SDK", "4.5")
-                    Var ("DEBUG", "false")
+                    EnvVar ("SDK", Some "4.5")
+                    Var ("DEBUG", Some "false")
                   ]
         Steps = [
                   StepInfo ("preprocess", 187<ms>)
@@ -172,7 +172,7 @@ type StorageTests() =
     let result = createResult "abc"
     testee <-- Store result |> ignore
 
-    let updatedResult = {result with Depends = [Var ("DEBUG", "true")] }
+    let updatedResult = {result with Depends = [Var ("DEBUG", Some "true")] }
     testee <-- Store updatedResult |> ignore
 
     testee.PostAndReply CloseWait
@@ -181,7 +181,7 @@ type StorageTests() =
     let (Some read) = testee <-* (FileTarget <| Artifact "abc")
     testee.PostAndReply CloseWait
 
-    Assert.AreEqual ([Var ("DEBUG", "true")], read.Depends)
+    Assert.AreEqual ([Var ("DEBUG", Some "true")], read.Depends)
 
   [<Test (Description = "Verifies database restoration from backup")>]
   member test.RestoreDb() =

@@ -80,9 +80,8 @@ module DotnetTasks =
         let tryLocateFwk name : option<FrameworkInfo> =
             let fwkRegKey = function
                 //            | "1.1" -> "v1.1.4322"
-                //            | "1.1" -> "v1.1.4322"
-                //            | "2.0" -> "v2.0.50727"
-                //            | "3.0" -> "v3.0\Setup\InstallSuccess 
+                | "net-20" | "2.0" -> "v2.0.50727"
+                | "net-30" | "3.0" -> "v3.0\Setup\InstallSuccess"
                 | "net-35" | "3.5" -> "v3.5"
                 | "net-40c" | "4.0-client" -> "v4\\Client"
                 | "net-40" | "4.0"| "4.0-full" -> "v4\\Full"
@@ -104,8 +103,15 @@ module DotnetTasks =
             | _ -> failwithf ".NET framework '%s' not found" name
 
         // attempts to locate any framework
-        let locateFwkAny() =
-            match ["3.5"; "4.0"] |> List.tryPick tryLocateFwk with
+        let locateFwkAny minimal =
+            let flip f x y = f y x
+            let applicableFrameworks =
+                ["2.0"; "3.0"; "3.5"; "4.0"]
+                |>  match minimal with
+                    | Some m -> List.filter (flip (>=) m)
+                    | _ -> List.rev     // in case minimal is not specified use the maximum available
+
+            match applicableFrameworks |> List.tryPick tryLocateFwk with
                 | Some i -> i
                 | _ -> failwith "No framework found"
 
@@ -141,12 +147,12 @@ module DotnetTasks =
                 path
 
         /// Makes resource name given the file name
-        let makeResourceName options baseDir resxfile =
+        let makeResourceName (options:ResourceSetOptions) baseDir resxfile =
 
             let baseName = Path.GetFileName(resxfile)
 
             let baseName =
-                match options.DynamicsPrefix,baseDir with
+                match options.DynamicPrefix,baseDir with
                 | true, Some dir ->
                     let path = Path.GetDirectoryName(resxfile) |> getRelative (Path.GetFullPath(dir))
                     if not <| isEmpty path then
@@ -220,7 +226,8 @@ module DotnetTasks =
                         (res,file,false)
                         )
 
-            let resfiles = List.ofSeq <|
+            let resfiles =
+                List.ofSeq <|
                 query {
                     for (res,file,istemp) in resinfos do
                         where (not istemp)
@@ -230,6 +237,7 @@ module DotnetTasks =
             let (Filelist src)  = settings.Src |> getFiles
             let (Filelist refs) = settings.Ref |> getFiles
 
+            let! dotnetFwk = getVar "NETFX"
             do! needFiles (Filelist (src @ refs @ resfiles))
 
             let args =
@@ -255,7 +263,7 @@ module DotnetTasks =
                     yield! resinfos |> List.map (fun(name,file,_) -> sprintf "/res:%s,%s" file.FullName name)
                 }
 
-            let fwkInfo = Impl.locateFwkAny()
+            let fwkInfo = Impl.locateFwkAny dotnetFwk
             let csc_exe = Path.Combine(fwkInfo.InstallPath, "csc.exe")
 
 // for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
@@ -301,6 +309,7 @@ module DotnetTasks =
         [<CustomOperation("refs")>]     member this.Ref(s, value) =         {s with Ref = value}
         [<CustomOperation("grefs")>]    member this.RefGlobal(s, value) =   {s with RefGlobal = value}
         [<CustomOperation("resources")>] member this.Resources(s, value) =   {s with CscSettingsType.Resources = value :: s.Resources}
+        [<CustomOperation("resourceslist")>] member this.ResourcesList(s, values) = {s with CscSettingsType.Resources = values @ s.Resources}
 
         [<CustomOperation("define")>]   member this.Define(s, value) =      {s with Define = value}
         [<CustomOperation("unsafe")>]   member this.Unsafe(s, value) =      {s with Unsafe = value}
@@ -336,7 +345,6 @@ module DotnetTasks =
                     settings.TargetDir.FullName,
                     Path.ChangeExtension(resxfile, ".resource") |> Impl.makeResourceName options baseDir)
             
-            printfn "writing %s" rcfile
             use writer = new ResourceWriter (rcfile)
 
             let reader = resxreader.GetEnumerator()

@@ -5,7 +5,7 @@ module BuildLog =
   open Xake
   open System
 
-  let XakeVersion = "0.2-b"
+  let XakeVersion = "0.2-c"
 
   // structures, database processor and store
   type Timestamp = System.DateTime
@@ -16,9 +16,9 @@ module BuildLog =
   type Dependency =
     | File of Artifact * Timestamp
     | ArtifactDep of Target
-    | EnvVar of string*string  // environment variable
-    | Var of string*string     // any other data such as compiler version
-    | AlwaysRerun              // indicates always rebuild the target
+    | EnvVar of string*string option  // environment variable
+    | Var of string*string option     // any other data such as compiler version
+    | AlwaysRerun                     // indicates always rebuild the target
     | GetFiles of Fileset * Filelist
 
   type BuildResult = {
@@ -86,8 +86,8 @@ module Storage =
         [|
           wrap (ArtifactDep, fun (ArtifactDep f) -> f) target
           wrap (File, fun (File (f,ts)) -> (f,ts)) (pair artifact date)
-          wrap (EnvVar, fun (EnvVar (n,v)) -> n,v) (pair str str)
-          wrap (Var, fun (Var (n,v)) -> n,v) (pair str str)
+          wrap (EnvVar, fun (EnvVar (n,v)) -> n,v) (pair str (option str))
+          wrap (Var, fun (Var (n,v)) -> n,v) (pair str (option str))
           wrap0 AlwaysRerun
           wrap (GetFiles, fun (GetFiles (fs,fi)) -> fs,fi) (pair filesetPickler filelistPickler)
         |]

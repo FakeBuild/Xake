@@ -35,6 +35,7 @@ Xake attempts to reduce build time by analyzing results of last build. The follo
  * if dependency artifact was rebuilt
  * if there no dependencies at all (e.g. "clean" task), otherwise with incremental builds it will never rebuild
  * in case action is marked with alwaysRerun
+ * environment variable or script variable the script or any task requests is changed
 
 ### Option 2. Analyze last run
 This option is found in "shake" project. It stores all targets and their dependencies in database. Whenever the target is requested it checks
@@ -52,6 +53,10 @@ The difference is that the decision is made early, before executing target while
 
 GetFiles will be new monadic function. Record the call in dependencies as GetFileList(), both rules and results. Track only different results.
 Need is traced as before i.e. for every "need" we record the exec time and target name.
+
+## Variables
+
+ * NETFX - framework version to use for compilation, resources. E.g. "2.0", "3.5", "4.0". Default: highest installed
 
 
 ## Other

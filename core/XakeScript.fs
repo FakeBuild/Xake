@@ -23,6 +23,7 @@ module XakeScript =
     ConLogLevel: Verbosity
     /// Overrides "want", i.e. target list
     Want: string list
+    Vars: (string * string) list
 
     /// Defines whether `run` should throw exception if script fails
     FailOnError: bool
@@ -60,6 +61,7 @@ module XakeScript =
     FileLogLevel = Chatty
     Want = []
     FailOnError = false
+    Vars = List<string*string>.Empty
     }
 
   module private Impl =
@@ -119,10 +121,13 @@ module XakeScript =
         | ArtifactDep _ -> false, ""
   
         | EnvVar (name,value) ->
-            let newValue = System.Environment.GetEnvironmentVariable(name) in
-            value <> newValue, sprintf "Environment variable %s was changed to '%s'" name value
+            let newValue = match System.Environment.GetEnvironmentVariable(name) with | null -> None | s -> Some s
+            in
+            value <> newValue, sprintf "Environment variable %s was changed from '%A' to '%A'" name value newValue
 
-        | Var (name,value) -> false, "Var not implemented"
+        | Var (varname,value) ->
+            let newValue = ctx.Options.Vars |> List.tryPick (fun (name,value) -> if name = varname then Some value else None)
+            value <> newValue, sprintf "Global script variable %s was changed '%A'->'%A'" varname value newValue
         | AlwaysRerun -> true, "alwaysRerun rule"
         | GetFiles (fileset,files) ->
         
@@ -310,6 +315,8 @@ module XakeScript =
   let xakeArgs args options =
     let _::targets = Array.toList args
     // this is very basic implementation which only recognizes target names
+    // TODO support global variables (with dependency tracking)
+    // TODO support sequential/parallel runs e.g. "clean release-build;debug-build"
     new RulesBuilder({options with Want = targets})
 
   /// Gets the script options.
@@ -355,12 +362,28 @@ module XakeScript =
 
   /// Gets the environment variable
   let getEnv variableName = action {
-    let value = System.Environment.GetEnvironmentVariable(variableName)
     let! ctx = getCtx()
-    
+
+    let value = 
+        match System.Environment.GetEnvironmentVariable(variableName) with
+        | null -> None
+        | s -> Some s
+
     // record the dependency
     let! result = getResult()
     do! setResult {result with Depends = Dependency.EnvVar (variableName,value) :: result.Depends}
+
+    return value
+  }
+
+  /// Gets the global variable
+  let getVar variableName = action {
+    let! ctx = getCtx()
+    let value = ctx.Options.Vars |> List.tryPick (fun (name,value) -> if name = variableName then Some value else None)
+    
+    // record the dependency
+    let! result = getResult()
+    do! setResult {result with Depends = Dependency.Var (variableName,value) :: result.Depends}
 
     return value
   }
