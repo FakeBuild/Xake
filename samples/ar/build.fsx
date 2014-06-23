@@ -20,15 +20,33 @@ let commonSrcFiles = fileset {
 
 // "External" libraries
 module libs =
+    let qwhale_filename = "ExternalLibs\QwhaleEditor\Qwhale.All.dll"
     let nunit      = !! "Tools/NUnit/nunit.framework.dll"
     let xmldiff    = !! "Tools/XmlDiff/XmlDiffPatch.dll"
     let moq        = !! "Tools/Moq.3.1/moq.dll"
     let moqseq     = !! "Tools/Moq.3.1/moq.sequences.dll"
     let iTextSharp = !! "ExternalLibs/iTextSharp/build/iTextSharp.dll"
     let OpenXml    = !! "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
-    let qwhale     = !! "ExternalLibs\QwhaleEditor\Qwhale.All.dll"
+    let qwhale     = !! qwhale_filename
 
-let dlls = List.map ardll <| ["Extensibility"; "Diagnostics"; "Testing.Tools"; "Chart"; "Document"; "Core"; "OracleClient"; "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "Viewer.Win" ]
+let dlls =
+    List.map ardll <|
+    [
+        "Extensibility"
+        "Diagnostics"; "Testing.Tools"
+        "Chart"
+        "Document"
+        "Core"
+        "OracleClient"
+        "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "HtmlExport"; "WordExport"
+        "Viewer.Win"; "Design.Win"
+    ]
+
+let executables =
+    List.map arexe <|
+    [
+        "Viewer"; "Designer"
+    ]
 
 // do xake {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
 do xakeArgs fsi.CommandLineArgs {
@@ -46,7 +64,7 @@ do xakeArgs fsi.CommandLineArgs {
     })
 
     phony "build" (action {
-        do! need ([arexe "Viewer"] @ dlls)
+        do! need (executables @ dlls)
     })
 
     rules [
@@ -74,8 +92,8 @@ do xakeArgs fsi.CommandLineArgs {
                             includes "Extensibility/**/*.resx"
                         }
                     ]
-                }
             }
+        }
     
         ardll "Diagnostics" *> fun outname -> action {
 
@@ -93,8 +111,8 @@ do xakeArgs fsi.CommandLineArgs {
                             includes "Diagnostics/**/*.resx"
                         }
                     ]
-                }
             }
+        }
 
         ardll "Testing.Tools" *> fun outname -> action {
 
@@ -103,8 +121,8 @@ do xakeArgs fsi.CommandLineArgs {
                     Out = outname
                     Src = !! "Testing/Testing.Tools/**/*.cs" + commonSrcFiles
                     Ref = libs.nunit + libs.xmldiff + !! (ardll "Extensibility")
-                    }
             }
+        }
 
         ardll("Chart") *> fun outname -> action {
             (* example of simplified syntax *)
@@ -128,7 +146,7 @@ do xakeArgs fsi.CommandLineArgs {
                     }
                 ]
             })
-            }
+        }
 
         ardll("OracleClient") *> fun outname -> action {
             do! Csc {
@@ -150,8 +168,8 @@ do xakeArgs fsi.CommandLineArgs {
                         + "Reports/ReportsCore/Rendering/CumulativeTotalsHelper.cs"
                         + commonSrcFiles
                     Ref = libs.nunit + libs.moq + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"]
-                    }
             }
+        }
 
         ardll("XmlExport") *> fun outname -> action {
             do! Csc {
@@ -168,8 +186,8 @@ do xakeArgs fsi.CommandLineArgs {
                         }
                     Ref = libs.nunit + libs.moq + libs.moqseq
                         + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "RdfExport"]
-                    }
             }
+        }
 
         ardll("Image.Unsafe") *> fun outname -> action {
             do! Csc {
@@ -178,8 +196,8 @@ do xakeArgs fsi.CommandLineArgs {
                     Unsafe = true
                     Out = outname
                     Src = ls "SL/DDLib.Net/Drawing/MonochromeBitmapTool.cs" + commonSrcFiles
-                    }
             }
+        }
 
         ardll("ImageExport") *> fun outname -> action {
             do! Csc {
@@ -194,14 +212,106 @@ do xakeArgs fsi.CommandLineArgs {
                         }
                     Ref = libs.nunit + libs.moq
                         + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "Image.Unsafe"; "RdfExport"]
-                    }
             }
+        }
+            
+        ardll("HtmlExport") *> fun outname -> action {
+            do! Csc {
+                CscSettings with
+                    Out = outname
+                    Src = fileset {
+                        includes "HtmlExport/**/*.cs"
+                        includes "SL/CommonFiles/SafeGraphics.cs"
+                        includes "SL/DDLib.Net/DDWord/kinsoku.cs"
+                        includes @"Reports\ReportsCore\Rendering\CumulativeTotalsHelper.cs"
+                        includes @"Reports\ReportsCore\Rendering\Tools\Cache\*.cs"
+                        includes @"Reports\ReportsCore\Rendering\Tools\Text\*.cs"
+                        includes @"Reports\ReportsCore\FontProcessor\*.cs"
+
+                        join commonSrcFiles
+                        }
+                    Resources =
+                        [
+                        resourceset {
+                            prefix "GrapeCity.ActiveReports.Export.Html"
+                            dynamic true
+                            basedir "HtmlExport"
+                            
+                            includes "**/*.bmp"
+                            includes "AR/*.resx"
+                            includes "DDR/AssemblyResources/*.resx"
+                            includes "DDR/Core/HtmlRenderers/*.png"
+                            includes "DDR/Core/HtmlRenderers/tocScript.js"
+                            includes "DDR/Core/HtmlRenderers/tocStyles.txt"
+                        }
+                        ]
+                    Ref = libs.nunit + libs.moq
+                        +? (false, ardll "Testing.Tools")
+                        + ardep ["Extensibility"; "Document"; "Core"; "Diagnostics"; "RdfExport"]
+            }
+        }
+
+        ardll("WordExport") *> fun outname -> action {
+            do! Csc {
+                CscSettings with
+                    Out = outname
+                    Src = fileset {
+                        includes "WordExport/**/*.cs"
+                        includes "SL/CommonFiles/SafeGraphics.cs"
+                        includes "SL/DDLib.Net/DDWord/kinsoku.cs"
+                        includes @"Reports\ReportsCore\Rendering\CumulativeTotalsHelper.cs"
+                        includes @"Reports\ReportsCore\Rendering\Tools\Cache\*.cs"
+                        includes @"Reports\ReportsCore\Rendering\Tools\Text\*.cs"
+                        includes @"Reports\ReportsCore\FontProcessor\*.cs"
+
+                        //////
+                        includes "SL/DDLib.Net/DDWord/kinsoku.cs"
+                        includes "WordExport/AssemblyInfo.cs"
+                        includes "WordExport/AR/**/*.cs"
+                        includes "WordExport/DDR/**/*.cs"
+
+                        includes @"SL\CommonFiles\SafeGraphics.cs"
+                        includes @"HtmlExport\AR\Mht\*"
+
+                        includes "SL/Exports/*.cs"
+
+                        includes @"SL/DDLib.Net\Drawing\ColorTools.cs"
+                        includes @"SL/DDLib.Net\Drawing\MetaFileSaver.cs"
+                        includes @"SL/DDLib.Net\Shared\Disposer.cs"
+                        includes @"SL/DDLib.Net\Shared\LengthConverter.cs"
+                        includes @"SL/DDLib.Net\Shared\MathTools.cs"
+
+                        includes @"SL\Document\Document\LayoutUtils.cs"
+
+                        join commonSrcFiles
+                        }
+                    Resources =
+                        [
+                        resourceset {
+                            prefix "GrapeCity.ActiveReports.Export.Word"
+                            dynamic true
+                            basedir "WordExport"
+                            
+                            includes "**/*.bmp"
+                            includes "AR/Resources.resx"
+                            includes "AR/RtfExport.resx"
+                            includes "DDR/**/*.resx"
+                            includes "DDR/**/*.xml"
+                            includes "DDR/**/*.png"
+                        }
+                        ]
+                    Ref = libs.nunit
+                        +? (false, ardll "Testing.Tools")
+                        + ardep ["Extensibility"; "Document"; "Core"; "Diagnostics"; "RdfExport"]
+            }
+        }
 
         ardll("Viewer.Win") *> fun outname -> action {
             do! Csc {
                 CscSettings with
                     Out = outname
                     Src = fileset {
+                        // basedir "UnifiedViewer" TODO fileset does not support combiinng filesets with different basedir
                         includes "UnifiedViewer/Base/Common/**/*.cs"
                         includes "UnifiedViewer/Base/Properties/BaseResources.Designer.cs"
                         includes "UnifiedViewer/Base/Tests/**/*.cs"
@@ -220,30 +330,53 @@ do xakeArgs fsi.CommandLineArgs {
                             }
                             resourceset {
                                 prefix "GrapeCity.Viewer"
-                                files (!! "Properties/**/*.resx" @@ "UnifiedViewer/Base")
+                                basedir "UnifiedViewer/Base"
+                                includes "Properties/**/*.resx"
                             }
                         ]
                     Ref = libs.nunit + libs.moq
                         + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "ImageExport"]
-                }
             }
+        }
+
+        ardll("Design.Win") *> fun outname -> action {
+            do! Csc {
+                CscSettings with
+                    Out = outname
+                    Src = fileset {
+                        includes "Design/**/*.cs"
+                        includes "SL/DDLib.Net/DDWord/kinsoku.cs"
+
+                        includes @"SL\AREngine\General\designtimehelper.cs"
+                        includes @"SL\AREngine\UnitTest\ImageComparer.cs"
+
+                        join commonSrcFiles
+                        }
+                    Resources =
+                        [
+                            resourceset {
+                                prefix "GrapeCity.ActiveReports.Design"
+                                dynamic true
+                                basedir "Design"
+                                includes "**/*.resx"
+                                excludes "Editor/StringConsts.resx"
+                                includes @"Resources\**\*.rpx"
+                                includes @"Toolbox\**\*.bmp"
+                                includes "Resources/CommonResources/Toolbox.bmp"
+                                includes "Resources/CommonResources/Designer.bmp"
+                                includes "Resources/CommonResources/ReportExplorer.bmp"
+                            }
+                        ]
+                    Ref = libs.nunit + libs.moq
+                        + ardep ["Extensibility"; "Core"; "Diagnostics"; "Testing.Tools"; "Document"; "Chart"; "Viewer.Win"]
+                    CommandArgs =
+                        [
+                            "/r:Qwhale=" + libs.qwhale_filename
+                        ]
+            }
+        }
 
         arexe("Viewer") *> fun outname -> action {
-
-// example of resource "compilation"
-//            do! ResGen {
-//                ResgenSettings with
-//                    Resources =
-//                      [
-//                        resourceset {
-//                            prefix "GrapeCity.ActiveReports.Viewer.Win"
-//                            dynamic true
-//                            files (!!"Designer/Export/*.resx" + "**/*.resx" @@ {FailOnEmpty = false; BaseDir = Some "WinViewer"})
-//                        }
-//                      ]
-//                    TargetDir = System.IO.DirectoryInfo "out"
-//                }
-
             do! Csc {
                 CscSettings with
                     Out = outname
@@ -260,8 +393,27 @@ do xakeArgs fsi.CommandLineArgs {
                             includes "**/*.resx"
                         }
                     ]
-                }
             }
+        }
+
+        arexe("Designer") *> fun outname -> action {
+            do! Csc {
+                CscSettings with
+                    Out = outname
+                    Src = ls "Designer/**/*.cs" + commonSrcFiles
+                    Ref = libs.nunit + libs.moq + libs.moqseq
+                        + ardep ["Extensibility"; "Design.Win"; "Document"; "Core"; "ImageExport"; "RdfExport"; "Viewer.Win"]
+                    Resources =
+                    [
+                        resourceset {
+                            prefix "GrapeCity.ActiveReports.Designer.Win"
+                            dynamic true
+                            basedir "Designer"
+                            includes "**/*.resx"
+                        }
+                    ]
+            }
+        }
         ]
 
     rule (ardll("Document") *> fun outname -> action {
@@ -289,7 +441,7 @@ do xakeArgs fsi.CommandLineArgs {
                 Ref = !! (ardll "Extensibility")
                     +? (DEBUG, libs.nunit)
                     +? (DEBUG, ardll "Testing.Tools")
-                }
+        }
     })
 
     // this is the other syntax to define rule (seems to be redundant
@@ -366,6 +518,6 @@ do xakeArgs fsi.CommandLineArgs {
         }
     })
 
-    // TODO Designer, Xaml, Word, Html, Excel, Dashboard, Design.Win
+    // TODO Designer, Xaml, Excel, Dashboard
 
 }

@@ -172,7 +172,7 @@ module DotnetTasks =
 
             use writer = new ResourceWriter (rcfile.FullName)
 
-            // here we have deal with types somehow because we are running conversion under framework 4.5 but target could be 2.0
+            // TODO here we have deal with types somehow because we are running conversion under framework 4.5 but target could be 2.0
             writer.TypeNameConverter <-
                 fun(t:System.Type) ->
                     t.AssemblyQualifiedName.Replace("4.0.0.0", "2.0.0.0")
@@ -237,7 +237,6 @@ module DotnetTasks =
             let (Filelist src)  = settings.Src |> getFiles
             let (Filelist refs) = settings.Ref |> getFiles
 
-            let! dotnetFwk = getVar "NETFX"
             do! needFiles (Filelist (src @ refs @ resfiles))
 
             let args =
@@ -261,8 +260,10 @@ module DotnetTasks =
                     yield! settings.RefGlobal |> List.map ((+) "/r:")
 
                     yield! resinfos |> List.map (fun(name,file,_) -> sprintf "/res:%s,%s" file.FullName name)
+                    yield! settings.CommandArgs
                 }
 
+            let! dotnetFwk = getVar "NETFX"
             let fwkInfo = Impl.locateFwkAny dotnetFwk
             let csc_exe = Path.Combine(fwkInfo.InstallPath, "csc.exe")
 
@@ -272,7 +273,7 @@ module DotnetTasks =
             let commandLine = "@" + rspFile
 
             do! writeLog Info "%s compiling '%s' using framework '%s'" pfx outFile.Name fwkInfo.Version
-            do! writeLog Info "Command line: '%s'" (args |> Seq.map Impl.escapeArgument |> Array.ofSeq |> fun s -> System.String.Join("\r\n\t", s))
+            do! writeLog Debug "Command line: '%s'" (args |> Seq.map Impl.escapeArgument |> Array.ofSeq |> fun s -> System.String.Join("\r\n\t", s))
 
             let options = {
                 SystemOptions with
@@ -281,7 +282,7 @@ module DotnetTasks =
                 }
             let! exitCode = _system options csc_exe commandLine
 
-            // delete all temp files
+            do! writeLog Level.Verbose "Deleting temporary files"
             seq {
                 yield rspFile
 
