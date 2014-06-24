@@ -5,7 +5,11 @@
   * accept filemasks in 'need' parameters (WHY?)
   * ...
   * dependency rule: compiler version
-  * dependency rule: custom rule (Var)
+  * improve framework detection (use latest always)/support mcs
+  * specify target framework for 4.0+ compiler
+
+## Improvements
+  * можно ли сделать так, чтобы собирались модули добавленные в скрипт. Например новая затребованная ДЛЛ, которой раньше не было
   * performance of rules lookup (takes 2s now)
 
 ### Refactorings
@@ -14,13 +18,14 @@
 
 ## Tasks TODO
   * command-line tool
-  * CSC resources
   * MSBuild task
 
 
 ## In progress
 
 ## Done
+ * CSC resources
+ * dependency rule: custom rule (Var)
  * alwaysRerun, +rule with no deps
  * имя файла-результата как аргумент (для оператора **>)
  * задача system

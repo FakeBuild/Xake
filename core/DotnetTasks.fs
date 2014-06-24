@@ -307,7 +307,10 @@ module DotnetTasks =
         [<CustomOperation("out")>]      member this.OutFile(s, value) =     {s with Out = value}
         [<CustomOperation("src")>]      member this.SrcFiles(s, value) =    {s with Src = value}
 
-        [<CustomOperation("refs")>]     member this.Ref(s, value) =         {s with Ref = value}
+        [<CustomOperation("ref")>]     member this.Ref(s, value) =         {s with Ref = s.Ref + value}
+        [<CustomOperation("refif")>]     member this.Refif(s, cond, (value:Fileset)) =         {s with Ref = s.Ref +? (cond,value)}
+
+        [<CustomOperation("refs")>]     member this.Refs(s, value) =         {s with Ref = value}
         [<CustomOperation("grefs")>]    member this.RefGlobal(s, value) =   {s with RefGlobal = value}
         [<CustomOperation("resources")>] member this.Resources(s, value) =   {s with CscSettingsType.Resources = value :: s.Resources}
         [<CustomOperation("resourceslist")>] member this.ResourcesList(s, values) = {s with CscSettingsType.Resources = values @ s.Resources}

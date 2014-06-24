@@ -12,3 +12,12 @@ let rm (names : string list) =
     do! writeLog Level.Info "[rm] completed exitcode: %d" exitcode
   } 
 
+/// Copies file
+let cp (src: string) tgt =
+  action {
+    // TODO fail on error, multiplatform, normalize names, accept array
+    do! need [src]
+    do! writeLog Level.Info "[cp] '%A' -> '%s'" src tgt
+    do! _cmd "copy " [src.Replace('/', '\\'); tgt] |> ActIgnore
+  } 
+

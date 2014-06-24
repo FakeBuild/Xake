@@ -62,4 +62,7 @@ Need is traced as before i.e. for every "need" we record the exec time and targe
 ## Other
 
   * file names are cases sensitive now. In the future it's planned to be system-dependent
-
+  * external libraries has to be copied to target folder. How to accomplish?
+    * csc task option "copy deps to output folder"
+    * manually copy (need tracking which are really needed)
+    * explicit external map of deps: use both
