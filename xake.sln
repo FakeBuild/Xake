@@ -1,26 +1,19 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{4925A630-B079-445d-BCD4-3A9C94FE9307}") = "XakeLib", "core\XakeLib.fsproj", "6B39C22F-6741-428D-B21A-33580AF7BD8E"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5DF9487A-79E1-412A-BF67-5F02999A1988}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csc", "csc", "{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD}"
 	ProjectSection(SolutionItems) = preProject
 		samples\csc\a.cs = samples\csc\a.cs
-		samples\csc\a.fsx = samples\csc\a.fsx
 		samples\csc\build.fsx = samples\csc\build.fsx
+		samples\csc\helloworld.fsx = samples\csc\helloworld.fsx
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ar", "ar", "{B8F979DC-5E33-4025-AF54-973BC401C30F}"
 	ProjectSection(SolutionItems) = preProject
 		samples\ar\build.fsx = samples\ar\build.fsx
-		samples\csc\helloworld.fsx = samples\csc\helloworld.fsx
 	EndProjectSection
-EndProject
-Project("{4925A630-B079-445d-BCD4-3A9C94FE9307}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "5B7A9196-F7F9-47E6-ABC7-381432F613B2"
-EndProject
-Project("{4925A630-B079-445d-BCD4-3A9C94FE9307}") = "Research", "Research\Research.fsproj", "70BE9B7A-B5BD-4B91-AA2C-8EDDE63C72E4"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Wiki", "Wiki", "{75E5F305-BC77-4A89-A1C8-3433E212A9E9}"
 	ProjectSection(SolutionItems) = preProject
@@ -50,9 +43,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
 		{B8F979DC-5E33-4025-AF54-973BC401C30F} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
-	EndGlobalSection
-	GlobalSection(MonoDevelopProperties) = preSolution
-		StartupItem = core\XakeLib.fsproj
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
