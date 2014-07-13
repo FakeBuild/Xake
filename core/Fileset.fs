@@ -112,6 +112,7 @@ module Fileset =
             | DirectoryMask mask, Directory d2 -> let rx = fileMatchRegex mask    in rx.IsMatch(d2)
             | FileName f1, FileName f2 -> eq f1 f2
             | FileMask mask, FileName f2 -> let rx = fileMatchRegex mask in rx.IsMatch(f2)
+            | FsRoot, FsRoot -> true
             | _ -> false
 
         let rec matchPathsImpl (mask:PatternPart list) (p:PatternPart list) =
@@ -138,7 +139,7 @@ module Fileset =
 
         /// Returns true if a file name (parsedto p) matches specific file mask.            
         let matchesPattern (Pattern mask) file =
-            let (Pattern fileParts) = parseFileMask file
+            let (Pattern fileParts) = parseFileMask file in
             matchPathsImpl mask fileParts
 
         let private ifNone v2 = function | None -> v2 | Some v -> v

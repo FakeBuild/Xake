@@ -19,9 +19,11 @@ packages
 *.bak
 *.log
 *.lib
+*.userprefs
 
 # ignore other bs
 *.~?~
 .DS_Store
 *.swp
 TestResult.*
+.xake

@@ -110,10 +110,13 @@ module DotnetTasks =
                 |>  match minimal with
                     | Some m -> List.filter (flip (>=) m)
                     | _ -> List.rev     // in case minimal is not specified use the maximum available
-
-            match applicableFrameworks |> List.tryPick tryLocateFwk with
-                | Some i -> i
-                | _ -> failwith "No framework found"
+            if isRunningOnMono then
+                {InstallPath = ""; Version = "???"}
+                // TODO detect mono version/path
+            else
+                match applicableFrameworks |> List.tryPick tryLocateFwk with
+                    | Some i -> i
+                    | _ -> failwith "No framework found"
 
         /// Escapes argument according to CSC.exe rules (see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx)
         let escapeArgument (str:string) =
@@ -199,7 +202,7 @@ module DotnetTasks =
             |Auto -> outFile.Name |> resolveTarget |> targetStr
         let platformStr = function
             |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
-
+        
         let pfx = Impl.newProcPrefix()
 
         action {
@@ -265,7 +268,13 @@ module DotnetTasks =
 
             let! dotnetFwk = getVar "NETFX"
             let fwkInfo = Impl.locateFwkAny dotnetFwk
-            let csc_exe = Path.Combine(fwkInfo.InstallPath, "csc.exe")
+            let cscPath =
+                if isRunningOnMono then
+                    // TODO detect mono is installed and die earlier, handle target framework
+                    "mcs"
+                else
+                    let csc_exe = Path.Combine(fwkInfo.InstallPath, "csc.exe") in
+                    csc_exe
 
 // for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
             let rspFile = Path.GetTempFileName()
@@ -280,7 +289,7 @@ module DotnetTasks =
                     LogPrefix = pfx
                     StdOutLevel = Level.Verbose     // consider standard compiler output too noisy
                 }
-            let! exitCode = _system options csc_exe commandLine
+            let! exitCode = _system options cscPath commandLine
 
             do! writeLog Level.Verbose "Deleting temporary files"
             seq {

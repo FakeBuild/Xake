@@ -74,3 +74,7 @@ let cmd cmdline (args : string list) =
 // reads the file and returns all text
 let readtext artifact =
   artifact |> getFullname |> File.ReadAllText
+
+/// Gets true if running under Mono framework
+let internal isRunningOnMono =
+  System.Type.GetType ("Mono.Runtime") <> null
