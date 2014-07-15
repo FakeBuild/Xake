@@ -4,8 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>70be9b7a-b5bd-4b91-aa2c-8edde63c72e4</ProjectGuid>
+    <ProjectGuid>70BE9B7A-B5BD-4B91-AA2C-8EDDE63C72E4</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>Research</RootNamespace>
     <AssemblyName>Research</AssemblyName>
@@ -33,12 +32,12 @@
     <DocumentationFile>bin\Release\Research.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="FSharp.Core, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-      <Private>True</Private>
-    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="FSharp.Core">
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Lib1.fs" />
