@@ -58,7 +58,6 @@
     <Compile Include="FileTasks.fs" />
     <Compile Include="ResourceFileset.fs" />
     <Compile Include="DotnetTasks.fs" />
-    <None Include="Script.fsx" />
     <None Include="filesets.fsx" />
   </ItemGroup>
   <PropertyGroup>

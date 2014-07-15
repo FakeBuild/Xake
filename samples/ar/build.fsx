@@ -27,7 +27,7 @@ let dlls =
         "Document"
         "Core"
         "OracleClient"
-        "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "HtmlExport"; "WordExport"
+        "RdfExport"; "XmlExport"; "Image.Unsafe"; "ImageExport"; "HtmlExport"; "Export.Word"; "Export.Excel"
         "Viewer.Win"; "Design.Win"
     ]
 
@@ -47,6 +47,10 @@ module libs =
     let OpenXml = !! "out\\DocumentFormat.OpenXml.dll"
     let qwhale = !! "out\\Qwhale.All.dll"
     let testing_tools = ardll "Testing.Tools"
+
+    let InteropExcel = !! "out\\Microsoft.Office.Interop.Excel.dll"
+    let VbeInterop = !! "out\\Microsoft.Vbe.Interop.dll"
+    let office = !! "out\\office.dll"
 
 // creates a "copy file" rule (used for external deps)
 let copyRule tgt src = tgt *> fun outfile -> action {do! cp src outfile.FullName}
@@ -70,15 +74,20 @@ do xakeArgs fsi.CommandLineArgs {
         do! need (executables @ dlls)
     })
 
-    // TODO duplicate paths
+    // TODO duplicate paths and dll names
     rules [
         copyRule "out\\nunit.framework.dll" "Tools/NUnit/nunit.framework.dll"
         copyRule "out\\XmlDiffPatch.dll"    "Tools/XmlDiff/XmlDiffPatch.dll"
         copyRule "out\\moq.dll"             "Tools/Moq.3.1/moq.dll"
         copyRule "out\\moq.sequences.dll"   "Tools/Moq.3.1/moq.sequences.dll"
         copyRule "out\\iTextSharp.dll"      "ExternalLibs/iTextSharp/build/iTextSharp.dll"
-        copyRule "out\\DocumentFormat.OpenXml.dll" "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
-        copyRule "out\\Qwhale.All.dll"      "ExternalLibs\QwhaleEditor\Qwhale.All.dll"
+        copyRule "out\\DocumentFormat.OpenXml.dll"      "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
+        copyRule "out\\Qwhale.All.dll"                  "ExternalLibs/QwhaleEditor/Qwhale.All.dll"
+        copyRule "out\\DocumentFormat.OpenXml.dll"      "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
+
+        copyRule "out\\Microsoft.Office.Interop.Excel.dll"  "Tools/Excel/Microsoft.Office.Interop.Excel.dll"
+        copyRule "out\\Microsoft.Vbe.Interop.dll"           "Tools/Excel/Microsoft.Vbe.Interop.dll"
+        copyRule "out\\office.dll"                          "Tools/Excel/office.dll"
     ]
 
     rules [
@@ -261,8 +270,56 @@ do xakeArgs fsi.CommandLineArgs {
                         +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq)
             }
         }
+        
+        ardll("Export.Excel") *> fun outname -> action {
+            do! Csc {
+                CscSettings with
+                    Unsafe = true
+                    Out = outname
+                    Src = fileset {
+                        includes "ExcelExport/**/*.cs"
+                        includes "CommonFiles/*.cs"
+                        includes "SL/CommonFiles/SafeGraphics.cs"
 
-        ardll("WordExport") *> fun outname -> action {
+                        includes "SL/Document/ResourceStorage/HashCalculator.cs"
+                        includes "SL/Exports/*.cs"
+
+                        includes "SL/DDLib.NET/ZLib/*.cs"
+                        excludes "SL/DDLib.NET/ZLib/ZByteArray.cs"
+
+                        includes "SL/DDLib.NET/Shared/LengthConverter.cs"
+                        includes "SL/DDLib.NET/ZipArchive/ZipArchive.cs"
+                        includes "SL/Document/Document/LayoutUtils.cs"
+
+                        includes "SL/DDLib.NET/Utility/GraphicsUtility.cs"
+                        includes "SL/DDLib.NET/Core/DDFormat.cs"
+
+                        join commonSrcFiles
+                        }
+                    Resources =
+                        [
+                        resourceset {
+                            prefix "GrapeCity.ActiveReports.Export.Excel"
+                            dynamic true
+                            basedir "ExcelExport"
+                            
+                            includes "ExcelExport/*.resources"
+                            includes "ExcelExport/**/*.resx"
+                            includes "ExcelExport/**/*.xml"
+                            includes "ExcelExport/**/*.png"
+                            includes "ExcelExport/**/*.bmp"
+                            includes "DDR/ExcelTemplateGenerator/Empty.xls"
+                            includes "DDR/ExcelTemplateGenerator/EmptyJP.xls"
+                        }
+                        ]
+                    Ref = ardep ["Extensibility"; "Document"; "Core"; "Diagnostics"; "RdfExport"]
+                        +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit) + libs.OpenXml
+                        +? (DEBUG, libs.InteropExcel) +? (DEBUG, libs.VbeInterop) +? (DEBUG, libs.office)
+                    RefGlobal = ["WindowsBase.dll"; "System.Core.dll"]
+            }
+        }
+
+        ardll("Export.Word") *> fun outname -> action {
             do! Csc {
                 CscSettings with
                     Out = outname
@@ -432,7 +489,6 @@ do xakeArgs fsi.CommandLineArgs {
 
         let src = fileset {
             includes "SL/CommonFiles/SafeGraphics.cs"
-            includesif DEBUG "SL/CommonFiles/DebugShims.cs"
             includes "SL/DDLib.Net/Controls/**/*.cs"
             includes "SL/DDLib.Net/DDWord/kinsoku.cs"
             includes "SL/DDLib.Net/Utility/*.cs"

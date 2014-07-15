@@ -42,7 +42,7 @@ module Fileset =
 
         let driveRegex = Regex(@"^[A-Za-z]:$", RegexOptions.Compiled)
         let isMask (a:string) = a.IndexOfAny([|'*';'?'|]) >= 0
-        let iif fn b c a = if fn a then b a else c a
+        let iif fn b c a = match fn a with | true -> b a | _ -> c a
         let fullname (f:DirectoryInfo) = f.FullName
 
         let joinPattern (Pattern p1) (Pattern p2) = Pattern (p1 @ p2)
@@ -54,7 +54,7 @@ module Fileset =
                 | '.' -> "[.]"
                 | '?' -> "."
                 | ch -> System.String(ch,1)
-            let    pat = (pattern.ToCharArray() |> Array.map c2r |> System.String.Concat)
+            let pat = (pattern.ToCharArray() |> Array.map c2r |> System.String.Concat)
             Regex(@"^" + pat + "$", RegexOptions.Compiled + RegexOptions.IgnoreCase)    // TODO ignore case is optional (system-dependent)
 
         /// Converts Ant-style file pattern to a list of parts

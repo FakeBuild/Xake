@@ -2,6 +2,7 @@
 module Xake.FileTasks
 
 open Xake
+open Common.impl
 
 /// Removes the files
 let rm (names : string list) =

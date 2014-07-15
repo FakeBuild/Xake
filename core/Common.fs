@@ -3,55 +3,58 @@
 [<AutoOpen>]
 module Xake.Common
 
-open Xake
-open System.IO
-open System.Diagnostics
+module internal impl =
 
-type internal SystemOptionsType = {LogPrefix:string; StdOutLevel: Level; ErrOutLevel: Level}
-let internal SystemOptions = {LogPrefix = ""; StdOutLevel = Level.Info; ErrOutLevel = Level.Error}
+    open Xake
+    open System.Diagnostics
 
-// internal implementation
-let internal _system settings cmd args =
-  action {
-    let! ctx = getCtx()
-    let log = ctx.Logger.Log
+    type SystemOptionsType = {LogPrefix:string; StdOutLevel: Level; ErrOutLevel: Level}
+    let SystemOptions = {LogPrefix = ""; StdOutLevel = Level.Info; ErrOutLevel = Level.Error}
 
-    let pinfo =
-      ProcessStartInfo
-        (cmd, args,
-          UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden,
-          RedirectStandardError = true, RedirectStandardOutput = true)
+    // internal implementation
+    let _system settings cmd args =
+      action {
+        let! ctx = getCtx()
+        let log = ctx.Logger.Log
 
-    let proc = new Process(StartInfo = pinfo)
+        let pinfo =
+          ProcessStartInfo
+            (cmd, args,
+              UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden,
+              RedirectStandardError = true, RedirectStandardOutput = true)
 
-    proc.ErrorDataReceived.Add(fun  e -> if e.Data <> null then log settings.ErrOutLevel "%s %s" settings.LogPrefix e.Data)
-    proc.OutputDataReceived.Add(fun e -> if e.Data <> null then log settings.StdOutLevel  "%s %s" settings.LogPrefix e.Data)
+        let proc = new Process(StartInfo = pinfo)
 
-    do proc.Start() |> ignore
+        proc.ErrorDataReceived.Add(fun  e -> if e.Data <> null then log settings.ErrOutLevel "%s %s" settings.LogPrefix e.Data)
+        proc.OutputDataReceived.Add(fun e -> if e.Data <> null then log settings.StdOutLevel  "%s %s" settings.LogPrefix e.Data)
 
-    do proc.BeginOutputReadLine()
-    do proc.BeginErrorReadLine()
+        do proc.Start() |> ignore
 
-    // task might be completed by that time
-    do! Async.Sleep 50
-    if proc.HasExited then
-      return proc.ExitCode
-    else
-      proc.EnableRaisingEvents <- true
-      do! Async.AwaitEvent proc.Exited |> Async.Ignore
-      return proc.ExitCode
-  }
+        do proc.BeginOutputReadLine()
+        do proc.BeginErrorReadLine()
 
-// joins and escapes strings
-let internal joinArgs (args:#seq<string>) =
-  (" ", args |> Array.ofSeq) |> System.String.Join
+        // task might be completed by that time
+        do! Async.Sleep 50
+        if proc.HasExited then
+          return proc.ExitCode
+        else
+          proc.EnableRaisingEvents <- true
+          do! Async.AwaitEvent proc.Exited |> Async.Ignore
+          return proc.ExitCode
+      }
 
-// executes command
-let internal _cmd cmdline (args : string list) =
-  action {
-    let! exitCode = _system SystemOptions "cmd.exe" (joinArgs (["/c"; cmdline] @ args))
-    return exitCode
-  } 
+    // joins and escapes strings
+    let joinArgs (args:#seq<string>) =
+      (" ", args |> Array.ofSeq) |> System.String.Join
+
+    // executes command
+    let _cmd cmdline (args : string list) =
+      action {
+        let! exitCode = _system SystemOptions "cmd.exe" (joinArgs (["/c"; cmdline] @ args))
+        return exitCode
+      } 
+
+open impl
 
 // executes external process and waits until it completes
 let system cmd args =
@@ -73,4 +76,4 @@ let cmd cmdline (args : string list) =
 
 // reads the file and returns all text
 let readtext artifact =
-  artifact |> getFullname |> File.ReadAllText
+  artifact |> getFullname |> System.IO.File.ReadAllText

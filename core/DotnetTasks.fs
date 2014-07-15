@@ -55,6 +55,8 @@ module DotNetTaskTypes =
 [<AutoOpen>]
 module DotnetTasks =
 
+    open Common.impl
+
     /// Default setting for CSC task so that you could only override required settings
     let CscSettings = {
         Platform = AnyCpu
@@ -120,10 +122,10 @@ module DotnetTasks =
 
             let escape c s =
                 match c,s with
-                | '"',    (b, str) -> (true,    '\\' :: '\"' ::    str)
-                | '\\', (true,    str) -> (true,    '\\' :: '\\' :: str)
-                | '\\', (false, str) -> (false, '\\' :: str)
-                | c, (b, str) -> (false, c :: str)
+                | '"',  (b,    str) -> (true,  '\\' :: '\"' ::    str)
+                | '\\', (true, str) -> (true,  '\\' :: '\\' :: str)
+                | '\\', (false,str) -> (false, '\\' :: str)
+                | c,    (b,    str) -> (false, c :: str)
 
             if str |> String.exists (fun c -> c = '"' || c = ' ') then
                 let ca = str.ToCharArray()
@@ -134,6 +136,7 @@ module DotnetTasks =
 
         let isEmpty str = System.String.IsNullOrWhiteSpace(str)
 
+        /// Gets the path relative to specified root path
         let getRelative (root:string) (path:string) =
 
             // TODO reimplement and test
@@ -182,6 +185,22 @@ module DotnetTasks =
                 writer.AddResource (reader.Key :?> string, reader.Value)
             writer.Generate()
 
+        let collectResInfo pathRoot = function
+            |ResourceFileset (o,Fileset (fo,fs)) ->
+                let mapFile (file:FileInfo) =
+                    let resname = makeResourceName o fo.BaseDir file.FullName in
+                    (resname,file)
+
+                let (Filelist l) = Fileset (fo,fs) |> (toFileList pathRoot) in
+                l |> List.map mapFile
+
+        let compileResxFiles = function
+            | (res,(file:FileInfo)) when file.Extension.Equals(".resx", System.StringComparison.OrdinalIgnoreCase) ->
+                let tempfile = new System.IO.FileInfo (Path.GetTempFileName())
+                do compileResx file tempfile
+                (Path.ChangeExtension(res,".resources"),tempfile,true)
+            | (res,file) ->
+                (res,file,false)
     // end of Impl module
 
     /// C# compiler task
@@ -206,30 +225,11 @@ module DotnetTasks =
             let! options = getCtxOptions()
             let getFiles = toFileList options.ProjectRoot
 
-            let resinfos =
-                settings.Resources
-                |> List.collect (function
-                    |ResourceFileset (o,Fileset (fo,fs)) ->
-                        let mapFile (file:FileInfo) =
-                            let resname = Impl.makeResourceName o fo.BaseDir file.FullName in
-                            (resname,file)
-
-                        let (Filelist l) = Fileset (fo,fs) |> getFiles in
-                        l |> List.map mapFile
-                )
-                |> List.map (function
-                    | (res,file) when file.Extension.Equals(".resx", System.StringComparison.OrdinalIgnoreCase) ->
-                        let tempfile = new System.IO.FileInfo (Path.GetTempFileName())
-                        do Impl.compileResx file tempfile
-                        (Path.ChangeExtension(res,".resources"),tempfile,true)
-                    | (res,file) ->
-                        (res,file,false)
-                        )
-
+            let resinfos = settings.Resources |> List.collect (Impl.collectResInfo options.ProjectRoot) |> List.map Impl.compileResxFiles
             let resfiles =
                 List.ofSeq <|
                 query {
-                    for (res,file,istemp) in resinfos do
+                    for (_,file,istemp) in resinfos do
                         where (not istemp)
                         select (file)
                 }
