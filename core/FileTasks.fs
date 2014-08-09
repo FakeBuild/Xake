@@ -1,16 +1,23 @@
 ﻿[<AutoOpen>]
 module Xake.FileTasks
 
+open System.IO
 open Xake
 open Common.impl
 
 /// Removes the files
 let rm (names : string list) =
+
+  let deleteByMask root mask =
+    let (Filelist files) = Fileset.ls mask |> (toFileList root)
+    files |> List.map (fun f -> f.FullName) |> List.iter File.Delete
+    
   action {
-    // TODO fail on error
     do! writeLog Level.Info "[rm] '%A'" names
-    let! exitcode = _cmd "del /F /Q" names
-    do! writeLog Level.Info "[rm] completed exitcode: %d" exitcode
+    let! options = getCtxOptions()
+
+    names |> List.iter (deleteByMask options.ProjectRoot)
+    do! writeLog Level.Info "[rm] Completed"
   } 
 
 /// Copies file
@@ -19,6 +26,7 @@ let cp (src: string) tgt =
     // TODO fail on error, multiplatform, normalize names, accept array
     do! need [src]
     do! writeLog Level.Info "[cp] '%A' -> '%s'" src tgt
-    do! _cmd "copy " [src.Replace('/', '\\'); tgt] |> ActIgnore
+
+    File.Copy(src, tgt, true)
   } 
 

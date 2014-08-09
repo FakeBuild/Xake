@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>5B7A9196-F7F9-47E6-ABC7-381432F613B2</ProjectGuid>
+    <ProjectGuid>{5B7A9196-F7F9-47E6-ABC7-381432F613B2}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>XakeLibTests</RootNamespace>
     <AssemblyName>XakeLibTests</AssemblyName>
@@ -17,10 +17,10 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
-    <OutputPath>C:\projects\Mine\xake\bin\</OutputPath>
+    <OutputPath>bin</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Debug\XakeLibTests.XML</DocumentationFile>
+    <DocumentationFile>C:\projects\Mine\xake\bin\XakeLibTests.XML</DocumentationFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -48,11 +48,12 @@
     <Compile Include="Tests.fs" />
     <Compile Include="StorageTests.fs" />
     <None Include="packages.config" />
+    <Compile Include="FileTasksTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\core\XakeLib.fsproj">
       <Name>XakeLib</Name>
-      <Project>6B39C22F-6741-428D-B21A-33580AF7BD8E</Project>
+      <Project>{6B39C22F-6741-428D-B21A-33580AF7BD8E}</Project>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup>

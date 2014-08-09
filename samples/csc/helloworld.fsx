@@ -1,9 +1,7 @@
 // xake build file
-
 #r @"../../bin/Xake.Core.dll"
 
 open Xake
-open System
 
 do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
 

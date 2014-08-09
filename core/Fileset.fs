@@ -53,6 +53,8 @@ module Fileset =
                 | '*' -> ".*"
                 | '.' -> "[.]"
                 | '?' -> "."
+                | '$' -> "\$"
+                | '^' -> "\^"
                 | ch -> System.String(ch,1)
             let pat = (pattern.ToCharArray() |> Array.map c2r |> System.String.Concat)
             Regex(@"^" + pat + "$", RegexOptions.Compiled + RegexOptions.IgnoreCase)    // TODO ignore case is optional (system-dependent)

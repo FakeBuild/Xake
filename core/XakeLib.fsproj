@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>6B39C22F-6741-428D-B21A-33580AF7BD8E</ProjectGuid>
+    <ProjectGuid>{6B39C22F-6741-428D-B21A-33580AF7BD8E}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>tests</RootNamespace>
     <AssemblyName>Xake.Core</AssemblyName>
@@ -20,8 +20,6 @@
     <OutputPath>..\bin\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>
-    </DocumentationFile>
     <StartAction>Program</StartAction>
     <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\Fsi.exe</StartProgram>
     <StartWorkingDirectory>C:\projects\ar9\Source</StartWorkingDirectory>
