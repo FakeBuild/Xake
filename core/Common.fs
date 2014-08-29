@@ -43,14 +43,10 @@ module internal impl =
           return proc.ExitCode
       }
 
-    // joins and escapes strings
-    let joinArgs (args:#seq<string>) =
-      (" ", args |> Array.ofSeq) |> System.String.Join
-
     // executes command
     let _cmd cmdline (args : string list) =
       action {
-        let! exitCode = _system SystemOptions "cmd.exe" (joinArgs (["/c"; cmdline] @ args))
+        let! exitCode = _system SystemOptions "cmd.exe" (["/c"; cmdline] @ args |> String.concat " ")
         return exitCode
       } 
 
@@ -60,7 +56,7 @@ open impl
 let system cmd args =
   action {
     do! writeLog Info "[system] starting '%s'" cmd
-    let! exitCode = _system SystemOptions cmd (joinArgs args)
+    let! exitCode = _system SystemOptions cmd (args |> String.concat " ")
     do! writeLog Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
     return exitCode
   }

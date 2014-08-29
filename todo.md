@@ -1,13 +1,15 @@
 ﻿## TODO
-  * rules versioning
+  * MSBUILD task
+  * MONO support
   * ресурсы (CPU и пр.) для управления очередностью
   * multiple outputs
-  * accept filemasks in 'need' parameters (WHY?)
+  * chocolatey support
   * ...
-  * dependency rule: compiler version
   * improve framework detection (use latest always)/support mcs
   * specify target framework for 4.0+ compiler
   * let "main" be default rule so that I can skip 'want ["blablabla"]' in most scripts
+  * dependency rule: compiler version
+  * accept filemasks in 'need' parameters (WHY?)
 
 ## Improvements
   * можно ли сделать так, чтобы собирались модули добавленные в скрипт. Например новая затребованная ДЛЛ, которой раньше не было

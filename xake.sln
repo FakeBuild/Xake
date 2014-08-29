@@ -28,9 +28,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		todo.md = todo.md
 	EndProjectSection
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "XakeLib", "core\XakeLib.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLib", "core\XakeLib.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
 EndProject
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "msbuild", "msbuild", "{217A4EC0-6FF7-40E9-9E0C-12B0DF1B8BA7}"
+	ProjectSection(SolutionItems) = preProject
+		samples\msbuild\build.fsx = samples\msbuild\build.fsx
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,10 +43,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Release|Any CPU.Build.0 = Release|Any CPU
 		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -50,34 +51,16 @@ Global
 		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{70BE9B7A-B5BD-4B91-AA2C-8EDDE63C72E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{70BE9B7A-B5BD-4B91-AA2C-8EDDE63C72E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{70BE9B7A-B5BD-4B91-AA2C-8EDDE63C72E4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
 		{B8F979DC-5E33-4025-AF54-973BC401C30F} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
+		{217A4EC0-6FF7-40E9-9E0C-12B0DF1B8BA7} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = core\XakeLib.fsproj
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

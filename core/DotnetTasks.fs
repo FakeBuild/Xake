@@ -52,6 +52,28 @@ module DotNetTaskTypes =
         // TODO extra command-line args
     }
 
+    type SlnVerbosity = | Quiet | Minimal | Normal | Detailed | Diag
+
+    // Sln (msbuild/xbuild) task settings
+    type MSBuildSettingsType = {
+        // Build file location
+        BuildFile: string
+
+        Target: string list
+        Property: Map<string,string>
+        MaxCpuCount: int option
+
+        ToolsVersion: string option
+        Verbosity: SlnVerbosity option
+
+        DetailedSummary: bool
+
+        RspFile: string option
+
+        // Build fails on compile error.
+        FailOnError: bool
+    }
+
 [<AutoOpen>]
 module DotnetTasks =
 
@@ -256,7 +278,7 @@ module DotnetTasks =
                         yield sprintf "/out:%s" outFile.FullName
 
                     if not (List.isEmpty settings.Define) then
-                        yield "/define:" + System.String.Join(";", Array.ofList settings.Define)
+                        yield "/define:" + (settings.Define |> String.concat ";")
 
                     yield! src |> List.map (fun f -> f.FullName) 
                     yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
@@ -282,7 +304,7 @@ module DotnetTasks =
             let commandLine = "@" + rspFile
 
             do! writeLog Info "%s compiling '%s' using framework '%s'" pfx outFile.Name fwkInfo.Version
-            do! writeLog Debug "Command line: '%s'" (args |> Seq.map Impl.escapeArgument |> Array.ofSeq |> fun s -> System.String.Join("\r\n\t", s))
+            do! writeLog Debug "Command line: '%s'" (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
                 SystemOptions with
@@ -376,5 +398,71 @@ module DotnetTasks =
 
                 do files |> List.map (fun f -> f.FullName) |> List.map (resgen options.BaseDir settings) |> ignore
 
+            ()
+        }
+
+    // Default settings for Sln (MSBuild) task
+    let MSBuildSettings = {
+        BuildFile = null
+        Target = []
+        Property = Map.empty
+        MaxCpuCount = None
+        ToolsVersion = None
+        Verbosity = None
+        DetailedSummary = false
+        RspFile = None
+        FailOnError = true
+    }
+
+    let MSBuild (settings:MSBuildSettingsType) =
+
+        action {
+            let! dotnetFwk = getVar "NETFX"
+            let fwkInfo = Impl.locateFwkAny dotnetFwk
+            let buildAppPath =
+                if isRunningOnMono then
+                    // TODO detect mono is installed and die earlier, handle target framework
+                    "xbuild"
+                else
+                    Path.Combine(fwkInfo.InstallPath, "msbuild.exe")
+
+            let pfx = "msbuild" // TODO thread/index
+
+            let options = {
+                SystemOptions with
+                    LogPrefix = pfx
+                    StdOutLevel = Level.Info     // consider standard compiler output too noisy
+                }
+
+            let args =
+                String.concat " " <|
+                seq {
+                    yield "/nologo"
+                    yield settings.BuildFile
+
+                    if not <| List.isEmpty settings.Target then
+                        yield "/t:" + (settings.Target |> String.concat ";")
+
+                    if Option.isSome settings.MaxCpuCount then yield sprintf "/m:%i" (Option.get settings.MaxCpuCount)
+                    // TODO just "/m" (concurrent building)
+
+                    if Option.isSome settings.ToolsVersion then yield sprintf "/toolsversion:%s" (Option.get settings.ToolsVersion)
+                    if Option.isSome settings.RspFile then yield sprintf "@%s" (Option.get settings.RspFile)
+
+                    // TODO verbosity
+                    // TODO properties
+
+                    if settings.DetailedSummary then yield "/ds"
+                }
+
+            do! writeLog Info "%s making '%s' using framework '%s'" pfx settings.BuildFile fwkInfo.Version
+            do! writeLog Debug "Command line: '%s'" args
+
+            let! exitCode = args |> _system options buildAppPath
+
+            do! writeLog Info "%s done '%s'" pfx settings.BuildFile
+            if exitCode <> 0 then
+                do! writeLog Error "%s ('%s') failed with exit code '%i'" pfx settings.BuildFile exitCode
+                if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
             ()
         }

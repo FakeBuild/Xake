@@ -274,8 +274,8 @@ module XakeScript =
         with 
           | exn ->
             let th = if options.FailOnError then raiseError else reportError
-            let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) |> Seq.toArray in
-            th ctx (exn.Message + "\n" + System.String.Join("\r\n      ", errors)) exn
+            let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
+            th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n      ")) exn
             logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
       finally
         db.PostAndReply Storage.CloseWait
@@ -353,7 +353,7 @@ module XakeScript =
         do! needImpl targets
      }
 
-  /// Instructs Xake to rebuild the target evem if dependencies are not changed
+  /// Instructs Xake to rebuild the target even if dependencies are not changed
   let alwaysRerun () = action {
     let! ctx = getCtx()
     let! result = getResult()
