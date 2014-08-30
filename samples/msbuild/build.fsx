@@ -3,19 +3,17 @@
 
 open Xake
 
-do xake {XakeOptions with FileLog = "build.log" } {
+do xake XakeOptions {
 
-  want ["main"]
+  want ["build\\Hello.exe"]
 
-  phony "main" (action {
-
-    do! alwaysRerun()
+  rule ("build\\Hello.exe" *> fun _ -> action {
 
     do! MSBuild {
     MSBuildSettings with
         BuildFile = "Hello\\Hello.sln"
         Target = ["Clean"; "Rebuild"]
+        Property = [("OutDir", "..\\build")]
       }
-    })
-
+  })
 }

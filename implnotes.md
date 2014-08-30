@@ -56,7 +56,7 @@ Need is traced as before i.e. for every "need" we record the exec time and targe
 
 ## Variables
 
- * NETFX - framework version to use for compilation, resources. E.g. "2.0", "3.5", "4.0". Default: highest installed
+ * NETFX - framework version to use for compilation, resources. E.g. "2.0", "3.5", "4.0". Default: highest available on the computer
 
 
 ## Other

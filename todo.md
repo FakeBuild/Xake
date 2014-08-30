@@ -1,5 +1,4 @@
 ﻿## TODO
-  * MSBUILD task
   * MONO support
   * ресурсы (CPU и пр.) для управления очередностью
   * multiple outputs
@@ -27,6 +26,7 @@
 ## In progress
 
 ## Done
+ * MSBUILD task
  * CSC resources
  * dependency rule: custom rule (Var)
  * alwaysRerun, +rule with no deps
