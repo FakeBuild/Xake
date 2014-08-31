@@ -1,4 +1,5 @@
 ﻿## TODO
+  * xakeArgs: support for sequential running of targets, properties
   * MONO support
   * ресурсы (CPU и пр.) для управления очередностью
   * multiple outputs

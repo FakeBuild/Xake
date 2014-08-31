@@ -53,7 +53,7 @@ module libs =
     let office = !! "out\\office.dll"
 
 // creates a "copy file" rule (used for external deps)
-let copyRule tgt src = tgt *> fun outfile -> action {do! cp src outfile.FullName}
+let copyToOutput lib srcpath = "out" </> lib *> fun outfile -> action {do! cp (srcpath </> lib) outfile.FullName}
 
 // do xake {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
 do xakeArgs fsi.CommandLineArgs {
@@ -74,20 +74,19 @@ do xakeArgs fsi.CommandLineArgs {
         do! need (executables @ dlls)
     })
 
-    // TODO duplicate paths and dll names
     rules [
-        copyRule "out\\nunit.framework.dll" "Tools/NUnit/nunit.framework.dll"
-        copyRule "out\\XmlDiffPatch.dll"    "Tools/XmlDiff/XmlDiffPatch.dll"
-        copyRule "out\\moq.dll"             "Tools/Moq.3.1/moq.dll"
-        copyRule "out\\moq.sequences.dll"   "Tools/Moq.3.1/moq.sequences.dll"
-        copyRule "out\\iTextSharp.dll"      "ExternalLibs/iTextSharp/build/iTextSharp.dll"
-        copyRule "out\\DocumentFormat.OpenXml.dll"      "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
-        copyRule "out\\Qwhale.All.dll"                  "ExternalLibs/QwhaleEditor/Qwhale.All.dll"
-        copyRule "out\\DocumentFormat.OpenXml.dll"      "ExternalLibs/OpenXMLSDKV2.0/DocumentFormat.OpenXml.dll"
+        copyToOutput "nunit.framework.dll"              "Tools/NUnit"
+        copyToOutput "XmlDiffPatch.dll"                 "Tools/XmlDiff"
+        copyToOutput "moq.dll"                          "Tools/Moq.3.1"
+        copyToOutput "moq.sequences.dll"                "Tools/Moq.3.1"
+        copyToOutput "iTextSharp.dll"                   "ExternalLibs/iTextSharp/build"
+        copyToOutput "DocumentFormat.OpenXml.dll"       "ExternalLibs/OpenXMLSDKV2.0"
+        copyToOutput "Qwhale.All.dll"                   "ExternalLibs/QwhaleEditor"
+        copyToOutput "DocumentFormat.OpenXml.dll"       "ExternalLibs/OpenXMLSDKV2.0"
 
-        copyRule "out\\Microsoft.Office.Interop.Excel.dll"  "Tools/Excel/Microsoft.Office.Interop.Excel.dll"
-        copyRule "out\\Microsoft.Vbe.Interop.dll"           "Tools/Excel/Microsoft.Vbe.Interop.dll"
-        copyRule "out\\office.dll"                          "Tools/Excel/office.dll"
+        copyToOutput "Microsoft.Office.Interop.Excel.dll"  "Tools/Excel"
+        copyToOutput "Microsoft.Vbe.Interop.dll"           "Tools/Excel"
+        copyToOutput "office.dll"                          "Tools/Excel"
     ]
 
     rules [

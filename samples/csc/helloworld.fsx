@@ -3,7 +3,7 @@
 
 open Xake
 
-do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
+do xake XakeOptions {
 
   want (["hw.exe"])
 

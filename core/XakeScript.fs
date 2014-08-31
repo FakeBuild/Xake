@@ -9,13 +9,13 @@ module XakeScript =
   type XakeOptionsType = {
     /// Defines project root folder
     ProjectRoot : string  // TODO DirectoryInfo?
-    /// Maximum number of threads to run the rules
+    /// Maximum number of rules processed simultaneously.
     Threads: int
 
-    // custom logger
+    /// custom logger
     CustomLogger: ILogger
 
-    /// Log file and verbosity level
+    /// Log file and verbosity level.
     FileLog: string
     FileLogLevel: Verbosity
 
@@ -53,7 +53,7 @@ module XakeScript =
   /// Default options
   let XakeOptions = {
     ProjectRoot = System.IO.Directory.GetCurrentDirectory()
-    Threads = 4
+    Threads = System.Environment.ProcessorCount
     ConLogLevel = Normal
 
     CustomLogger = CustomLogger (fun _ -> false) ignore
@@ -176,9 +176,9 @@ module XakeScript =
           async {
             let! lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndAsyncReply
 
-            let! doRebuild = needRebuild ctx target lastBuild
+            let! willRebuild = needRebuild ctx target lastBuild
 
-            if doRebuild then
+            if willRebuild then
               do ctx.Logger.Log Command "Started %s" (getShortname target)
 
               let! (result,_) = action (BuildLog.makeResult target,ctx)
@@ -249,7 +249,8 @@ module XakeScript =
       let (XakeScript (options,rules)) = script
       let logger = CombineLogger (ConsoleLogger options.ConLogLevel) options.CustomLogger
 
-      let logger = match options.FileLog with
+      let logger =
+        match options.FileLog with
         | null | "" -> logger
         | logFileName -> CombineLogger logger (FileLogger logFileName options.FileLogLevel)
 

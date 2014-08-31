@@ -59,7 +59,6 @@ module Storage =
   module private Persist = 
 
     open System
-    // open System.IO
     open Pickler
 
     let artifact =
