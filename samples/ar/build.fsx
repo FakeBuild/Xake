@@ -53,7 +53,7 @@ module libs =
     let office = !! "out\\office.dll"
 
 // creates a "copy file" rule (used for external deps)
-let copyToOutput lib srcpath = "out" </> lib *> fun outfile -> action {do! cp (srcpath </> lib) outfile.FullName}
+let copyToOutput lib srcpath = ("out" </> lib) *> fun outfile -> action {do! cp (srcpath </> lib) outfile.FullName}
 
 // do xake {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
 do xakeArgs fsi.CommandLineArgs {
