@@ -35,12 +35,12 @@ do xake XakeOptions {               // (3)
 
 Here are we doing the following steps:
 
-    1. reference f# library containing core testing functionality
-    1. open Xake namespace, so that we can use some Zake types 
-    1. define a "main" function of a build script
-    1. specify the target
-    1. define the rule for "build" target
-    1. define the rule to create "hw.exe" artifact
+1. reference f# library containing core testing functionality
+1. open Xake namespace, so that we can use some Zake types 
+1. define a "main" function of a build script
+1. specify the target
+1. define the rule for "build" target
+1. define the rule to create "hw.exe" artifact
 
 > Notice: everything is built on the rules (declarative approach). You define the rules and set the target, `xake` does the rest.
 
@@ -100,9 +100,9 @@ rule "out\\Tools.dll" *> fun outname -> action {
 
 There're several forms of rules including:
 
-    * `rule <file pattern> \*> fun outname -> <action>` - rule for single file or group of files matching the specified wildcards pattern. The actual name (in case of wildcards pattern) will be passed to `outname` parameter
-    * `rule <condition> \*?> fun outname -> <action>` - allows to use function instead of file name or wildcards
-    * `rule <name> => <action>` - creates a phony rule (the rule that does not create a file)
+* `rule <file pattern> \*> fun outname -> <action>` - rule for single file or group of files matching the specified wildcards pattern. The actual name (in case of wildcards pattern) will be passed to `outname` parameter
+* `rule <condition> \*?> fun outname -> <action>` - allows to use function instead of file name or wildcards
+* `rule <name> => <action>` - creates a phony rule (the rule that does not create a file)
 
 > Notice: you are not bound to `outname` name above, you could change it to any other name.
 
