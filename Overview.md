@@ -42,25 +42,23 @@ Here are we doing the following steps:
 1. define the rule for "build" target
 1. define the rule to create "hw.exe" artifact
 
-> Notice: everything is built on the rules (declarative approach). You define the rules and set the target, `xake` does the rest.
-
 ### So what?
 Pretty much the same result could be obtained in traditional build system without ever mentioning declarative approach. However `xake` will not only create the requested binaries but would also remember the rules it followed and any dependencies observed. This information allows `xake` to avoid redundant actions during current and subsequent runs.
 
 Particularly in this example it will record:
 
-    * "build" depends on "hw.exe"
-    * "hw.exe" rule requires csc compliler of highest available version
-    * "hw.exe" depends on `a*.exe` file mask
-    * `a*.*` was resolved to a single file `a.cs`
-    * the date/time of the `a.cs` is '2014-12-25 23:57:01'
+* "build" depends on "hw.exe"
+* "hw.exe" rule requires csc compliler of highest available version
+* "hw.exe" depends on `a*.exe` file mask
+* `a*.*` was resolved to a single file `a.cs`
+* the date/time of the `a.cs` is '2014-12-25 23:57:01'
 
 And during next run it will execute `build` rule only if at least one of following conditions is met:
 
-    * there's no hw.exe
-    * you've installed newer .NET framework or removed the latest one
-    * file mask `a*.cs` resolves to a different file list
-    * the date of the `a.cs` was changed
+* there's no hw.exe
+* you've installed newer .NET framework or removed the latest one
+* file mask `a*.cs` resolves to a different file list
+* the date of the `a.cs` was changed
 
 ### Running multiple rules in parallel
 
