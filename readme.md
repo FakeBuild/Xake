@@ -6,7 +6,7 @@ Unlike NAnt, Fake and similar tools with imperative script style, Xake is declar
   * you describe rules on how to make particular target
   * build tool identifies dependencies and build your targets
 
-See [documentation](Overview.md) for more details.
+See [documentation](docs/overview.md) for more details.
 
 ## Getting started (Mono and Microsoft's .NET framework)
 
@@ -35,7 +35,7 @@ Now compile the C# "Hello world" application:
 >  * change slashes to a backslashes
 >  * use fsi instead of fsharpi to fun f# scripts
 
-See [documentation](Overview.md) for more details.
+See [documentation](docs/overview.md) and [implementation notes](docs/implnotes.md) for more details.
 
 ## References
   * [Shake manual](https://github.com/ndmitchell/shake/blob/master/docs/Manual.md)
