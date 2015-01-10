@@ -137,28 +137,7 @@ The same as `=>` above. Just another alias.
 
 #### rules
 
-Allows to specify multiple rules passed in array. Syntactical sugar. This code:
-
-``` fsharp
-rule "out\\tools.dll" *> fun outname -> action {
-
-    do! Csc {
-        CscSettings with Out = outname
-            Src = !! "Tools/**/*.cs"
-            Ref = !! "out\\facade.dll"
-    }
-}
-
-rule "out\\facade.dll" *> fun outname -> action {
-
-    do! Csc {
-        CscSettings with Out = outname
-            Src = !! "facade/**/*.cs"
-    }
-}
-```
-
-and this:
+Allows to specify multiple rules passed in array. Syntactical sugar.
 
 ``` fsharp
 rules [
@@ -181,15 +160,13 @@ rules [
 ]
 ```
 
-are equivalent.
-
 #### want
 
 Defines a default list of targets in case it was not set in script parameters (e.g. XakeOptions.Wants).
 
 #### wantOverride
 
-The same as above but overrides parameters.
+The same as above but overrides the list of targets passed via parameters.
 
 ### Rule action
 
