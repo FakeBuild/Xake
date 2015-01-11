@@ -8,8 +8,6 @@ open Xake
 [<AutoOpen>]
 module DotNetTaskTypes =
 
-    type FrameworkInfo = {Version: string; InstallPath: string}
-
     // CSC task and related types
     type TargetType = |Auto |AppContainerExe |Exe |Library |Module |WinExe |WinmdObj
     type TargetPlatform = |AnyCpu |AnyCpu32Preferred |ARM | X64 | X86 |Itanium
@@ -95,56 +93,13 @@ module DotnetTasks =
     }
 
     module internal Impl =
-
         let private refIid = ref 0
 
         let internal newProcPrefix () = 
             System.Threading.Interlocked.Increment(refIid) |> sprintf "[CSC%i]"
 
-        let tryLocateFwk name : option<FrameworkInfo> =
-            let fwkRegKey = function
-                //            | "1.1" -> "v1.1.4322"
-                | "net-20" | "2.0" -> "v2.0.50727"
-                | "net-30" | "3.0" -> "v3.0\Setup\InstallSuccess"
-                | "net-35" | "3.5" -> "v3.5"
-                | "net-40c" | "4.0-client" -> "v4\\Client"
-                | "net-40" | "4.0"| "4.0-full" -> "v4\\Full"
-                | _ -> failwithf "Unknown or unsupported profile '%s'" name
-
-            let ndp = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP")
-            if ndp = null then None
-            else
-                let fwk = ndp.OpenSubKey(fwkRegKey name)
-                if fwk = null || not (fwk.GetValue("Install").Equals(1)) then
-                    None
-                else
-                    Some {InstallPath = fwk.GetValue("InstallPath") :?> string; Version = fwk.GetValue("Version") :?> string}
-
-        // attempts to locate framework, fails if not found
-        let locateFwk name =
-            match tryLocateFwk name with
-            | Some i -> i
-            | _ -> failwithf ".NET framework '%s' not found" name
-
-        // attempts to locate any framework
-        let locateFwkAny minimal =
-            let flip f x y = f y x
-            let applicableFrameworks =
-                ["2.0"; "3.0"; "3.5"; "4.0"]
-                |>  match minimal with
-                    | Some m -> List.filter (flip (>=) m)
-                    | _ -> List.rev     // in case minimal is not specified use the maximum available
-            if isRunningOnMono then
-                {InstallPath = ""; Version = "???"}
-                // TODO detect mono version/path
-            else
-                match applicableFrameworks |> List.tryPick tryLocateFwk with
-                    | Some i -> i
-                    | _ -> failwith "No framework found"
-
         /// Escapes argument according to CSC.exe rules (see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx)
         let escapeArgument (str:string) =
-
             let escape c s =
                 match c,s with
                 | '"',  (b,    str) -> (true,  '\\' :: '\"' ::    str)
@@ -289,14 +244,7 @@ module DotnetTasks =
                 }
 
             let! dotnetFwk = getVar "NETFX"
-            let fwkInfo = Impl.locateFwkAny dotnetFwk
-            let cscPath =
-                if isRunningOnMono then
-                    // TODO detect mono is installed and die earlier, handle target framework
-                    "mcs"
-                else
-                    let csc_exe = Path.Combine(fwkInfo.InstallPath, "csc.exe") in
-                    csc_exe
+            let fwkInfo = DotNetFwk.locateFramework dotnetFwk
 
 // for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
             let rspFile = Path.GetTempFileName()
@@ -304,14 +252,15 @@ module DotnetTasks =
             let commandLine = "@" + rspFile
 
             do! writeLog Info "%s compiling '%s' using framework '%s'" pfx outFile.Name fwkInfo.Version
-            do! writeLog Debug "Command line: '%s'" (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
+            do! writeLog Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
                 SystemOptions with
                     LogPrefix = pfx
                     StdOutLevel = Level.Verbose     // consider standard compiler output too noisy
+                    EnvVars = fwkInfo.EnvVars
                 }
-            let! exitCode = _system options cscPath commandLine
+            let! exitCode = _system options fwkInfo.CscTool commandLine
 
             do! writeLog Level.Verbose "Deleting temporary files"
             seq {
@@ -334,7 +283,7 @@ module DotnetTasks =
     (* csc options builder *)
     type CscSettingsBuilder() =
 
-        [<CustomOperation("target")>]   member this.Target(s, value) =      {s with Target = value}
+        [<CustomOperation("target")>]   member this.Target(s:CscSettingsType, value) = {s with Target = value}
         [<CustomOperation("out")>]      member this.OutFile(s, value) =     {s with Out = value}
         [<CustomOperation("src")>]      member this.SrcFiles(s, value) =    {s with Src = value}
 
@@ -417,13 +366,7 @@ module DotnetTasks =
 
         action {
             let! dotnetFwk = getVar "NETFX"
-            let fwkInfo = Impl.locateFwkAny dotnetFwk
-            let buildAppPath =
-                if isRunningOnMono then
-                    // TODO detect mono is installed and die earlier, handle target framework
-                    "xbuild"
-                else
-                    Path.Combine(fwkInfo.InstallPath, "msbuild.exe")
+            let fwkInfo = DotNetFwk.locateFramework dotnetFwk
 
             let pfx = "msbuild" // TODO thread/index
 
@@ -464,7 +407,7 @@ module DotnetTasks =
                     LogPrefix = pfx
                     StdOutLevel = Level.Info     // consider standard compiler output too noisy
                 }
-            let! exitCode = args |> _system options buildAppPath
+            let! exitCode = args |> _system options fwkInfo.MsbuildTool
 
             do! writeLog Info "%s done '%s'" pfx settings.BuildFile
             if exitCode <> 0 then

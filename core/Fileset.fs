@@ -7,7 +7,9 @@ module Fileset =
 
     type FilePattern = string
 
-    /// Part of filesystem pattern
+    /// <summary>
+    /// Part of filesystem pattern.
+    /// </summary>
     type PatternPart =
         | FsRoot
         | Parent
@@ -185,8 +187,6 @@ module Fileset =
         let changeBasedir dir (Fileset (opts,ps)) =   Fileset ({opts with BaseDir = Some dir}, ps)
         let changeFailonEmpty f (Fileset (opts,ps)) = Fileset ({opts with FailOnEmpty = f}, ps)
 
-    // end of module Impl
-
     /// Fileset persistance implementation
     module private PicklerImpl =
 
@@ -240,7 +240,10 @@ module Fileset =
     let filesetPickler = PicklerImpl.fileset
     let filelistPickler = PicklerImpl.filelist
 
-    // creates a new fileset with default options
+    /// <summary>
+    /// Creates a new fileset with default options.
+    /// </summary>
+    /// <param name="filePattern"></param>
     let ls (filePattern:FilePattern) =
         Fileset (DefaultOptions, [filePattern |> parseFileMask |> Includes])
 
@@ -258,14 +261,26 @@ module Fileset =
         | FileTarget file -> file.Name
         | PhonyAction name -> name
 
-    // Gets whether artifact exists
+    /// <summary>
+    /// Gets true if artifact exists.
+    /// </summary>
     let exists = function
         | FileTarget file -> file.Exists
         | PhonyAction _ ->    false // TODO this is suspicious
 
-    // changes file extension
+    /// <summary>
+    /// Changes or appends file extension.
+    /// </summary>
     let (-.) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
+
+    /// <summary>
+    /// Combines two paths.
+    /// </summary>
     let (</>) path1 path2 = Path.Combine(path1, path2)
+
+    /// <summary>
+    /// Appends the file extension.
+    /// </summary>
     let (<.>) path ext = if System.String.IsNullOrWhiteSpace(ext) then path else path + "." + ext
 
     let parseFileMask = Impl.parseDirFileMask false
@@ -284,7 +299,11 @@ module Fileset =
 
     type ListDiffType<'a> = | Added of 'a | Removed of 'a
 
-    /// Compares two file lists and returnd differences list
+    /// <summary>
+    /// Compares two file lists and returns differences list.
+    /// </summary>
+    /// <param name="list1"></param>
+    /// <param name="list2"></param>
     let compareFileList (Filelist list1) (Filelist list2) =
 
         let fname (f:System.IO.FileInfo) = f.FullName
@@ -297,11 +316,16 @@ module Fileset =
 
         removed @ added
 
-    /// Defines the empty fileset with a specified base dir
+    /// <summary>
+    /// Defines the empty fileset with a specified base dir.
+    /// </summary>
+    /// <param name="dir"></param>
     let (~+) dir =
         Fileset ({DefaultOptions with BaseDir = Some dir}, [])
 
-    // defines various operations
+    /// <summary>
+    /// Defines various operations on Fieset type.
+    /// </summary>
     type Fileset with
         static member (+) (fs1, fs2: Fileset) :Fileset = fs1 |> combineWith fs2
         static member (+) (fs1: Fileset, pat) = fs1 ++ pat

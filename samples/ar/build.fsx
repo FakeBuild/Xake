@@ -1,4 +1,10 @@
 // xake build file for activereports source code
+(*
+ TODO
+    * RELEASE/DEBUG builds
+    * Silverlight (MS build now, own task later)
+    * FlashViewer
+*)
 
 //#r @"..\..\bin\Xake.Core.dll"
 #r @"\projects\Mine\xake\bin\Xake.Core.dll"
@@ -243,11 +249,13 @@ do xakeArgs fsi.CommandLineArgs {
                         includes "HtmlExport/**/*.cs"
                         includes "SL/CommonFiles/SafeGraphics.cs"
                         includes "SL/DDLib.Net/DDWord/kinsoku.cs"
-                        includes @"Reports\ReportsCore\Rendering\CumulativeTotalsHelper.cs"
-                        includes @"Reports\ReportsCore\Rendering\Tools\Cache\*.cs"
-                        includes @"Reports\ReportsCore\Rendering\Tools\Text\*.cs"
-                        includes @"Reports\ReportsCore\FontProcessor\*.cs"
-
+                        join (fileset {
+                            basedir @"Reports\ReportsCore"
+                            includes @"Rendering\CumulativeTotalsHelper.cs"
+                            includes @"Rendering\Tools\Cache\*.cs"
+                            includes @"Rendering\Tools\Text\*.cs"
+                            includes @"FontProcessor\*.cs"
+                        })
                         join commonSrcFiles
                         }
                     Resources =

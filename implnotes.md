@@ -54,6 +54,28 @@ The difference is that the decision is made early, before executing target while
 GetFiles will be new monadic function. Record the call in dependencies as GetFileList(), both rules and results. Track only different results.
 Need is traced as before i.e. for every "need" we record the exec time and target name.
 
+## .NET Runtime
+Xake allows using both Mono and .NET frameworks explicitly by defining NETFX variable.
+Default behavior is to use the framework the script is running under. E.g. if running under Mono `fsharpi` recent mono toolset will be used.
+
+List of valid targets:
+    | "net-20" | "net-2.0" | "2.0"
+    | "net-30" | "net-3.0" | "3.0"
+    | "net-35" | "net-3.5" | "3.5"
+    | "net-40c"| "net-4.0c" | "4.0-client"
+    | "net-40" | "net-4.0" | "4.0"| "4.0-full"
+    | "net-45" | "net-4.5" | "4.5"| "4.5-full"
+
+    | "mono-20" | "mono-2.0" | "2.0"
+    | "mono-35" | "mono-3.5" | "3.5"
+    | "mono-40" | "mono-4.0" | "4.0"
+    | "mono-45" | "mono-4.5" | "4.5"
+
+Use "2.0".."4.5" targets for mutiplatform environments (will target mono-XXX being run under mono framework).
+
+Tasks:
+  * various supported options for csc
+
 ## Variables
 
  * NETFX - framework version to use for compilation, resources. E.g. "2.0", "3.5", "4.0". Default: highest available on the computer

@@ -39,7 +39,7 @@ module Action =
       return s,()
       })
 
-  /// Builder fot xake actions.
+  /// Builder for xake actions.
   let action = ActionBuilder()
 
   // other (public) functions for Action

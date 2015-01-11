@@ -122,12 +122,15 @@ type MiscTests() =
 
           Assert.IsTrue <|
             match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test"), ch) with
-              | Some {
-                BuildResult.Result = PhonyAction "test"
-                BuildResult.Depends = [
-                  ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
-                  Dependency.File (fileDep, depDate)]
-                BuildResult.Steps = []
+              | Some
+                {
+                    BuildResult.Result = PhonyAction "test"
+                    BuildResult.Depends
+                      = [
+                        ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
+                        Dependency.File (fileDep, depDate)
+                      ]
+                    BuildResult.Steps = []
                 }
                 when fileDep = Artifact(@"C:\projects\Mine\xake\bin\bbb.c") && depDate = cdate
                  -> true
@@ -135,10 +138,11 @@ type MiscTests() =
 
           Assert.IsTrue <|
             match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test1"), ch) with
-              | Some {
-                BuildResult.Result = PhonyAction "test1"
-                BuildResult.Depends = [ArtifactDep (PhonyAction "aaa")]
-                BuildResult.Steps = []
+              | Some
+                {
+                    BuildResult.Result = PhonyAction "test1"
+                    BuildResult.Depends = [ArtifactDep (PhonyAction "aaa")]
+                    BuildResult.Steps = []
                 } -> true
               | _ -> false
 
