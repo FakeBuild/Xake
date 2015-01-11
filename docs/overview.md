@@ -5,8 +5,8 @@
 In order to use xake add the reference to core xake library:
 
 ``` fsharp
-    #r @"../../bin/Xake.Core.dll"
- ```
+#r @"../../bin/Xake.Core.dll"
+```
 
 The most simple, but structured script looks as follows:
 
@@ -42,9 +42,11 @@ Here are we doing the following steps:
 1. define the rule for "build" target
 1. define the rule to create "hw.exe" artifact
 
-### So what?
-Pretty much the same result could be obtained in traditional build system without ever mentioning declarative approach. However `xake` will not only create the requested binaries but would also remember the rules it followed and any dependencies observed. This information allows `xake` to avoid redundant actions during current and subsequent runs.
+## So what?
+Pretty much the same result could be obtained in traditional build system without ever mentioning declarative approach. However `xake` will not only create the requested binaries but would also remember the rules it followed and any dependencies observed.
 
+### Dependencies tracking
+The information recorded during the build allows `xake` to avoid redundant actions during current and subsequent runs.
 Particularly in this example it will record:
 
 * "build" depends on "hw.exe"
@@ -66,19 +68,19 @@ The other benefit the declarative approach brings is a parallel execution. Whene
 
 And these both benefits do not require any additional efforts from you if you follow several simple rules.
 
-## Build script elements
+# Build script elements
 
 You've seen the structure of the script above. Let's reiterate them.
 
-### Script header
+## Script header
 
 You define the *references* to assemblies defining the tasks (if any) and you add the reference to main `xake.core.dll` assembly. You can also define *functions, variables and constants* here.
 
-### "Main" function
+## "Main" function
 
 In fact this block is just the call to `xake` is a special kind of so called computation expression which accepts only the elements defined below.
 
-#### rule
+### rule
 Defines a rule for making file.
 
 Example:
@@ -131,11 +133,11 @@ do xake {XakeOptions with Threads = 4} {
 }
 ```
 
-#### phony
+### phony
 
 The same as `=>` above. Just another alias.
 
-#### rules
+### rules
 
 Allows to specify multiple rules passed in array. Syntactical sugar.
 
@@ -160,14 +162,74 @@ rules [
 ]
 ```
 
-#### want
+### want
 
 Defines a default list of targets in case it was not set in script parameters (e.g. XakeOptions.Wants).
 
-#### wantOverride
+### wantOverride
 
 The same as above but overrides the list of targets passed via parameters.
 
-### Rule action
+## Rule action body
+
+Action body is computation expression of type *action*. This computation returns *Action* type and is very similar to
+*async* computation. You could use both regular code (such as assignments/binding, loops and conditional expressions)
+and do! notation within *action* body.
+
+### Tasks, `do!` notation
+
+`do!` allows executing both async methods and *tasks*. *Task* is a regular F# function that is an *action* so that it returns *Action* type.
+
+Tasks are very simple:
+```fsharp
+/// Copies the file
+let cp (src: string) tgt =
+  action {
+    do! need [src]
+    File.Copy(src, tgt, true)
+  } 
+```
+
+### need
+
+`need` function is widely used internally and it is a key element for dependency tracking. Calling `need` ensures the requested files are built according to rules.
+Execution of action is put on hold until all dependencies are ready.
+
+> In fact `need` is smart enough and it checks dependencies to determine whether to build file (execute respective rule) or not.
+
+In the sample above `cp` function ensures the source file is build before it's copied to target folder.
+
+### Filesets
+
+### Internal functions
+
+* `need`
+* `writeLog`
+* `getCtxOptions`
+* `getVar` - gets the variable value (and records dependency!)
+* `getEnv` - gets environment variable (and records dependency!)
+* `alwaysRerun` - instructs Xake to rebuild the target even if dependencies are not changed
+
+### Script variables
+
+Script varibles are not F# variables.
 
 > TBD
+
+### Tasks
+
+#### File tasks
+
+These tasks allows to perform various file operations. Using these tasks ensures the dependencies are properly tracked are recorded.
+> TBD
+
+* `cp`
+* `rm`
+
+#### Dotnet tasks
+
+Set of tasks to build .NET applications.
+
+* `Csc`
+* `MsBuild`
+* `ResGen`
