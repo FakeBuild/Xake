@@ -78,7 +78,7 @@ type ScriptErrorTests() =
 
     Assert.IsTrue(errorlist.Exists (fun (x:string) -> x.Contains("Neither rule nor file is found")))
 
-  [<Test (Description = "Verifies the script properly fails if rule does not exists")>]
+  [<Test (Description = "Verifies the script properly handles broken database")>]
   member test.HangOnBrokenDb() =
 
     let dbname = "." </> ".xake"

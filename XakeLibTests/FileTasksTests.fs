@@ -11,10 +11,14 @@ open Xake.FileTasks
 [<TestFixture>]
 type FileTasksTests() = 
 
+    let TestOptions = {XakeOptions with Threads = 1; Want = ["main"]; ConLogLevel = Chatty; FileLogLevel = Silent}
+
     [<Test>]
     member this.DeleteSimple() =
+        "." </> ".xake" |> File.Delete
+
         let execCount = ref 0
-        do xake {XakeOptions with Threads = 1; Want = ["main"]; ConLogLevel = Chatty} {
+        do xake TestOptions {
             rules [
               "main" => action {
                   execCount := !execCount + 1
@@ -34,9 +38,10 @@ type FileTasksTests() =
 
     [<Test>]
     member this.DeleteByMask() =
+        "." </> ".xake" |> File.Delete
         let execCount = ref 0
     
-        do xake {XakeOptions with Threads = 1; Want = ["main"]} {
+        do xake TestOptions {
             rules [
               "main" => action {
                   do! need ["$$1"; "$$2"]
@@ -56,7 +61,8 @@ type FileTasksTests() =
 
     [<Test>]
     member this.DeleteMany() =
-        do xake {XakeOptions with Threads = 1; Want = ["main"]} {
+        "." </> ".xake" |> File.Delete
+        do xake TestOptions {
             rules [
               "main" => action {
                   do! need ["$aa"; "$bb"]
@@ -74,10 +80,11 @@ type FileTasksTests() =
 
     [<Test>]
     member this.CopySimple() =
-        do xake {XakeOptions with Threads = 1; Want = ["test"]} {
+        "." </> ".xake" |> File.Delete
+        do xake TestOptions {
             rules [
-              "test" => action {
-                  do! writeLog Error "Running inside 'test' rule"
+              "main" => action {
+                  do! writeLog Error "Running inside 'main' rule"
                   do! need ["aaa"; "clean"]
                   do! cp "aaa" "aaa-copy"
               }

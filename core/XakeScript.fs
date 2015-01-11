@@ -250,9 +250,10 @@ module XakeScript =
       let logger = CombineLogger (ConsoleLogger options.ConLogLevel) options.CustomLogger
 
       let logger =
-        match options.FileLog with
-        | null | "" -> logger
-        | logFileName -> CombineLogger logger (FileLogger logFileName options.FileLogLevel)
+        match options.FileLog, options.FileLogLevel with
+        | null,_ | "",_
+        | _,Verbosity.Silent -> logger
+        | logFileName,level -> CombineLogger logger (FileLogger logFileName level)
 
       let (throttler, pool) = WorkerPool.create logger options.Threads
 

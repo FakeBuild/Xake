@@ -139,7 +139,7 @@ module Storage =
 
         let header = Persist.dbHeader.unpickle reader
         if header.XakeVer < XakeVersion then
-          failwith "Database version is old. Recreating"
+          failwith "Database version is old."
       
         while stream.Position < stream.Length do
           let result = resultPU.unpickle reader
