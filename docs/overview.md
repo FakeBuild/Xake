@@ -78,7 +78,7 @@ You define the *references* to assemblies defining the tasks (if any) and you ad
 
 ## "Main" function
 
-In fact this block is just the call to `xake` is a special kind of so called computation expression which accepts only the elements defined below.
+In fact this block is just the call to `xake` which is a special kind of computation expression accepting only the elements described below.
 
 ### rule
 Defines a rule for making file.
@@ -100,8 +100,8 @@ rule "out\\Tools.dll" *> fun outname -> action {
 
 There're several forms of rules including:
 
-* `rule <file pattern> \*> fun outname -> <action>` - rule for single file or group of files matching the specified wildcards pattern. The actual name (in case of wildcards pattern) will be passed to `outname` parameter
-* `rule <condition> \*?> fun outname -> <action>` - allows to use function instead of file name or wildcards
+* `rule <file pattern> *> fun outname -> <action>` - rule for single file or group of files matching the specified wildcards pattern. The actual name (in case of wildcards pattern) will be passed to `outname` parameter
+* `rule <condition> *?> fun outname -> <action>` - allows to use function instead of file name or wildcards
 * `rule <name> => <action>` - creates a phony rule (the rule that does not create a file)
 
 > Notice: you are not bound to `outname` name above, you could change it to any other name.
@@ -170,11 +170,13 @@ Defines a default list of targets in case it was not set in script parameters (e
 
 The same as above but overrides the list of targets passed via parameters.
 
-## Rule action body
+## action computation
 
 Action body is computation expression of type *action*. This computation returns *Action* type and is very similar to
 *async* computation. You could use both regular code (such as assignments/binding, loops and conditional expressions)
 and do! notation within *action* body.
+
+See the functions allowing to access execution context within *action* body. 
 
 ### Tasks, `do!` notation
 
