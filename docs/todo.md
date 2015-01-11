@@ -1,32 +1,36 @@
 ﻿## TODO
   * xakeArgs: support for sequential running of targets, properties
   * MONO support
+    * various compiler options (including those not supported)
+  * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question.
   * ресурсы (CPU и пр.) для управления очередностью
   * multiple outputs
   * chocolatey support
   * ...
-  * improve framework detection (use latest always)/support mcs
   * specify target framework for 4.0+ compiler
   * let "main" be default rule so that I can skip 'want ["blablabla"]' in most scripts
   * dependency rule: compiler version
   * accept filemasks in 'need' parameters (WHY?)
 
 ## Improvements
-  * можно ли сделать так, чтобы собирались модули добавленные в скрипт. Например новая затребованная ДЛЛ, которой раньше не было
+  * detect changes in build script (internal changes), e.g. new target added that was not in .xake database
   * performance of rules lookup (takes 2s now)
 
 ### Refactorings
-    * Artifact -> FileName of string, relative path
+  * Artifact -> FileName of string, relative path
 
 
 ## Tasks TODO
   * command-line tool
   * MSBuild task
 
-
 ## In progress
 
 ## Done
+ * MONO support
+   * explicitly target mono
+   * configure mono from registry
+   * probing paths for tools
  * MSBUILD task
  * CSC resources
  * dependency rule: custom rule (Var)

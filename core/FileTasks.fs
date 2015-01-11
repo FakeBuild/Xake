@@ -5,7 +5,10 @@ open System.IO
 open Xake
 open Common.impl
 
-/// Removes the files
+/// <summary>
+/// Removes the files.
+/// </summary>
+/// <param name="names">List of files/filemasks to be removed.</param>
 let rm (names : string list) =
 
   let deleteByMask root mask =
@@ -20,10 +23,12 @@ let rm (names : string list) =
     do! writeLog Level.Info "[rm] Completed"
   } 
 
-/// Copies file
+/// <summary>
+/// Copies one file to another location.
+/// </summary>
 let cp (src: string) tgt =
   action {
-    // TODO fail on error, multiplatform, normalize names, accept array
+    // TODO fail on error, normalize names, accept array
     do! need [src]
     do! writeLog Level.Info "[cp] '%A' -> '%s'" src tgt
 

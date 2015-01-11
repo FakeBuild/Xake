@@ -54,6 +54,7 @@
     <Compile Include="Common.fs" />
     <Compile Include="FileTasks.fs" />
     <Compile Include="ResourceFileset.fs" />
+    <Compile Include="DotNetFwk.fs" />
     <Compile Include="DotnetTasks.fs" />
     <None Include="filesets.fsx" />
   </ItemGroup>

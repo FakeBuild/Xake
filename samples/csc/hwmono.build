@@ -1,0 +1,10 @@
+<project name="hw" default="build">
+	<property name="nant.settings.currentframework" value="mono-3.5"/>
+	<target name="build">
+		<csc target="exe" output="HelloWorld.exe">
+                <sources>
+                    <includes name="a.cs" />
+                </sources>
+		</csc>
+   	</target>
+</project>

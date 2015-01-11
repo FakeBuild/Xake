@@ -3,7 +3,7 @@
 [<AutoOpen>]
 module DomainTypes =
 
-  let private comparer = System.StringComparer.OrdinalIgnoreCase
+  let private compareNames a b = System.String.Compare(a,b,true)
 
   type Artifact(name:string) =
 
@@ -12,22 +12,28 @@ module DomainTypes =
     interface System.IComparable with
       member me.CompareTo other =
         match other with
-        | :? Artifact as a -> comparer.Compare(me.Name, a.Name)
+        | :? Artifact as a -> compareNames me.Name a.Name
         | _ -> 1
 
     member this.Name = name
     member this.FullName = fi.Value.FullName
-    member this.Exists = fi.Value.Exists
-    member this.LastWriteTime = fi.Value.LastWriteTime
+    member this.Exists =
+        fi.Value.Refresh()
+        fi.Value.Exists
+    member this.LastWriteTime =
+        fi.Value.Refresh()
+        fi.Value.LastWriteTime
 
     member this.IsUndefined = System.String.IsNullOrWhiteSpace(name)
     static member Undefined = Artifact(null)
 
     override this.Equals(other) =
       match other with
-        | :? Artifact as a -> comparer.Equals(this.Name, a.Name)
+        | :? Artifact as a -> 0 = compareNames this.Name a.Name
         | _ -> false
-    override me.GetHashCode() = name.GetHashCode()
+    override me.GetHashCode() =
+        if me.IsUndefined then 0
+        else name.ToLowerInvariant().GetHashCode()
     override me.ToString() = name
     // TODO refine our own type, keep paths relative
 

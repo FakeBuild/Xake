@@ -3,30 +3,37 @@
 [<AutoOpen>]
 module Xake.Common
 
+/// Gets true if running under Mono framework
+let internal isRunningOnMono =
+  System.Type.GetType ("Mono.Runtime") <> null
+
+let internal isRunningOnUnix =
+  match System.Environment.OSVersion.Platform with
+  | System.PlatformID.MacOSX | System.PlatformID.Unix -> true
+  | _ -> false
+
+let internal isRunningOnWin32 = not isRunningOnUnix
+
 module internal impl =
 
     open Xake
     open System.Diagnostics
 
-    type SystemOptionsType = {LogPrefix:string; StdOutLevel: Level; ErrOutLevel: Level}
-    let SystemOptions = {LogPrefix = ""; StdOutLevel = Level.Info; ErrOutLevel = Level.Error}
-
     // internal implementation
-    let _system settings cmd args =
-      action {
-        let! ctx = getCtx()
-        let log = ctx.Logger.Log
-
+    let _pexec handleStd handleErr cmd args (envvars:(string * string) list) =
         let pinfo =
           ProcessStartInfo
             (cmd, args,
               UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden,
               RedirectStandardError = true, RedirectStandardOutput = true)
 
+        for name,value in envvars do            
+            pinfo.EnvironmentVariables.[name] <- value
+
         let proc = new Process(StartInfo = pinfo)
 
-        proc.ErrorDataReceived.Add(fun  e -> if e.Data <> null then log settings.ErrOutLevel "%s %s" settings.LogPrefix e.Data)
-        proc.OutputDataReceived.Add(fun e -> if e.Data <> null then log settings.StdOutLevel  "%s %s" settings.LogPrefix e.Data)
+        proc.ErrorDataReceived.Add(fun e -> if e.Data <> null then handleErr e.Data)
+        proc.OutputDataReceived.Add(fun e -> if e.Data <> null then handleStd e.Data)
 
         do proc.Start() |> ignore
 
@@ -34,25 +41,51 @@ module internal impl =
         do proc.BeginErrorReadLine()
 
         // task might be completed by that time
-        do! Async.Sleep 50
-        if proc.HasExited then
-          return proc.ExitCode
-        else
-          proc.EnableRaisingEvents <- true
-          do! Async.AwaitEvent proc.Exited |> Async.Ignore
-          return proc.ExitCode
-      }
+        Async.RunSynchronously <|
+        async {
+            do! Async.Sleep 50
+            if proc.HasExited then
+                return proc.ExitCode
+            else
+                proc.EnableRaisingEvents <- true
+                do! Async.AwaitEvent proc.Exited |> Async.Ignore
+                return proc.ExitCode
+        }
 
-    // executes command
-    let _cmd cmdline (args : string list) =
+    type SystemOptionsType = {LogPrefix:string; StdOutLevel: Level; ErrOutLevel: Level; EnvVars: (string * string) list}
+    let SystemOptions = {LogPrefix = ""; StdOutLevel = Level.Info; ErrOutLevel = Level.Error; EnvVars = []}
+
+    /// <summary>
+    /// Executes system command. E.g. '_system SystemOptions "dir" []'
+    /// </summary>
+    let _system settings cmd args =
+
+      let isExt file ext = System.IO.Path.GetExtension(file).Equals(ext, System.StringComparison.OrdinalIgnoreCase)
+
       action {
-        let! exitCode = _system SystemOptions "cmd.exe" (["/c"; cmdline] @ args |> String.concat " ")
-        return exitCode
-      } 
+        let! ctx = getCtx()
+        let log = ctx.Logger.Log
+
+        do! writeLog Level.Debug "[system] envvars: '%A'" settings.EnvVars
+        do! writeLog Level.Debug "[system] args: '%A'" args
+
+        let handleErr = log settings.ErrOutLevel "%s %s" settings.LogPrefix
+        let handleStd = log settings.StdOutLevel  "%s %s" settings.LogPrefix
+
+        return
+            if isRunningOnWin32 && not <| isExt cmd ".exe" then
+                _pexec handleStd handleErr "cmd.exe" ("/c " + cmd + " " + args) settings.EnvVars
+            else
+                _pexec handleStd handleErr cmd args settings.EnvVars
+    }
 
 open impl
 
-// executes external process and waits until it completes
+/// <summary>
+/// Executes external process and waits until it completes
+/// </summary>
+/// <param name="cmd">Command or executable name.</param>
+/// <param name="args">Command arguments.</param>
 let system cmd args =
   action {
     do! writeLog Info "[system] starting '%s'" cmd
@@ -61,19 +94,6 @@ let system cmd args =
     return exitCode
   }
 
-// executes command
-let cmd cmdline (args : string list) =
-  action {
-    do! writeLog Level.Info "[cmd] starting '%s'" cmdline
-    let! exitCode = _cmd cmdline args
-    do! writeLog Level.Info "[cmd] completed '%s' exitcode: %d" cmdline exitCode
-    return exitCode
-  } 
-
 // reads the file and returns all text
-let readtext artifact =
-  artifact |> getFullname |> System.IO.File.ReadAllText
-
-/// Gets true if running under Mono framework
-let internal isRunningOnMono =
-  System.Type.GetType ("Mono.Runtime") <> null
+//let readtext artifact =
+//  artifact |> getFullname |> System.IO.File.ReadAllText

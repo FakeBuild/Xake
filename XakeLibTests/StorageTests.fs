@@ -12,7 +12,7 @@ type Bookmark =
   | Bookmark of string * string
   | Folder of string * Bookmark list
 
-[<TestFixture (Description = "Verious tests")>]
+[<TestFixture (Description = "Various tests")>]
 type StorageTests() =
 
   let dbname = "." </> ".xake"
@@ -20,9 +20,9 @@ type StorageTests() =
   // stores object to a binary stream and immediately reads it
   let writeAndRead (pu:Pickler.PU<_>) testee =
     use buffer = new MemoryStream()
-    pu.pickle testee (BinaryWriter buffer)
+    pu.pickle testee (new BinaryWriter (buffer))
     buffer.Position <- 0L
-    buffer.ToArray(), pu.unpickle (BinaryReader buffer)
+    buffer.ToArray(), pu.unpickle (new BinaryReader (buffer))
 
   let createStrLogger (errorlist:System.Collections.Generic.List<string>) =
     CustomLogger (fun _ -> true) errorlist.Add
@@ -72,12 +72,12 @@ type StorageTests() =
             ]);
           Folder ("empty", [])
         ])
-    let buffer = MemoryStream()
+    let buffer = new MemoryStream()
 
-    bookmarkPU.pickle testee (BinaryWriter buffer)
+    bookmarkPU.pickle testee (new BinaryWriter (buffer))
 
     buffer.Position <- 0L
-    let replica = bookmarkPU.unpickle (BinaryReader buffer)
+    let replica = bookmarkPU.unpickle (new BinaryReader (buffer))
 
     Assert.AreEqual (testee, replica)
 
