@@ -18,7 +18,6 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
   //want ["a1.exe"; "a2.exe"; "a3.exe"; "a4.exe"; "a5.exe"; "a6.exe"; "a7.exe"]
 
   rule("a.exe" *> fun exe -> action {
-    let cs = exe -. "cs"
     do! Csc {
       CscSettings with
         Out = exe

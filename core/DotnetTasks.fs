@@ -31,6 +31,8 @@ module DotNetTaskTypes =
             Define: string list
             /// Allows unsafe code.
             Unsafe: bool
+            /// Target .NET framework
+            TargetFramework: string
             /// Custom command-line arguments
             CommandArgs: string list
             /// Build fails on compile error.
@@ -88,6 +90,7 @@ module DotnetTasks =
         Resources = []
         Define = []
         Unsafe = false
+        TargetFramework = null
         CommandArgs = []
         FailOnError = true
     }
@@ -219,6 +222,21 @@ module DotnetTasks =
 
             do! needFiles (Filelist (src @ refs @ resfiles))
 
+            let (globalRefs,nostdlib,asmdir) =
+                match settings.TargetFramework with
+                | null | "" ->
+                    let mapfn = (+) "/r:"
+                    (settings.RefGlobal |> List.map mapfn), false, null
+                | tgt ->
+                    let fwk = Some tgt |> DotNetFwk.locateFramework in
+                    let mapfn = (fun name -> "/r:" + fwk.AssemblyDir </> name)
+
+                    // TODO add libraries
+                    ((["mscorlib.dll"] @ settings.RefGlobal) |> List.map mapfn), true, fwk.AssemblyDir
+
+            if asmdir <> null then
+                do! writeLog Info "Using libraries from %s" asmdir
+
             let args =
                 seq {
                     yield "/nologo"
@@ -229,6 +247,9 @@ module DotnetTasks =
                     if settings.Unsafe then
                         yield "/unsafe"
 
+                    if nostdlib then
+                        yield "/nostdlib"
+
                     if not outFile.IsUndefined then
                         yield sprintf "/out:%s" outFile.FullName
 
@@ -237,7 +258,7 @@ module DotnetTasks =
 
                     yield! src |> List.map (fun f -> f.FullName) 
                     yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
-                    yield! settings.RefGlobal |> List.map ((+) "/r:")
+                    yield! globalRefs
 
                     yield! resinfos |> List.map (fun(name,file,_) -> sprintf "/res:%s,%s" file.FullName name)
                     yield! settings.CommandArgs
@@ -246,7 +267,7 @@ module DotnetTasks =
             let! dotnetFwk = getVar "NETFX"
             let fwkInfo = DotNetFwk.locateFramework dotnetFwk
 
-// for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
+// TODO for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
             let rspFile = Path.GetTempFileName()
             File.WriteAllLines(rspFile, args |> Seq.map Impl.escapeArgument |> List.ofSeq)
             let commandLine = "@" + rspFile
@@ -283,20 +304,21 @@ module DotnetTasks =
     (* csc options builder *)
     type CscSettingsBuilder() =
 
-        [<CustomOperation("target")>]   member this.Target(s:CscSettingsType, value) = {s with Target = value}
-        [<CustomOperation("out")>]      member this.OutFile(s, value) =     {s with Out = value}
-        [<CustomOperation("src")>]      member this.SrcFiles(s, value) =    {s with Src = value}
+        [<CustomOperation("target")>]    member this.Target(s:CscSettingsType, value) = {s with Target = value}
+        [<CustomOperation("targetfwk")>] member this.TargetFwk(s:CscSettingsType, value) = {s with TargetFramework = value}
+        [<CustomOperation("out")>]       member this.OutFile(s, value) =     {s with Out = value}
+        [<CustomOperation("src")>]       member this.SrcFiles(s, value) =    {s with Src = value}
 
-        [<CustomOperation("ref")>]     member this.Ref(s, value) =         {s with Ref = s.Ref + value}
+        [<CustomOperation("ref")>]       member this.Ref(s, value) =         {s with Ref = s.Ref + value}
         [<CustomOperation("refif")>]     member this.Refif(s, cond, (value:Fileset)) =         {s with Ref = s.Ref +? (cond,value)}
 
-        [<CustomOperation("refs")>]     member this.Refs(s, value) =         {s with Ref = value}
-        [<CustomOperation("grefs")>]    member this.RefGlobal(s, value) =   {s with RefGlobal = value}
+        [<CustomOperation("refs")>]      member this.Refs(s, value) =         {s with Ref = value}
+        [<CustomOperation("grefs")>]     member this.RefGlobal(s, value) =   {s with RefGlobal = value}
         [<CustomOperation("resources")>] member this.Resources(s, value) =   {s with CscSettingsType.Resources = value :: s.Resources}
         [<CustomOperation("resourceslist")>] member this.ResourcesList(s, values) = {s with CscSettingsType.Resources = values @ s.Resources}
 
-        [<CustomOperation("define")>]   member this.Define(s, value) =      {s with Define = value}
-        [<CustomOperation("unsafe")>]   member this.Unsafe(s, value) =      {s with Unsafe = value}
+        [<CustomOperation("define")>]    member this.Define(s, value) =      {s with Define = value}
+        [<CustomOperation("unsafe")>]    member this.Unsafe(s, value) =      {s with Unsafe = value}
 
         member this.Bind(x, f) = f x
         member this.Yield(()) = CscSettings

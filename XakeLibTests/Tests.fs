@@ -272,7 +272,7 @@ type MiscTests() =
 
         System.Environment.SetEnvironmentVariable("TTT", "")
 
-    [<Test (Description = "Verifies resource set instaniation")>]
+    [<Test (Description = "Verifies resource set instantiation")>]
     member this.NewResourceSet() =
 
         let resset = resourceset {
