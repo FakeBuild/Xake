@@ -128,15 +128,14 @@ module DotNetFwk =
                 None, err
 
     module internal MsImpl =
-
         open registry
-        let fwkKey = open_subkey HKLM @"SOFTWARE\Microsoft\.NETFramework"
-        let installRoot_ = fwkKey |> Option.bind (get_value_str "InstallRoot")
-
-        let installRoot = installRoot_ |> Option.get    // TODO gracefully fail
-        // let sdkInstallRoot = fwkKey |> Option.bind (get_value_str "sdkInstallRoot") neither complete nor correct
 
         let tryLocateFwk fwk =
+            let fwkKey = open_subkey HKLM @"SOFTWARE\Microsoft\.NETFramework"
+            let installRoot_ = fwkKey |> Option.bind (get_value_str "InstallRoot")
+            let installRoot = installRoot_ |> Option.get    // TODO gracefully fail
+
+            // let sdkInstallRoot = fwkKey |> Option.bind (get_value_str "sdkInstallRoot") neither complete nor correct
             let (version,fwkdir,asmdir,vars,err) =
                 match fwk with
                 | "net-20" | "net-2.0" | "2.0" ->
