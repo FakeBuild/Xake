@@ -64,7 +64,7 @@ do xake XakeOptions {               // (3)
 Here are we doing the following steps:
 
 1. reference f# library containing core testing functionality
-1. open Xake namespace, so that we can use some Zake types 
+1. open Xake namespace, so that we can use some Xake types 
 1. define a "main" function of a build script
 1. specify the target
 1. define the rule for "build" target
