@@ -1,3 +1,31 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+  - [The first script](#the-first-script)
+  - [So what?](#so-what)
+    - [Dependencies tracking](#dependencies-tracking)
+    - [Running multiple rules in parallel](#running-multiple-rules-in-parallel)
+- [Build script elements](#build-script-elements)
+  - [Script header](#script-header)
+  - ["Main" function](#main-function)
+    - [rule](#rule)
+    - [phony](#phony)
+    - [rules](#rules)
+    - [want](#want)
+    - [wantOverride](#wantoverride)
+  - [action computation](#action-computation)
+    - [Tasks, `do!` notation](#tasks-do-notation)
+    - [need](#need)
+    - [Filesets](#filesets)
+    - [Internal functions](#internal-functions)
+    - [Script variables](#script-variables)
+    - [Tasks](#tasks)
+      - [File tasks](#file-tasks)
+      - [Dotnet tasks](#dotnet-tasks)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ﻿Xake script is just an F# script with some flavors.
 
 ## The first script
@@ -43,7 +71,7 @@ Here are we doing the following steps:
 1. define the rule to create "hw.exe" artifact
 
 ## So what?
-Pretty much the same result could be obtained in traditional build system without ever mentioning declarative approach. However `xake` will not only create the requested binaries but would also remember the rules it followed and any dependencies observed.
+Pretty much the same result could be obtained in traditional build system without ever mentioning declarative approach. However `xake` will not only create the requested binaries but would also remember the rules it followed and any dependencies it discovered.
 
 ### Dependencies tracking
 The information recorded during the build allows `xake` to avoid redundant actions during current and subsequent runs.
@@ -70,7 +98,7 @@ And these both benefits do not require any additional efforts from you if you fo
 
 # Build script elements
 
-You've seen the structure of the script above. Let's reiterate them.
+You've seen the structure of the script above. Let's reiterate it.
 
 ## Script header
 
@@ -195,9 +223,10 @@ let cp (src: string) tgt =
 ### need
 
 `need` function is widely used internally and it is a key element for dependency tracking. Calling `need` ensures the requested files are built according to rules.
-Execution of action is put on hold until all dependencies are ready.
+The action is paused until all dependencies are resolved and built.
 
-> In fact `need` is smart enough and it checks dependencies to determine whether to build file (execute respective rule) or not.
+> In fact `need` is smart enough and it checks dependencies to determine whether to build file (execute respective rule) or not. In case you need the same file for multiple targets xake will build it only once.
+> In case you need the dependency to rebuild every time it's requested you can use `alwaysRerun()` function described below.
 
 In the sample above `cp` function ensures the source file is build before it's copied to target folder.
 
@@ -205,16 +234,16 @@ In the sample above `cp` function ensures the source file is build before it's c
 
 ### Internal functions
 
-* `need`
-* `writeLog`
+* `need '['<targets...>']'`
+* `writeLog <level> <format> <args...>`
 * `getCtxOptions`
-* `getVar` - gets the variable value (and records dependency!)
-* `getEnv` - gets environment variable (and records dependency!)
+* `getVar <varname>` - gets the variable value (and records dependency!)
+* `getEnv <varname>` - gets environment variable (and records dependency!)
 * `alwaysRerun` - instructs Xake to rebuild the target even if dependencies are not changed
 
 ### Script variables
 
-Script varibles are not F# variables.
+Script variables are not F# variables.
 
 > TBD
 
@@ -222,16 +251,16 @@ Script varibles are not F# variables.
 
 #### File tasks
 
-These tasks allows to perform various file operations. Using these tasks ensures the dependencies are properly tracked are recorded.
+These tasks allows to perform various file operations. Using these tasks ensures the dependencies are properly resolved are recorded.
 > TBD
 
-* `cp`
-* `rm`
+* `cp <srcfile> <dest-file-name>` - copies the file
+* `rm <mask list>` - removes the files by mask
 
 #### Dotnet tasks
 
 Set of tasks to build .NET applications.
 
-* `Csc`
-* `MsBuild`
-* `ResGen`
+* `Csc` - compiles C# files
+* `MsBuild` - builds the project or solution using msbuild or xbuild
+* `ResGen` - compiles resource file[s]
