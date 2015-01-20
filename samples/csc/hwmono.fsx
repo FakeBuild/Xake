@@ -3,9 +3,10 @@
 
 open Xake
 
-do xake {XakeOptions with Want = ["hwmono.exe"]; Vars = ["NETFX", "mono-35"]} {
-
+do xake {XakeOptions with Vars = ["NETFX", "mono-35"]} {
+  rule ("main" <== ["hwmono.exe"])
   rules [
+    //"main" <== ["hwmono.exe"]
     "hwmono.exe" *> fun exe -> action {
         do! (csc {
             out exe

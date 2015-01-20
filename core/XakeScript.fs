@@ -271,7 +271,13 @@ module XakeScript =
 
       try
         try
-          options.Want |> (List.map (makeTarget ctx) >> execMany ctx >> Async.RunSynchronously >> ignore)
+          let checkEmpty = function
+          | [] ->
+            logger.Log Level.Message "No target(s) specified. Defaulting to 'main'"
+            ["main"]
+          | targets -> targets
+
+          options.Want |> checkEmpty |> (List.map (makeTarget ctx) >> execMany ctx >> Async.RunSynchronously >> ignore)
           logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
         with 
           | exn ->
@@ -405,4 +411,8 @@ module XakeScript =
   /// Writes a message to a log
   let writeLog = Impl.writeLog
 
- 
+  /// Defined a rule that demands specified targets
+  /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
+  let (<==) name targets = PhonyRule (name,action {
+        do! need targets
+      })

@@ -66,7 +66,7 @@ Here are we doing the following steps:
 1. reference f# library containing core testing functionality
 1. open Xake namespace, so that we can use some Xake types 
 1. define a "main" function of a build script
-1. specify the target
+1. specify the default target which will be built if target is not specified. Defaults to "main"
 1. define the rule for "build" target
 1. define the rule to create "hw.exe" artifact
 
@@ -114,7 +114,7 @@ Defines a rule for making file.
 Example:
 
 ``` fsharp
-rule "out\\Tools.dll" *> fun outname -> action {
+rule ("out\\Tools.dll" *> fun outname -> action {
 
     do! Csc {
         CscSettings with
@@ -122,15 +122,16 @@ rule "out\\Tools.dll" *> fun outname -> action {
             Src = !! "Tools/**/*.cs"
             Ref = !! "out\\facade.dll"
     }
-}
+})
 ```
 
 
 There're several forms of rules including:
 
-* `rule <file pattern> *> fun outname -> <action>` - rule for single file or group of files matching the specified wildcards pattern. The actual name (in case of wildcards pattern) will be passed to `outname` parameter
-* `rule <condition> *?> fun outname -> <action>` - allows to use function instead of file name or wildcards
-* `rule <name> => <action>` - creates a phony rule (the rule that does not create a file)
+* `rule (<file pattern> *> fun outname -> <action>)` - rule for single file or group of files matching the specified wildcards pattern. The actual name (in case of wildcards pattern) will be passed to `outname` parameter
+* `rule (<condition> *?> fun outname -> <action>)` - allows to use function instead of file name or wildcards
+* `rule (<name> => <action>)` - creates a phony rule (the rule that does not create a file)
+* `rule (<name> <== [targets])` - creates a phony rule which demands specified targets
 
 > Notice: you are not bound to `outname` name above, you could change it to any other name.
 
@@ -151,8 +152,6 @@ let mainRule = "hw.exe" *> fun exe -> action {
 
 do xake {XakeOptions with Threads = 4} {
 
-  want (["build"])
-
   phony "build" (action {
       do! need ["hw.exe"]
       })
@@ -167,10 +166,23 @@ The same as `=>` above. Just another alias.
 
 ### rules
 
-Allows to specify multiple rules passed in array. Syntactical sugar.
+Allows to specify multiple rules passed in array. Syntactical sugar for reducing number of brackets.
 
 ``` fsharp
 rules [
+
+  "main"  <== ["build"]
+  "build" <== ["out\\tools.dll"; "out\\main.exe"]
+
+  "out\\main.exe" *> fun outname -> action {
+
+    do! Csc {
+        CscSettings with Out = outname
+            Src = !! "Main/**/*.cs" + "Common/*.cs"
+            Ref = !! "out\\tools.dll"
+    }
+  }
+
   "out\\tools.dll" *> fun outname -> action {
 
     do! Csc {
