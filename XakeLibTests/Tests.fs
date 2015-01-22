@@ -305,3 +305,52 @@ type MiscTests() =
 
         printfn "%A" resset
         ()
+
+    [<Test (Description = "Verifies main is a default target")>]
+    member test.MainTargetIsDefault() =
+
+        let count = ref 0
+    
+        do xake {XakeOptions with Threads = 1; FileLog=""} {  // one thread to avoid simultaneous access to 'wasExecuted'
+            rules [
+              "main" => action {
+                  count := !count + 1
+              }
+            ]
+        }
+
+        Assert.AreEqual(1, !count)
+
+    [<Test (Description = "Verifies main is a default target")>]
+    member test.ExplicitlySetTarget() =
+
+        let count = ref 0
+    
+        do xake {XakeOptions with Want = ["xxx"]; Threads = 1; FileLog=""} {  // one thread to avoid simultaneous access to 'wasExecuted'
+            rules [
+              "main" => action {
+                  count := !count + 1
+              }
+            ]
+        }
+
+        Assert.AreEqual(0, !count)
+
+    [<Test (Description = "Verifies need is executed only once")>]
+    member test.DependentTargetsRule() =
+
+        let count = ref 0
+    
+        do xake {XakeOptions with Threads = 1; FileLog=""} {  // one thread to avoid simultaneous access to 'wasExecuted'
+            rules [
+              "main" <== ["rule1"; "rule2"]
+              "rule1" => action {
+                  count := !count + 1
+              }
+              "rule2" => action {
+                  count := !count + 10
+              }
+            ]
+        }
+
+        Assert.AreEqual(11, !count)
