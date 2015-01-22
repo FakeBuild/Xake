@@ -81,47 +81,40 @@ module DotNetFwk =
                         null
                     )
                 else
-                    match MonoProbeKeys |> List.tryPick (open_subkey HKLM) with
-                    | Some key ->
-                        match key |> registry.get_value_str "DefaultCLR" with
-                        | Some monover ->
-                            match open_subkey key monover with
-                            | Some monokey ->
-                                (
-                                    monover,
-                                    monokey |> registry.get_value_str "SdkInstallRoot" |> Option.get,
-                                    monokey |> registry.get_value_str "FrameworkAssemblyDirectory" |> Option.get,
-                                    monokey |> registry.get_value_str "MonoConfigDir" |> Option.get,
-                                    null
-                                )
-                            | _ ->
-                                ("", "", "", "", "Failed to obtain subkey for mono version " + monover)
-                        | _ ->
-                            ("", "", "", "", "Failed to obtain mono framework location from registry")
-                    | None ->
-                        ("", "", "", "", "Mono was not found (pkg-config codepath)")
+                    let key = MonoProbeKeys |> List.tryPick (open_subkey HKLM)
+                    let monover = key |> Option.bind (registry.get_value_str "DefaultCLR")
+                    let monokey = monover |> Option.bind (open_subkey (Option.get key))
+
+                    match monover, monokey with
+                    | Some monover, Some monokey ->
+                        let gets key = monokey |> registry.get_value_str key |> Option.get in
+                        (
+                            monover,
+                            gets "SdkInstallRoot",
+                            gets "FrameworkAssemblyDirectory",
+                            gets "MonoConfigDir",
+                            null
+                        )
+                    | _ ->
+                        ("", "", "", "", "Failed to obtain mono framework location from registry")
             match err with
             | null ->
-                let binpath = sdkroot </> "bin"
-                let defaultMonoFwkInfo = {
+                let csc_tool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
+                let fwkinfo libpath ver = Some {
                         InstallPath = sdkroot
                         AssemblyDir = libdir
-                        ToolDir = ""
-                        Version = "2.0.50727"
-                        CscTool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
+                        ToolDir = libdir </> "mono" </> libpath
+                        Version = ver
+                        CscTool = csc_tool
                         MsbuildTool = "xbuild"
-                        EnvVars =["PATH", binpath + ";" + (%"PATH")]
+                        EnvVars =["PATH", sdkroot </> "bin" + ";" + (%"PATH")]
                     }
                 // TODO proper tool (xbuild) lookup
                 match fwk with
-                | "mono-20" | "mono-2.0" | "2.0" ->
-                    Some {defaultMonoFwkInfo with ToolDir = libdir </> "mono" </> "2.0"}, null
-                | "mono-35" | "mono-3.5" | "3.5" ->
-                    Some {defaultMonoFwkInfo with ToolDir = libdir </> "mono" </> "3.5"}, null
-                | "mono-40" | "mono-4.0" | "4.0" ->
-                    Some {defaultMonoFwkInfo with ToolDir = libdir </> "mono" </> "4.0"; Version = "4.0.30319"}, null
-                | "mono-45" | "mono-4.5" | "4.5" ->
-                    Some {defaultMonoFwkInfo with ToolDir = libdir </> "mono" </> "4.5"; Version = "4.5.50709"}, null
+                | "mono-20" | "mono-2.0" | "2.0" -> fwkinfo "2.0" "2.0.50727", null
+                | "mono-35" | "mono-3.5" | "3.5" -> fwkinfo "3.5" "2.0.50727", null
+                | "mono-40" | "mono-4.0" | "4.0" -> fwkinfo "4.0" "4.0.30319", null
+                | "mono-45" | "mono-4.5" | "4.5" -> fwkinfo "4.0" "4.5.50709", null
                 | _ ->
                     None, sprintf "Unknown or unsupported profile '%s'" fwk
             | _ ->
@@ -135,28 +128,22 @@ module DotNetFwk =
             let installRoot_ = fwkKey |> Option.bind (get_value_str "InstallRoot")
             let installRoot = installRoot_ |> Option.get    // TODO gracefully fail
 
-            // let sdkInstallRoot = fwkKey |> Option.bind (get_value_str "sdkInstallRoot") neither complete nor correct
             let (version,fwkdir,asmdir,vars,err) =
                 match fwk with
-                | "net-20" | "net-2.0" | "2.0" ->
-                    let fwkdir = installRoot </> "v2.0.50727"
-                    ("2.0.50727",fwkdir,fwkdir, [], null)
-                | "net-35" | "net-3.5" | "3.5" ->
-                    let fwkdir = installRoot </> "v3.5"
-                    let asmdir = installRoot </> "v2.0.50727"
-                    ("3.5",fwkdir,asmdir, [("COMPLUS_VERSION", "v2.0.50727")], null)
-                | "net-40" | "net-4.0" | "4.0" | "4.0-full"
-                | "net-45" | "net-4.5" | "4.5"| "4.5-full" ->
-                    let fwkdir = installRoot </> "v4.0.30319"
-                    ("4.0",fwkdir,fwkdir,[("COMPLUS_VERSION", "v4.0.30319")],null)
+                | "net-20" | "net-2.0" | "2.0" -> ("2.0.50727", "v2.0.50727", "v2.0.50727", [], null)
+                | "net-35" | "net-3.5" | "3.5" -> ("3.5", "v3.5", "v2.0.50727", [("COMPLUS_VERSION", "v2.0.50727")], null)
+                | "net-40" | "net-4.0" | "4.0"
+                | "4.0-full" | "net-45"
+                | "net-4.5" | "4.5"| "4.5-full"-> ("4.0", "v4.0.30319", "v4.0.30319", [("COMPLUS_VERSION", "v4.0.30319")],null)
                 | _ ->
                     ("", "", "", [], "framework is not available on this PC")
 
             match err with
             | null ->
                 Some {
-                    InstallPath = fwkdir; ToolDir = fwkdir; Version = version
-                    AssemblyDir = asmdir
+                    InstallPath = installRoot </> fwkdir; ToolDir = installRoot </> fwkdir
+                    Version = version
+                    AssemblyDir = installRoot </> asmdir
                     CscTool = fwkdir </> "csc.exe"
                     MsbuildTool = fwkdir </> "msbuild.exe"
                     EnvVars = vars
