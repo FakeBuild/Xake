@@ -7,7 +7,7 @@
 *)
 
 //#r @"..\..\bin\Xake.Core.dll"
-#r @"\projects\Mine\xake\bin\Xake.Core.dll"
+#r @"\projects\xake\bin\Xake.Core.dll"
 open Xake
 
 let DEBUG = true
@@ -63,28 +63,29 @@ let copyToOutput lib srcpath = ("out" </> lib) *> fun outfile -> action {do! cp 
 
 // do xake {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
 do xakeArgs fsi.CommandLineArgs {
-    XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4; Vars = [("NETFX", "3.5")] } {
+    XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4; Vars = [("NETFX", "4.0")] } {
 
-    want (["build"])
+    // top-level rules
+    rules [
+        "main" <== ["build"]
 
-    phony "all" (action {
-        do! need ["clean"]
-        do! need ["build"]
-    })
+        "all" => action {
+            do! need ["clean"]
+            do! need ["build"]
+        }
 
-    rule ("clean" => action {
-        do! rm ["out" </> "*.*"]
-    })
+        "clean" => action {
+           do! rm ["out" </> "*.*"]
+        }
 
-    phony "build" (action {
-        do! need (executables @ dlls)
-    })
+        "build" <== executables @ dlls
+    ]
 
     rules [
         copyToOutput "nunit.framework.dll"              "Tools/NUnit"
         copyToOutput "XmlDiffPatch.dll"                 "Tools/XmlDiff"
-        copyToOutput "moq.dll"                          "Tools/Moq.3.1"
-        copyToOutput "moq.sequences.dll"                "Tools/Moq.3.1"
+        copyToOutput "moq.dll"                          "Tools/moq"
+        copyToOutput "moq.sequences.dll"                "Tools/moq"
         copyToOutput "iTextSharp.dll"                   "ExternalLibs/iTextSharp/build"
         copyToOutput "DocumentFormat.OpenXml.dll"       "ExternalLibs/OpenXMLSDKV2.0"
         copyToOutput "Qwhale.All.dll"                   "ExternalLibs/QwhaleEditor"

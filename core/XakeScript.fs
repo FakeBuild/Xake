@@ -46,6 +46,8 @@ module XakeScript =
         Options: XakeOptionsType
         Rules: Rules<ExecContext>
         Logger: ILogger
+        RootLogger: ILogger
+        Ordinal: int
     }
 
     /// Main type.
@@ -90,6 +92,9 @@ module XakeScript =
 
         let getEnvVar = System.Environment.GetEnvironmentVariable
 
+        // Ordinal of the task being added to a task pool
+        let refTaskOrdinal = ref 0
+
         // locates the rule
         let private locateRule (Rules rules) projectRoot target =
             let matchRule rule = 
@@ -114,6 +119,15 @@ module XakeScript =
         let private raiseError ctx error details =
             do reportError ctx error details
             raise (XakeException(sprintf "Script failed (error code: %A)\n%A" error details))
+
+        /// <summary>
+        /// Creates a context for a new task
+        /// </summary>
+        let newTaskContext ctx =
+            let ordinal = System.Threading.Interlocked.Increment(refTaskOrdinal)
+            let prefix = ordinal |> sprintf "%i> "
+            in
+            {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger}
 
         /// Gets true if rebuild is required
         let rec needRebuild ctx (tgt:Target) result =
@@ -188,10 +202,11 @@ module XakeScript =
 
                         let! willRebuild = needRebuild ctx target lastBuild
 
-                        if willRebuild then                            
-                            do ctx.Logger.Log Command "Started %s" (getShortname target)
+                        if willRebuild then 
+                            let taskContext = newTaskContext ctx                           
+                            do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
 
-                            let! (result,_) = action (BuildLog.makeResult target,ctx)
+                            let! (result,_) = action (BuildLog.makeResult target,taskContext)
                             Store result |> ctx.Db.Post
 
                             do ctx.Logger.Log Command "Completed %s" (getShortname target)
@@ -201,18 +216,17 @@ module XakeScript =
                             return ExecStatus.Skipped
                     }, chnl)
 
-
             // result expression is...
             target
             |> locateRule ctx.Rules ctx.Options.ProjectRoot
             |> function
-                    | Some (FileRule (_, action))
-                    | Some (FileConditionRule (_, action)) ->
-                        let (FileTarget artifact) = target in
-                        let (Action r) = action artifact in
-                        Some r
-                    | Some (PhonyRule (_, Action r)) -> Some r
-                    | _ -> None
+                | Some (FileRule (_, action))
+                | Some (FileConditionRule (_, action)) ->
+                    let (FileTarget artifact) = target in
+                    let (Action r) = action artifact in
+                    Some r
+                | Some (PhonyRule (_, Action r)) -> Some r
+                | _ -> None
             |> function
                 | Some action ->
                     async {
@@ -269,7 +283,7 @@ module XakeScript =
 
             let start = System.DateTime.Now
             let db = Storage.openDb options.ProjectRoot logger
-            let ctx = {TaskPool = pool; Throttler = throttler; Options = options; Rules = rules; Logger = logger; Db = db }
+            let ctx = {Ordinal = 0; TaskPool = pool; Throttler = throttler; Options = options; Rules = rules; Logger = logger; RootLogger = logger; Db = db }
 
             logger.Log Message "Options: %A" options
 

@@ -96,11 +96,6 @@ module DotnetTasks =
     }
 
     module internal Impl =
-        let private refIid = ref 0
-
-        let internal newProcPrefix () = 
-            System.Threading.Interlocked.Increment(refIid) |> sprintf "[CSC%i]"
-
         /// Escapes argument according to CSC.exe rules (see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx)
         let escapeArgument (str:string) =
             let escape c s =
@@ -202,8 +197,6 @@ module DotnetTasks =
         let platformStr = function
             |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
         
-        let pfx = Impl.newProcPrefix()
-
         action {
             let! options = getCtxOptions()
             let getFiles = toFileList options.ProjectRoot
@@ -272,12 +265,12 @@ module DotnetTasks =
             File.WriteAllLines(rspFile, args |> Seq.map Impl.escapeArgument |> List.ofSeq)
             let commandLine = "@" + rspFile
 
-            do! writeLog Info "%s compiling '%s' using framework '%s'" pfx outFile.Name fwkInfo.Version
+            do! writeLog Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
             do! writeLog Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
                 SystemOptions with
-                    LogPrefix = pfx
+                    LogPrefix = "[CSC] "
                     StdOutLevel = Level.Verbose     // consider standard compiler output too noisy
                     EnvVars = fwkInfo.EnvVars
                 }
@@ -295,10 +288,9 @@ module DotnetTasks =
             }
             |> Seq.iter File.Delete
 
-            do! writeLog Info "%s done '%s'" pfx outFile.Name
             if exitCode <> 0 then
-                do! writeLog Error "%s ('%s') failed with exit code '%i'" pfx outFile.Name exitCode
-                if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
+                do! writeLog Error "('%s') failed with exit code '%i'" outFile.Name exitCode
+                if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
         }
 
     (* csc options builder *)
