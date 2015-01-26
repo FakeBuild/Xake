@@ -5,9 +5,9 @@
 open Xake
 open System
 
-do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
+do xake {XakeOptions with FileLog = "build.log"} {
 
-  want (["hw.exe"])
+  rule ("main" ==> ["hw.exe"])
 
   rule("hw.exe" *> fun exe -> action {
     do! Csc {

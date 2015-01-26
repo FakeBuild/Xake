@@ -50,6 +50,7 @@
     <Compile Include="Fileset.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Core.fs" />
+    <Compile Include="WorkerPool.fs" />
     <Compile Include="XakeScript.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="FileTasks.fs" />

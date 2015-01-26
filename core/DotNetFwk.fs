@@ -140,8 +140,9 @@ module DotNetFwk =
 
             match err with
             | null ->
+                let fwkdir = installRoot </> fwkdir in
                 Some {
-                    InstallPath = installRoot </> fwkdir; ToolDir = installRoot </> fwkdir
+                    InstallPath = fwkdir; ToolDir = fwkdir
                     Version = version
                     AssemblyDir = installRoot </> asmdir
                     CscTool = fwkdir </> "csc.exe"
