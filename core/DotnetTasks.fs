@@ -215,9 +215,16 @@ module DotnetTasks =
 
             do! needFiles (Filelist (src @ refs @ resfiles))
 
+            let! globalTargetFwk = getVar "NETFX-TARGET"
+            let targetFramework =
+                match settings.TargetFramework, globalTargetFwk with
+                | s, _ when s <> null && s <> "" -> s
+                | _, Some s when s <> "" -> s
+                | _ -> null
+
             let (globalRefs,nostdlib,asmdir) =
-                match settings.TargetFramework with
-                | null | "" ->
+                match targetFramework with
+                | null ->
                     let mapfn = (+) "/r:"
                     (settings.RefGlobal |> List.map mapfn), false, null
                 | tgt ->
@@ -241,7 +248,7 @@ module DotnetTasks =
                         yield "/unsafe"
 
                     if nostdlib then
-                        yield "/nostdlib"
+                        yield "/nostdlib+"
 
                     if not outFile.IsUndefined then
                         yield sprintf "/out:%s" outFile.FullName
@@ -250,6 +257,10 @@ module DotnetTasks =
                         yield "/define:" + (settings.Define |> String.concat ";")
 
                     yield! src |> List.map (fun f -> f.FullName) 
+
+                    if asmdir <> null then
+                        yield "/lib:" + asmdir
+
                     yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
                     yield! globalRefs
 
@@ -263,7 +274,13 @@ module DotnetTasks =
 // TODO for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
             let rspFile = Path.GetTempFileName()
             File.WriteAllLines(rspFile, args |> Seq.map Impl.escapeArgument |> List.ofSeq)
-            let commandLine = "@" + rspFile
+            let commandLineArgs = 
+                seq {
+                    if asmdir <> null then
+                        yield "/noconfig"
+                    yield "@" + rspFile
+                    }
+            let commandLine = commandLineArgs |> String.concat " "
 
             do! writeLog Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
             do! writeLog Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")

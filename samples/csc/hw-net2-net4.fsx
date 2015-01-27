@@ -3,9 +3,12 @@
 
 open Xake
 
-do xake {XakeOptions with Want = ["hw2.exe"; "hw4.exe"]; Vars = ["NETFX", "4.0"]; FileLogLevel = Verbosity.Diag} {
+do xake {XakeOptions with Vars = ["NETFX", "4.0"]; FileLogLevel = Verbosity.Diag} {
 
   rules [
+
+    "main" <== ["hw2.exe"; "hw4.exe"]
+
     "hw2.exe" *> fun exe -> action {
         do! alwaysRerun()
         do! (csc {

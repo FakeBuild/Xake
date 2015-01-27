@@ -63,7 +63,7 @@ let copyToOutput lib srcpath = ("out" </> lib) *> fun outfile -> action {do! cp 
 
 // do xake {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
 do xakeArgs fsi.CommandLineArgs {
-    XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4; Vars = [("NETFX", "4.0")] } {
+    XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4; Vars = [("NETFX", "4.0"); ("NETFX-TARGET","3.5")] } {
 
     // top-level rules
     rules [
@@ -565,7 +565,13 @@ do xakeArgs fsi.CommandLineArgs {
                 Define = ["DATAMANAGER_HOST_IS_STRYKER"]
                 Src = src
                 Ref = ardep ["Extensibility"; "Diagnostics"; "Document"; "Chart"] +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit)
-                RefGlobal = ["Microsoft.VisualBasic.dll"]
+                RefGlobal =
+                    [
+                        "System.dll"
+                        //"System.Core.dll"
+                        "System.Drawing.dll"
+                        "Microsoft.VisualBasic.dll"
+                    ]
 
                 Resources =
                 [
