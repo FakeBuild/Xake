@@ -50,6 +50,7 @@ module libs =
     let moq = !! "out\\moq.dll"
     let moqseq = !! "out\\moq.sequences.dll"
     let iTextSharp = !! "out\\iTextSharp.dll"
+    let iTextSharp_FontProcessing = !! "out\\itextsharp.FontProcessing.dll"
     let OpenXml = !! "out\\DocumentFormat.OpenXml.dll"
     let qwhale = !! "out\\Qwhale.All.dll"
     let testing_tools = ardll "Testing.Tools"
@@ -87,8 +88,9 @@ do xakeArgs fsi.CommandLineArgs {
         copyToOutput "moq.dll"                          "Tools/moq"
         copyToOutput "moq.sequences.dll"                "Tools/moq"
         copyToOutput "iTextSharp.dll"                   "ExternalLibs/iTextSharp/build"
+        copyToOutput "itextsharp.FontProcessing.dll"    "ExternalLibs/iTextSharp/bin/Debug"
         copyToOutput "DocumentFormat.OpenXml.dll"       "ExternalLibs/OpenXMLSDKV2.0"
-        copyToOutput "Qwhale.All.dll"                   "ExternalLibs/QwhaleEditor"
+        copyToOutput "Qwhale.All.dll"                   "ExternalLibs/QWhale.Editor/build"
         copyToOutput "DocumentFormat.OpenXml.dll"       "ExternalLibs/OpenXMLSDKV2.0"
 
         copyToOutput "Microsoft.Office.Interop.Excel.dll"  "Tools/Excel"
@@ -109,6 +111,14 @@ do xakeArgs fsi.CommandLineArgs {
                 out outname
                 src sources
                 refif DEBUG libs.nunit
+                refif DEBUG libs.xmldiff
+
+                grefs [
+                    "System.dll"
+                    "System.Core.dll"
+                    "System.Data.dll"
+                    "System.Drawing.dll"
+                    ]
 
                 resourceslist [
                     resourceset {
@@ -128,6 +138,9 @@ do xakeArgs fsi.CommandLineArgs {
                     Out = outname
                     Src = !!"Diagnostics/**/*.cs" + commonSrcFiles
                     Ref = Fileset.Empty +? (DEBUG,libs.nunit)
+
+                    RefGlobal = ["System.dll"; "System.Configuration.dll"; "System.Core.dll"; "System.Xml.dll"]
+
                     Resources =
                     [
                         resourceset {
@@ -137,7 +150,7 @@ do xakeArgs fsi.CommandLineArgs {
                             includes "Diagnostics/**/*.resx"
                         }
                     ]
-            }
+                }
         }
 
         ardll "Testing.Tools" *> fun outname -> action {
@@ -149,6 +162,14 @@ do xakeArgs fsi.CommandLineArgs {
                     Ref = !! (ardll "Extensibility")
                         + libs.nunit
                         + libs.xmldiff
+                    RefGlobal =
+                    [
+                        "System.dll"
+                        "System.Core.dll"
+                        "System.Data.dll"
+                        "System.Drawing.dll"
+                        "System.Xml.dll"
+                    ]
             }
         }
 
@@ -173,6 +194,14 @@ do xakeArgs fsi.CommandLineArgs {
                         includes "**/*.resx"
                     }
                 ]
+                grefs [
+                    "System.dll"
+                    "System.Core.dll"
+                    "System.Data.dll"
+                    "System.Drawing.dll"
+                    "System.Windows.Forms.dll"
+                    "System.Xml.dll"
+                ]
             })
         }
 
@@ -183,7 +212,7 @@ do xakeArgs fsi.CommandLineArgs {
                     Out = outname
                     Src = ls "Reports/OracleClient/**/*.cs" + commonSrcFiles
                     Ref = ardep ["Extensibility"; "Core"] +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq)
-                    RefGlobal = ["System.Data.OracleClient.dll"]
+                    RefGlobal = ["System.dll"; "System.Core.dll"; "System.Data.dll"; "System.Data.OracleClient.dll"]
                     }
             }
 
@@ -196,6 +225,14 @@ do xakeArgs fsi.CommandLineArgs {
                         + "Reports/ReportsCore/Rendering/CumulativeTotalsHelper.cs"
                         + commonSrcFiles
                     Ref = ardep ["Extensibility"; "Core"; "Diagnostics"; "Document"] +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq)
+                    RefGlobal =
+                        [
+                        "System.dll"
+                        "System.Core.dll"
+                        "System.Data.dll"
+                        "System.Drawing.dll"
+                        "System.Xml.dll"
+                        ]
             }
         }
 
@@ -213,6 +250,15 @@ do xakeArgs fsi.CommandLineArgs {
                         join commonSrcFiles
                         }
                     Ref = ardep ["Extensibility"; "Core"; "Diagnostics"; "Document"; "RdfExport"] +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq) +? (DEBUG, libs.moqseq)
+                    RefGlobal = 
+                        [
+                        "System.dll"
+                        "System.Core.dll"
+                        "System.Drawing.dll"
+                        "System.Windows.Forms.dll"
+                        "System.Xml.dll"
+                        "System.Xml.Linq.dll"
+                        ]
             }
         }
 
@@ -223,6 +269,7 @@ do xakeArgs fsi.CommandLineArgs {
                     Unsafe = true
                     Out = outname
                     Src = ls "SL/DDLib.Net/Drawing/MonochromeBitmapTool.cs" + commonSrcFiles
+                    RefGlobal = ["System.dll"; "System.Drawing.dll"]
             }
         }
 
@@ -239,6 +286,15 @@ do xakeArgs fsi.CommandLineArgs {
                         }
                     Ref = ardep ["Extensibility"; "Core"; "Diagnostics"; "Document"; "Image.Unsafe"; "RdfExport"]
                         +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq)
+                    RefGlobal =
+                        [
+                        "System.dll"
+                        "System.Core.dll"
+                        "System.Data.dll"
+                        "System.Drawing.dll"
+                        "System.Windows.Forms.dll"
+                        "System.Xml.dll"
+                        ]
             }
         }
             
@@ -249,14 +305,15 @@ do xakeArgs fsi.CommandLineArgs {
                     Src = fileset {
                         includes "HtmlExport/**/*.cs"
                         includes "SL/CommonFiles/SafeGraphics.cs"
+                        includes "SL/AREngine/AssertionHelper.cs"
                         includes "SL/DDLib.Net/DDWord/kinsoku.cs"
-                        join (fileset {
-                            basedir @"Reports\ReportsCore"
-                            includes @"Rendering\CumulativeTotalsHelper.cs"
-                            includes @"Rendering\Tools\Cache\*.cs"
-                            includes @"Rendering\Tools\Text\*.cs"
-                            includes @"FontProcessor\*.cs"
-                        })
+                        //join (fileset {
+                            // basedir @"Reports\ReportsCore" TODO join is not implemented for
+                        includes @"Reports\ReportsCore\Rendering\CumulativeTotalsHelper.cs"
+                        includes @"Reports\ReportsCore\Rendering\Tools\Cache\*.cs"
+                        includes @"Reports\ReportsCore\Rendering\Tools\Text\*.cs"
+                        includes @"Reports\ReportsCore\Rendering\IntrinsicRenderers\GraphicalUtils.StringFormat.cs"
+                        //})
                         join commonSrcFiles
                         }
                     Resources =
@@ -276,7 +333,18 @@ do xakeArgs fsi.CommandLineArgs {
                         ]
                     Ref = ardep ["Extensibility"; "Document"; "Core"; "Diagnostics"; "RdfExport"]
                         +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq)
-            }
+                    RefGlobal =
+                        [
+                        "System.dll"
+                        "System.Core.dll"
+                        "System.Data.dll"
+                        "System.Data.Linq.dll"
+                        "System.Drawing.dll"
+                        "System.Web.dll"
+                        "System.Windows.Forms.dll"
+                        "System.Xml.dll"
+                        ]
+                }
         }
         
         ardll("Export.Excel") *> fun outname -> action {
@@ -323,7 +391,18 @@ do xakeArgs fsi.CommandLineArgs {
                     Ref = ardep ["Extensibility"; "Document"; "Core"; "Diagnostics"; "RdfExport"]
                         +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit) + libs.OpenXml
                         +? (DEBUG, libs.InteropExcel) +? (DEBUG, libs.VbeInterop) +? (DEBUG, libs.office)
-                    RefGlobal = ["WindowsBase.dll"; "System.Core.dll"]
+                    RefGlobal =
+                        [
+                        "System.dll"
+                        "System.Configuration.dll"
+                        "System.Core.dll"
+                        "System.Data.dll"
+                        "System.Drawing.dll"
+                        "System.Windows.Forms.dll"
+                        "System.Xml.dll"
+                        "System.Xml.Linq.dll"
+                        "WindowsBase.dll"
+                        ]
             }
         }
 
@@ -378,6 +457,15 @@ do xakeArgs fsi.CommandLineArgs {
                         ]
                     Ref = ardep ["Extensibility"; "Document"; "Core"; "Diagnostics"; "RdfExport"]
                         +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit)
+                    RefGlobal =
+                        [
+                        "System.dll"
+                        "System.Configuration.dll"
+                        "System.Core.dll"
+                        "System.Drawing.dll"
+                        "System.Windows.Forms.dll"
+                        "System.Xml.dll"
+                        ]
             }
         }
 
@@ -411,6 +499,15 @@ do xakeArgs fsi.CommandLineArgs {
                         ]
                     Ref = ardep ["Extensibility"; "Core"; "Diagnostics"; "Document"; "ImageExport"]
                         +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq)
+                    RefGlobal =
+                        [
+                        "System.dll"
+                        "System.Core.dll"
+                        "System.Data.dll"
+                        "System.Drawing.dll"
+                        "System.Windows.Forms.dll"
+                        "System.Xml.dll"
+                        ]
             }
         }
 
@@ -423,6 +520,10 @@ do xakeArgs fsi.CommandLineArgs {
                     Src = fileset {
                         includes "Design/**/*.cs"
                         includes "SL/DDLib.Net/DDWord/kinsoku.cs"
+                        includes @"Reports\ReportsCore\Rendering\Components\Map\Data\WellKnown\WkCoder.cs"
+
+                        includes "QueryDesigner/**/*.cs"
+                        excludes "QueryDesigner/Properties/AssemblyInfo.cs"
 
                         includes @"SL\AREngine\General\designtimehelper.cs"
                         includes @"SL\AREngine\UnitTest\ImageComparer.cs"
@@ -443,13 +544,58 @@ do xakeArgs fsi.CommandLineArgs {
                                 includes "Resources/CommonResources/Designer.bmp"
                                 includes "Resources/CommonResources/ReportExplorer.bmp"
                             }
+                            resourceset {
+                                prefix "GrapeCity.ActiveReports.Design"
+                                dynamic true
+                                basedir "QueryDesigner"
+                                includes "**/*.resx"
+                                includes "fonts/**/*"
+                                includes "src/**/*"
+                                includes "*.html"
+                                includes "Content/jquery-ui-1.10.4.min.css"
+                                includes "Content/bootstrap.min.css"
+                                includes "Content/font-awesome.min.css"
+                                includes "Scripts/jquery-2.1.0.min.js"
+                                includes "Scripts/jquery-2.1.0.min.map"
+                                includes "Scripts/jquery-ui-1.10.4.min.js"
+                                includes "Scripts/jquery.livequery.min.js"
+                                includes "Scripts/jquery.event.drag.js"
+                                includes "Scripts/jquery.nicescroll.min.js"
+                                includes "Scripts/bootstrap.min.js"
+                                includes "Scripts/bootstrap-treeview.js"
+                                includes "Scripts/knockout-3.1.0.js"
+                                includes "Scripts/knockout.handlebars.js"
+                                includes "Scripts/korest.js"
+                                includes "codemirror/codemirror.css"
+                                includes "codemirror/codemirror.js"
+                                includes "codemirror/sql.js"
+                            }
                         ]
                     Ref = ardep ["Extensibility"; "Core"; "Diagnostics"; "Document"; "Chart"; "Viewer.Win"]
+                        + libs.qwhale
                         +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq)
-                    CommandArgs =
+                    RefGlobal =
                         [
-                            "/r:Qwhale=out\\Qwhale.All.dll"
+                        "System.dll"
+                        "System.Configuration.dll"
+                        "System.Core.dll"
+                        "System.Data.dll"
+                        "System.Design.dll"
+                        "System.Drawing.dll"
+                        "System.Drawing.Design.dll"
+                        "System.Web.dll"
+                        "System.Web.Abstractions.dll"
+                        "System.Web.Extensions.dll"
+                        "System.Web.Routing.dll"
+                        "System.Web.Services.dll"
+                        "System.Windows.Forms.dll"
+                        "System.Xml.dll"
+                        "System.Xml.Linq.dll"
                         ]
+//                    CommandArgs =
+//                        [
+//                            @"/r:QWhale=out\Qwhale.All.dll"
+//                        ]
             }
         }
 
@@ -457,19 +603,28 @@ do xakeArgs fsi.CommandLineArgs {
             do! Csc {
                 CscSettings with
                     Out = outname
+                    Platform = X86
                     Src = ls "WinViewer/**/*.cs" + "Designer/Export/*.cs" + commonSrcFiles
                     Ref = ardep ["Extensibility"; "Document"; "Chart"; "Core"; "ImageExport"; "RdfExport"; "Viewer.Win"]                        
                         +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq)
                     Resources =
-                    [
+                        [
                         resourceset {
                             prefix "GrapeCity.ActiveReports.Viewer.Win"
                             dynamic true
                             basedir "WinViewer"
                             includes "Designer/Export/*.resx"
                             includes "**/*.resx"
-                        }
-                    ]
+                        }]
+                    RefGlobal =
+                        [
+                        "System.dll"
+                        "System.Core.dll"
+                        "System.Data.dll"
+                        "System.Drawing.dll"
+                        "System.Windows.Forms.dll"
+                        "System.Xml.dll"
+                        ]
             }
         }
 
@@ -477,18 +632,27 @@ do xakeArgs fsi.CommandLineArgs {
             do! Csc {
                 CscSettings with
                     Out = outname
+                    Platform = X86
                     Src = ls "Designer/**/*.cs" + commonSrcFiles
                     Ref = ardep ["Extensibility"; "Design.Win"; "Document"; "Core"; "ImageExport"; "RdfExport"; "Viewer.Win"]
                         +? (DEBUG, libs.nunit) +? (DEBUG, libs.moq) +? (DEBUG, libs.moqseq)
                     Resources =
-                    [
+                        [
                         resourceset {
                             prefix "GrapeCity.ActiveReports.Designer.Win"
                             dynamic true
                             basedir "Designer"
                             includes "**/*.resx"
-                        }
-                    ]
+                        }]
+                    RefGlobal =
+                        [
+                        "System.dll"
+                        "System.Core.dll"
+                        "System.Data.dll"
+                        "System.Drawing.dll"
+                        "System.Windows.Forms.dll"
+                        "System.Xml.dll"
+                        ]
             }
         }
         ]
@@ -513,10 +677,9 @@ do xakeArgs fsi.CommandLineArgs {
                 Target = Library
                 Out = outname
                 Define = ["ARVIEWER_BUILD"]
-                Src = src + commonSrcFiles
-                Ref = !! (ardll "Extensibility") +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit)
+                Src = (src + commonSrcFiles)
                 Resources =
-                [
+                    [
                     resourceset {
                         prefix "GrapeCity.ActiveReports.Document.Section"
                         dynamic true
@@ -527,6 +690,16 @@ do xakeArgs fsi.CommandLineArgs {
                         includes "Resources/*.cur"
                         includes "Resources/*.png"
                     }
+                    ]
+                Ref = !! (ardll "Extensibility") +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit)
+                RefGlobal =
+                [
+                    "System.dll"
+                    "System.Core.dll"
+                    "System.Data.dll"
+                    "System.Drawing.dll"
+                    "System.Windows.Forms.dll"
+                    "System.Xml.dll"
                 ]
         }
     })
@@ -564,13 +737,21 @@ do xakeArgs fsi.CommandLineArgs {
                 Out = outname
                 Define = ["DATAMANAGER_HOST_IS_STRYKER"]
                 Src = src
-                Ref = ardep ["Extensibility"; "Diagnostics"; "Document"; "Chart"] +? (DEBUG, libs.testing_tools) +? (DEBUG, libs.nunit)
+                Ref =
+                    ardep ["Extensibility"; "Diagnostics"; "Document"; "Chart"]
+                        + libs.iTextSharp_FontProcessing
+                        +? (DEBUG, libs.testing_tools)
+                        +? (DEBUG, libs.nunit)
                 RefGlobal =
                     [
-                        "System.dll"
-                        //"System.Core.dll"
-                        "System.Drawing.dll"
-                        "Microsoft.VisualBasic.dll"
+                    "System.dll"
+                    "System.Core.dll"
+                    "System.Data.dll"
+                    "System.Drawing.dll"
+                    "System.Windows.Forms.dll"
+                    "System.Xml.dll"
+                    "System.Xml.Linq.dll"
+                    "Microsoft.VisualBasic.dll"
                     ]
 
                 Resources =

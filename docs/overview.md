@@ -39,19 +39,15 @@ In order to use xake add the reference to core xake library:
 The most simple, but structured script looks as follows:
 
 ```fsharp
-#r @"../../bin/Xake.Core.dll"       // (1)
+#r @".tools/Xake.Core.dll"       // (1)
 
 open Xake                           // (2)
 
 do xake XakeOptions {               // (3)
 
-  want (["build"])                  // (4)
+  "main" <== ["hw.exe"]             // (4)
 
-  phony "build" (action {           // (5)
-      do! need ["hw.exe"]
-      })
-
-  rule("hw.exe" *> fun exe -> action {  // (6)
+  rule("hw.exe" *> fun exe -> action {  // (5)
     do! Csc {
       CscSettings with
         Out = exe
@@ -64,11 +60,10 @@ do xake XakeOptions {               // (3)
 Here are we doing the following steps:
 
 1. reference f# library containing core testing functionality
-1. open Xake namespace, so that we can use some Xake types 
+1. open Xake namespace, so that we can use some Xake types
 1. define a "main" function of a build script
-1. specify the default target which will be built if target is not specified. Defaults to "main"
-1. define the rule for "build" target
-1. define the rule to create "hw.exe" artifact
+1. specify the default target ("main") requires "hw.exe" target
+1. define the rule for "hw.exe" target
 
 ## So what?
 Pretty much the same result could be obtained in traditional build system without ever mentioning declarative approach. However `xake` will not only create the requested binaries but would also remember the rules it followed and any dependencies it discovered.
@@ -77,13 +72,13 @@ Pretty much the same result could be obtained in traditional build system withou
 The information recorded during the build allows `xake` to avoid redundant actions during current and subsequent runs.
 Particularly in this example it will record:
 
-* "build" depends on "hw.exe"
+* "main" depends on "hw.exe"
 * "hw.exe" rule requires csc compliler of highest available version
 * "hw.exe" depends on `a*.exe` file mask
 * `a*.*` was resolved to a single file `a.cs`
 * the date/time of the `a.cs` is '2014-12-25 23:57:01'
 
-And during next run it will execute `build` rule only if at least one of following conditions is met:
+And during next run it will execute `main` rule only if at least one of following conditions is met:
 
 * there's no hw.exe
 * you've installed newer .NET framework or removed the latest one
@@ -216,7 +211,7 @@ Action body is computation expression of type *action*. This computation returns
 *async* computation. You could use both regular code (such as assignments/binding, loops and conditional expressions)
 and do! notation within *action* body.
 
-See the functions allowing to access execution context within *action* body. 
+See the functions allowing to access execution context within *action* body.
 
 ### Tasks, `do!` notation
 
@@ -229,7 +224,7 @@ let cp (src: string) tgt =
   action {
     do! need [src]
     File.Copy(src, tgt, true)
-  } 
+  }
 ```
 
 ### need

@@ -41,12 +41,14 @@ module DotNetFwk =
     type FrameworkInfo = {
         Version: string
         InstallPath: string
-        AssemblyDir: string
+        AssemblyDirs: string list
         ToolDir: string
         CscTool: string
         MsbuildTool: string
         EnvVars: (string* string) list
         }
+
+    let private (~%) = System.Environment.GetEnvironmentVariable
 
     module internal registry =
 
@@ -64,7 +66,6 @@ module DotNetFwk =
         open Xake
         open registry
 
-        let private (~%) = System.Environment.GetEnvironmentVariable
         let MonoProbeKeys = [@"SOFTWARE\Wow6432Node\Novell\Mono"; @"SOFTWARE\Novell\Mono"]
 
         let tryLocateFwk fwk : option<FrameworkInfo> * string =
@@ -102,7 +103,7 @@ module DotNetFwk =
                 let csc_tool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
                 let fwkinfo libpath ver = Some {
                         InstallPath = sdkroot
-                        AssemblyDir = libdir
+                        AssemblyDirs = [libdir]
                         ToolDir = libdir </> "mono" </> libpath
                         Version = ver
                         CscTool = csc_tool
@@ -128,15 +129,31 @@ module DotNetFwk =
             let installRoot_ = fwkKey |> Option.bind (get_value_str "InstallRoot")
             let installRoot = installRoot_ |> Option.get    // TODO gracefully fail
 
-            let (version,fwkdir,asmdir,vars,err) =
+            let (version,fwkdir,asmpaths,vars,err) =
                 match fwk with
-                | "net-20" | "net-2.0" | "2.0" -> ("2.0.50727", "v2.0.50727", "v2.0.50727", [], null)
-                | "net-35" | "net-3.5" | "3.5" -> ("3.5", "v3.5", "v2.0.50727", [("COMPLUS_VERSION", "v2.0.50727")], null)
-                | "net-40" | "net-4.0" | "4.0"
-                | "4.0-full" | "net-45"
-                | "net-4.5" | "4.5"| "4.5-full"-> ("4.0", "v4.0.30319", "v4.0.30319", [("COMPLUS_VERSION", "v4.0.30319")],null)
+                | "net-20" | "net-2.0" | "2.0" ->
+                    ("2.0.50727", "v2.0.50727",
+                        [
+                            installRoot </> "v2.0.50727"
+                        ], [], null)
+                | "net-35" | "net-3.5" | "3.5" ->
+                    ("3.5", "v3.5",
+                        [
+                            installRoot </> "v2.0.50727"
+                            %"ProgramFiles" </> @"Reference Assemblies\Microsoft\Framework\v3.0"
+                            %"ProgramFiles" </> @"Reference Assemblies\Microsoft\Framework\v3.5"
+                        ],
+                        [("COMPLUS_VERSION", "v2.0.50727")], null)
+                | "net-40" | "net-4.0" | "4.0" | "4.0-full"
+                | "net-45" | "net-4.5" | "4.5"| "4.5-full" ->
+                    ("4.0", "v4.0.30319",
+                        [
+                            installRoot </> "v4.0.30319"
+                            installRoot </> "v4.0.30319" </> "WPF"
+                            %"ProgramFiles" </> @"\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0"
+                        ], [("COMPLUS_VERSION", "v4.0.30319")],null)
                 | _ ->
-                    ("", "", "", [], "framework is not available on this PC")
+                    ("", "", [], [], "framework is not available on this PC")
 
             match err with
             | null ->
@@ -144,7 +161,7 @@ module DotNetFwk =
                 Some {
                     InstallPath = fwkdir; ToolDir = fwkdir
                     Version = version
-                    AssemblyDir = installRoot </> asmdir
+                    AssemblyDirs = asmpaths
                     CscTool = fwkdir </> "csc.exe"
                     MsbuildTool = fwkdir </> "msbuild.exe"
                     EnvVars = vars
@@ -157,13 +174,18 @@ module DotNetFwk =
         type Key<'K> = K of 'K
         let memoize f =
             let cache = ref Map.empty
+            let lck = new System.Object()
             fun x ->
                 match !cache |> Map.tryFind (K x) with
                 | Some v -> v
                 | None ->
-                    let res = f x
-                    cache := !cache |> Map.add (K x) res
-                    res
+                    lock lck (fun () ->
+                        match !cache |> Map.tryFind (K x) with
+                        | Some v -> v
+                        | None ->
+                            let res = f x
+                            cache := !cache |> Map.add (K x) res
+                            res)
 
         let locateFramework (fwk) : FrameworkInfo =
             let flip f x y = f y x
@@ -193,3 +215,19 @@ module DotNetFwk =
     /// </summary>
     /// <param name="fwk"></param>
     let locateFramework = impl.memoize impl.locateFramework
+
+    /// <summary>
+    /// Locates "global" assembly for specific framework
+    /// </summary>
+    /// <param name="fwk"></param>
+    let locateAssembly fwkInfo =
+        let lookupFile file =
+            fwkInfo.AssemblyDirs
+            |> List.tryPick (fun dir ->
+                let fullName = dir </> file
+                match File.Exists(dir </> file) with
+                | true -> Some fullName | _ -> None
+            )
+            |> function | Some x -> x | None -> file
+            
+        impl.memoize lookupFile

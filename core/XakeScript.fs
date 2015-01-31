@@ -434,6 +434,7 @@ module XakeScript =
     /// Defined a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
     let (<==) name targets = PhonyRule (name,action {
-                do! need targets
-            })
+        do! need targets
+        do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available
+    })
     let (==>) = (<==)

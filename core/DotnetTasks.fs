@@ -222,20 +222,20 @@ module DotnetTasks =
                 | _, Some s when s <> "" -> s
                 | _ -> null
 
-            let (globalRefs,nostdlib,asmdir) =
+            let (globalRefs,nostdlib,noconfig) =
                 match targetFramework with
                 | null ->
                     let mapfn = (+) "/r:"
-                    (settings.RefGlobal |> List.map mapfn), false, null
+                    // TODO provide an option for user to explicitly specify all grefs (currently csc.rsp is used)
+                    (settings.RefGlobal |> List.map mapfn), false, false
                 | tgt ->
                     let fwk = Some tgt |> DotNetFwk.locateFramework in
-                    let mapfn = (fun name -> "/r:" + fwk.AssemblyDir </> name)
+                    let lookup = DotNetFwk.locateAssembly fwk
+                    let mapfn = (fun name -> "/r:" + (lookup name))
 
-                    // TODO add libraries
-                    ((["mscorlib.dll"] @ settings.RefGlobal) |> List.map mapfn), true, fwk.AssemblyDir
+                    //do! writeLog Info "Using libraries from %A" fwk.AssemblyDirs
 
-            if asmdir <> null then
-                do! writeLog Info "Using libraries from %s" asmdir
+                    ("mscorlib.dll" :: settings.RefGlobal |> List.map mapfn), true, true
 
             let args =
                 seq {
@@ -258,9 +258,6 @@ module DotnetTasks =
 
                     yield! src |> List.map (fun f -> f.FullName) 
 
-                    if asmdir <> null then
-                        yield "/lib:" + asmdir
-
                     yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
                     yield! globalRefs
 
@@ -276,7 +273,7 @@ module DotnetTasks =
             File.WriteAllLines(rspFile, args |> Seq.map Impl.escapeArgument |> List.ofSeq)
             let commandLineArgs = 
                 seq {
-                    if asmdir <> null then
+                    if noconfig then
                         yield "/noconfig"
                     yield "@" + rspFile
                     }
