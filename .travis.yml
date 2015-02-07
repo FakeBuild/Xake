@@ -1,8 +1,8 @@
 language: csharp
 solution: xake.sln
 install:
-  - nuget restore solution-name.sln
+  - nuget restore xake.sln
   - nuget install NUnit.Runners -Version 2.6.4 -OutputDirectory testrunner
-script:    # the following commands are just examples, use whatever your build process requires
-  - xbuild /p:Configuration=Release solution-name.sln
+script:
+  - xbuild /p:Configuration=Release xake.sln
   - mono ./testrunner/NUnit.Runners.2.6.4/tools/nunit-console.exe ./XakeLibTests/bin/XakeLibTests.dll
