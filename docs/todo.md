@@ -1,4 +1,5 @@
-﻿## TODO
+﻿## TODOs
+
   * xakeArgs: support for sequential running of targets, properties
   * MONO support
     * various compiler options (including those not supported)
@@ -7,7 +8,6 @@
   * multiple outputs
   * chocolatey support
   * ...
-  * specify target framework for 4.0+ compiler
   * let "main" be default rule so that I can skip 'want ["blablabla"]' in most scripts
   * dependency rule: compiler version
   * accept filemasks in 'need' parameters (WHY?)
@@ -27,7 +27,8 @@
 ## In progress
 
 ## Done
- * MONO support
+* specify target framework for 4.0+ compiler
+* MONO support
    * explicitly target mono
    * configure mono from registry
    * probing paths for tools
@@ -52,8 +53,8 @@
  * clean (phony actions)
  * do! alwaysRerun() to build target regardless dependencies are untouched
  * incremental builds
-   * database
    * files
+   * database
    * dependency rule: environment variable
    * dependency rule: fileset change
  * условное правило (*?> функция вместо маски)
