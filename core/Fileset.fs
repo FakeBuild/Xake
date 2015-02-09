@@ -5,6 +5,18 @@ module Fileset =
 
     open System.IO
 
+    /// <summary>
+    /// Defines interface to a file system
+    /// </summary>
+    type FileSystemType = {
+        GetDisk: string -> string
+        GetDirRoot: string -> string
+        GetParent: string -> string
+        AllDirs: string -> string seq
+        ScanDirs: string -> string -> string seq  // mask -> dir -> dirs
+        ScanFiles: string -> string -> string seq // mask -> dir -> files
+    }
+
     type FilePattern = string
 
     /// <summary>
@@ -78,25 +90,49 @@ module Fileset =
             let filepart = if parseDir then [] else [pattern |> Path.GetFileName |> (iif isMask FileMask FileName)]
 
             Pattern <| fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
+        
+        let FileSystem = {
+            GetDisk = fun d -> d + Path.DirectorySeparatorChar.ToString()
+            GetDirRoot = Directory.GetDirectoryRoot
+            GetParent = Directory.GetParent >> fullname
+            AllDirs = fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
+            ScanDirs = fun mask dir -> Directory.EnumerateDirectories(dir, mask, SearchOption.TopDirectoryOnly)
+            ScanFiles = fun mask dir -> Directory.EnumerateFiles(dir, mask)
+        }
+
+        /// <summary>
+        ///  Changes current directory
+        /// </summary>
+        /// <param name="fs">File system implementation</param>
+        /// <param name="startIn">Starting path</param>
+        /// <param name="path">target path</param>
+        let cd (fs:FileSystemType) startIn (Pattern path) =
+            // TODO check path exists after each step
+            let applyPart (path:string) = function
+            | Disk d      -> fs.GetDisk d
+            | FsRoot      -> path |> fs.GetDirRoot
+            | Parent      -> path |> fs.GetParent
+            | Directory d -> Path.Combine(path, d)
+            | _ -> failwith "ChDir could only contain disk or directory names"
+            in
+            path |> List.fold applyPart startIn
             
         /// Recursively applies the pattern rules to every item is start list
-        let listFiles startIn (Pattern pat) =
-
-            let scanall dir = Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
+        let listFiles (fs:FileSystemType) startIn (Pattern pat) =
 
             // The pattern without mask become "explicit" file reference which is always included in resulting file list, regardless file presence. See impl notes for details.
-            let isExplicitRule = pat |> List.exists (function | DirectoryMask _ | FileMask _ -> true | _ -> false)
-            let filterDir = if isExplicitRule then Seq.filter Directory.Exists else id
-            let filterFile = if isExplicitRule then Seq.filter File.Exists else id
+            let isExplicitRule = pat |> List.exists (function | DirectoryMask _ | FileMask _ | Recurse -> true | _ -> false) |> not
+            let filterDir = if isExplicitRule then id else Seq.filter Directory.Exists
+            let filterFile = if isExplicitRule then id else Seq.filter File.Exists
 
             let applyPart (paths:#seq<string>) = function
-            | Disk d          -> seq {yield d + "\\"}
-            | FsRoot          -> paths |> Seq.map Directory.GetDirectoryRoot
-            | Parent          -> paths |> Seq.map (Directory.GetParent >> fullname)
-            | Recurse         -> paths |> Seq.collect scanall |> Seq.append paths
-            | DirectoryMask m -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, m, SearchOption.TopDirectoryOnly))
+            | Disk d          -> fs.GetDisk d |> Seq.singleton
+            | FsRoot          -> paths |> Seq.map fs.GetDirRoot
+            | Parent          -> paths |> Seq.map fs.GetParent
+            | Recurse         -> paths |> Seq.collect fs.AllDirs |> Seq.append paths
+            | DirectoryMask mask -> paths |> Seq.collect (fs.ScanDirs mask)
             | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> filterDir
-            | FileMask mask   -> paths |> Seq.collect (fun dir -> Directory.EnumerateFiles(dir, mask))
+            | FileMask mask   -> paths |> Seq.collect (fs.ScanFiles mask)
             | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) |> filterFile
             in
             pat |> List.fold applyPart startIn
@@ -150,13 +186,15 @@ module Fileset =
 
         /// Draft implementation of fileset execute
         /// "Materializes" fileset to a filelist
-        let scan root (Fileset (options,filesetItems)) =
+        let scan fileSystem root (Fileset (options,filesetItems)) =
 
-            let startDir = options.BaseDir |> ifNone root
+            let startDirPat = options.BaseDir |> ifNone root |> parseDir
+            let startDir = startDirPat |> cd fileSystem ""
+
             // TODO check performance, build function
-            let includes src = [startDir] |> listFiles >> Seq.append src
+            let includes src = [startDir] |> (listFiles fileSystem) >> Seq.append src
             let excludes src pat =
-                let matchFile = pat |> joinPattern (startDir |> parseDir) |> matchesPattern in
+                let matchFile = pat |> joinPattern startDirPat |> matchesPattern in
                 src |> Seq.filter (matchFile >> not)
 
             let folditem i = function
@@ -293,9 +331,18 @@ module Fileset =
 
         // TODO alternative implementation, convert pattern to a match function using combinators
         Impl.matchesPattern <| joinPattern (rootPath |> parseDir) (filePattern |> parseFileMask)
+    
+    let FileSystem = Impl.FileSystem
             
-    /// "Materializes fileset to a filelist
-    let toFileList = Impl.scan
+    /// <summary>
+    /// "Materializes" fileset to a filelist
+    /// </summary>
+    let toFileList = Impl.scan Impl.FileSystem
+
+    /// <summary>
+    /// The same as toFileList but allows to provide file system adapter
+    /// </summary>
+    let toFileList1 = Impl.scan
 
     type ListDiffType<'a> = | Added of 'a | Removed of 'a
 

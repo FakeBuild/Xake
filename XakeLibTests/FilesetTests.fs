@@ -10,148 +10,185 @@ open NUnit.Framework
 [<TestFixture (Description = "Unit tests for Fileset module")>]
 type FilesetTests() =
 
-  let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "..")
+    let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "..")
 
-  let name (file:FileInfo) = file.Name
-  let fullname (file:FileInfo) = file.FullName
+    let name (file:FileInfo) = file.Name
+    let fullname (file:FileInfo) = file.FullName
 
-  let tolower (s:string) = s.ToLower()
+    let tolower (s:string) = s.ToLower()
 
-  let IsAny() = Is.Not.All.Not
+    let IsAny() = Is.Not.All.Not
 
-  let getFiles f =
-    let (Filelist files) = f |> toFileList currentDir
-    in files
+    let dirfullname (f:DirectoryInfo) = f.FullName
+    let MockFileSystem root =
+        {
+        FileSystem with
+            GetDisk = fun d -> root </> d.Substring(0,1) + "_drive" // Path.DirectorySeparatorChar.ToString()
+            GetDirRoot = fun _ -> root
+        }
 
-  [<Test (Description = "Verifies ls function")>]
-  member o.LsSimple() =
-    let files = ls "*.sln" |> getFiles
-    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["xake.sln"]))
+    let getFilesAt start f =
+        let (Filelist files) = f |> toFileList start
+        in files
 
-  [<Test (Description = "Verifies fileset exec function removes duplicates from result")>]
-  member o.ExecDoesntRemovesDuplicates() =
+    let getFiles = getFilesAt currentDir
 
-    Assert.That (
-      fileset {includes "*.sln"; includes "*.s*"}
-      |> getFiles
-      |> List.map (name >> tolower) |> List.filter ((=) "xake.sln") |> List.length,
-      Is.EqualTo (2))
+    let getFiles1 vroot start f =
+        let fs =
+            {
+            FileSystem with
+                GetDisk = fun d -> vroot </> d.Substring(0,1) + "_drive" // Path.DirectorySeparatorChar.ToString()
+                GetDirRoot = fun _ -> vroot
+            }
+        let (Filelist files) = f |> (toFileList1 fs (vroot </> start))
+        in files
 
-  [<Test>]
-  member o.LsMore() =
-    ls "c:/!/**/*.c*" |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
-    Assert.That(
-      ls "c:/!/**/*.c*" |> getFiles |> List.map fullname |> List.toArray,
-      IsAny().EqualTo(@"C:\!\main.c").IgnoreCase)
+    let root1 = currentDir </> "testdata" </> "withdrive" // </> "c_drive" </> "rpt"
 
-  [<Test>]
-  member o.LsParent() =
-    (+ "c:/!/bak" ++ "../../!/*.c*") |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
+    [<Test (Description = "Verifies ls function")>]
+    member o.LsSimple() =
 
-  [<Test>]
-  member o.LsExcludes() =
-    let fileNames = (+ "c:/!/bak" ++ "m*.rdl*" ++ "a*.rdl*" -- "*.rdlx") |> getFiles |> List.map name
-    fileNames |> List.iter System.Console.WriteLine
-    Assert.That (fileNames, Is.All.Not.Contains("rdlx"))
+        let files = ls "a*" |> getFiles1 root1 @"c:\rpt"
+        Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"]))
 
-  [<Test>]
-  member o.Builder() =
-    let fileset = fileset {
-      basedir @"c:\!\bak"
+    [<Test (Description = "Verifies strange DOS (ok Windows) behavior when looking for files by '*.txt' mask")>]
+    member o.LsThreeLetterExtension() =
 
-      includes "*.rdl"
-      includes "*.rdlx"
-      
-      includes @"..\jparsec\src\main/**/A*.java"
+        let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
+        Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"; "c.rdlx"; "c1.rdlx"]))
 
-      do! fileset {
-        includes @"c:\!\bak\*.css"
-      }
-    }
+    [<Test (Description = "Verifies fileset exec function removes duplicates from result")>]
+    member o.ExecDoesntRemovesDuplicates() =
 
-    fileset |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
+        Assert.That (
+            fileset {includes "*.rdl"; includes "*.rdl*"}
+            |> getFiles1 root1 @"c:\rpt"
+            |> List.map (name >> tolower) |> List.filter ((=) "a.rdl") |> List.length,
+            Is.EqualTo (2))
 
-  [<Test>]
-  member o.ExplicitFileYieldsFile() =
+    [<Test>]
+    member o.LsRecursive() =
+        Assert.That(
+            ls "c:/rpt/**/e.rdl" |> getFiles1 root1 "" |> List.map fullname |> List.toArray,
+            Is.All.EndsWith("rpt" </> "nested" </> "nested2" </> "e.rdl").IgnoreCase)
 
-    let sampleFileName = "NonExistingFile.rdl"
+    [<Test (Description = "Verifies 'explicit' rules, which match file regardless actual file presense")>]
+    member o.LsExplicit() =
+        Assert.That(
+            ls "c:/rpt/aaa.rdl" |> getFiles1 root1 "" |> List.map fullname |> List.toArray,
+            Is.All.EndsWith("rpt" </> "aaa.rdl").IgnoreCase)
 
-    let fileset = fileset {
-      basedir @"c:\!\bak"
+    [<Test>]
+    member o.LsExcludes() =
 
-      includes "Mat*.rdl"
-      includes sampleFileName
-    }
+        let fileNames = (!! "*.rdl*" -- "*.rdlx") |> getFilesAt (root1 </> "c_drive" </> "rpt") |> List.map name
+        fileNames |> List.iter System.Console.WriteLine
+        Assert.That (fileNames, Is.All.EndsWith("rdl"))
 
-    let result = fileset |> getFiles |> List.map name
-    Assert.IsTrue(result |> List.exists (fun f -> f.Equals(sampleFileName)))
-    // fileset |> getFiles |> List.map fullname |> List.iter System.Console.WriteLine
+    [<Test>]
+    member o.Builder() =
+        let fileset = fileset {
+            basedir @"c:\rpt"
 
-  [<Test>]
-  member o.ShortForm() =
+            includes "*.rdl"
+            includes "*.rdlx"
+            
+            includes @"..\jparsec\src\main/**/*.java"
 
-    let fileset =
-        ls "*.rdl" + "*.rdlx" + "../jparsec/src/main/**/A*.java" @@ """c:\!\bak"""
+            do! fileset {
+                includes @"c:\bak\*.css"
+            }
+        }
 
-    let fileset1 =
-        + @"c:\!\bak" + "*.rdl" +? (false,"*.rdlx") + "../jparsec/src/main/**/A*.java"
+        let files = fileset |> getFiles1 root1 "" |> List.map name
+        in
+        do files |> List.iter System.Console.WriteLine
+        do Assert.That(
+            files,
+            Constraints.Constraint.op_BitwiseOr( IsAny().EndsWith(".java"), IsAny().EndsWith(".css"))
+            )        
 
-    fileset |> getFiles |> List.map name |> List.iter System.Console.WriteLine
+    [<Test>]
+    member o.ExplicitFileYieldsFile() =
 
-  [<Test>]
-  [<ExpectedException>]
-  member o.CombineFilesetsWithBasedirs() =
-    let fs1 = fileset {
-      basedir @"c:\!"
-      includes @"bak\*.css"
-      includesif false @"debug\*.css"
-    }
+        let sampleFileName = "NonExistingFile.rdl"
 
-    let fs2 = fileset {
-      basedir @"c:\!\bak"
-      includes @"*.rdl"
+        let fileset = fileset {
+            basedir @"c:\rpt"
 
-      join fs1
-    }
-    fs2 |> getFiles |> ignore
+            includes "*.rdl"
+            includes sampleFileName
+        }
 
-  [<Test>]
-  member o.CombineFilesets() =
-    let fs1 = fileset {includes @"c:\!\bak\*.css"}
-    let fs2 = fileset {includes @"c:\!\bak\*.rdl"}
+        Assert.That(
+            fileset |> getFiles1 root1 "" |> List.map name,
+            IsAny().EndsWith(sampleFileName)
+            )
 
-    (fs1 + fs2) |> getFiles |> ignore
+    [<Test>]
+    member o.ShortForm() =
 
-  [<TestCase("c:\\**\\*.*", "c:\\", ExpectedResult = false)>]
-  [<TestCase("c:\\**\\*.*", "",     ExpectedException = typeof<System.ArgumentException> )>]
-  [<TestCase("", "aa",              ExpectedException = typeof<System.ArgumentException> )>]
-  [<TestCase("c:\\**\\*.*", "c:\\a.c", ExpectedResult = true)>]
-  [<TestCase("c:\\**\\", "c:\\a.c", ExpectedResult = false)>]
-  [<TestCase("c:\\*\\?.c", "c:\\!\\a.c", ExpectedResult = true)>]
-  [<TestCase("c:\\*\\?.c*", "c:\\!\\a.c", ExpectedResult = true)>]
+        let fileset =
+                ls "*.rdl" + "*.rdlx" + "../jparsec/src/main/**/*.java" @@ """c:\rpt"""
+        Assert.That(
+            fileset |> getFiles1 root1 "" |> List.map name,
+            Constraints.Constraint.op_BitwiseOr( IsAny().EndsWith(".java"), IsAny().EndsWith(".rdlx"))
+            )
 
-  [<TestCase("c:\\a.c", "d:\\a.c", ExpectedResult = false)>]
-  [<TestCase("c:\\a.c", "C:\\A.c", ExpectedResult = true)>]
-  [<TestCase("c:\\*.c", "d:\\a.c", ExpectedResult = false)>]
-  [<TestCase("c:\\*.c", "c:\\a.c", ExpectedResult = true)>]
+    [<Test>]
+    [<ExpectedException>]
+    member o.CombineFilesetsWithBasedirs() =
+        let fs1 = fileset {
+            basedir @"c:\!"
+            includes @"bak\*.css"
+            includesif false @"debug\*.css"
+        }
 
-  [<TestCase("c:\\abc\\*.c", "c:\\a.c", ExpectedResult = false)>]
-  [<TestCase("c:\\abc\\*.c", "c:\\def\\a.c", ExpectedResult = false)>]
-  [<TestCase("c:\\abc\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = false)>]
-  [<TestCase("c:\\abc\\*.c", "c:\\abc\\a.c", ExpectedResult = true)>]
+        let fs2 = fileset {
+            basedir @"c:\!\bak"
+            includes @"*.rdl"
 
-  [<TestCase("c:\\*\\*.c", "c:\\abc\\a.c", ExpectedResult = true)>]
-  [<TestCase("c:\\*\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = false)>]
-  [<TestCase("c:\\**\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = true)>]
-  member o.MaskTests(m,t) = matches m "" t
+            join fs1
+        }
+        fs2 |> getFiles |> ignore
 
-  [<TestCase("c:\\*\\*.c", "c:\\abc\\def\\..\\a.c", ExpectedResult = true)>]
-  [<TestCase("c:\\*.c", "c:\\abc\\..\\a.c", ExpectedResult = true)>]
+    [<Test>]
+    member o.CombineFilesets() =
+        let fs1 = fileset {includes @"c:\!\bak\*.css"}
+        let fs2 = fileset {includes @"c:\!\bak\*.rdl"}
 
-  [<TestCase("c:\\abc\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
-  [<TestCase("c:\\abc\\def\\..\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
-  [<TestCase("c:\\abc\\..\\..\\*.c", "c:\\a.c", ExpectedResult = false)>]
-  [<TestCase("c:\\abc\\**\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
-  [<TestCase("c:\\abc\\..\\*.c", "c:\\abc\\..\\a.c", ExpectedException = typeof<System.ArgumentException>)>]
+        (fs1 + fs2) |> getFiles |> ignore
 
-  member o.MaskWithParent(m,t) = matches m "" t
+    [<TestCase("c:\\**\\*.*", "c:\\", ExpectedResult = false)>]
+    [<TestCase("c:\\**\\*.*", "",         ExpectedException = typeof<System.ArgumentException> )>]
+    [<TestCase("", "aa",                            ExpectedException = typeof<System.ArgumentException> )>]
+    [<TestCase("c:\\**\\*.*", "c:\\a.c", ExpectedResult = true)>]
+    [<TestCase("c:\\**\\", "c:\\a.c", ExpectedResult = false)>]
+    [<TestCase("c:\\*\\?.c", "c:\\!\\a.c", ExpectedResult = true)>]
+    [<TestCase("c:\\*\\?.c*", "c:\\!\\a.c", ExpectedResult = true)>]
+
+    [<TestCase("c:\\a.c", "d:\\a.c", ExpectedResult = false)>]
+    [<TestCase("c:\\a.c", "C:\\A.c", ExpectedResult = true)>]
+    [<TestCase("c:\\*.c", "d:\\a.c", ExpectedResult = false)>]
+    [<TestCase("c:\\*.c", "c:\\a.c", ExpectedResult = true)>]
+
+    [<TestCase("c:\\abc\\*.c", "c:\\a.c", ExpectedResult = false)>]
+    [<TestCase("c:\\abc\\*.c", "c:\\def\\a.c", ExpectedResult = false)>]
+    [<TestCase("c:\\abc\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = false)>]
+    [<TestCase("c:\\abc\\*.c", "c:\\abc\\a.c", ExpectedResult = true)>]
+
+    [<TestCase("c:\\*\\*.c", "c:\\abc\\a.c", ExpectedResult = true)>]
+    [<TestCase("c:\\*\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = false)>]
+    [<TestCase("c:\\**\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = true)>]
+    member o.MaskTests(m,t) = matches m "" t
+
+    [<TestCase("c:\\*\\*.c", "c:\\abc\\def\\..\\a.c", ExpectedResult = true)>]
+    [<TestCase("c:\\*.c", "c:\\abc\\..\\a.c", ExpectedResult = true)>]
+
+    [<TestCase("c:\\abc\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
+    [<TestCase("c:\\abc\\def\\..\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
+    [<TestCase("c:\\abc\\..\\..\\*.c", "c:\\a.c", ExpectedResult = false)>]
+    [<TestCase("c:\\abc\\**\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
+    [<TestCase("c:\\abc\\..\\*.c", "c:\\abc\\..\\a.c", ExpectedException = typeof<System.ArgumentException>)>]
+
+    member o.MaskWithParent(m,t) = matches m "" t
