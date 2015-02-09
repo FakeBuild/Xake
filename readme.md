@@ -7,6 +7,7 @@ Unlike NAnt, Fake and similar tools with imperative script style, Xake is declar
   * build tool identifies dependencies and build your targets
 
 See [documentation](docs/overview.md) for more details.
+
 [![Build Status](https://travis-ci.org/OlegZee/Xake.svg?branch=master)](https://travis-ci.org/OlegZee/Xake)
 
 ## Getting started (Mono and Microsoft's .NET framework)
