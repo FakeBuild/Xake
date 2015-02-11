@@ -180,7 +180,7 @@ type FilesetTests() =
     [<TestCase("c:\\*\\*.c", "c:\\abc\\a.c", ExpectedResult = true)>]
     [<TestCase("c:\\*\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = false)>]
     [<TestCase("c:\\**\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = true)>]
-    member o.MaskTests(m,t) = matches m "." t
+    member o.MaskTests(m,t) = matches m "" t
 
     [<TestCase("c:\\*\\*.c", "c:\\abc\\def\\..\\a.c", ExpectedResult = true)>]
     [<TestCase("c:\\*.c", "c:\\abc\\..\\a.c", ExpectedResult = true)>]
@@ -189,6 +189,6 @@ type FilesetTests() =
     [<TestCase("c:\\abc\\def\\..\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
     [<TestCase("c:\\abc\\..\\..\\*.c", "c:\\a.c", ExpectedResult = false)>]
     [<TestCase("c:\\abc\\**\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:\\abc\\..\\*.c", "c:\\abc\\..\\a.c", ExpectedException = typeof<System.ArgumentException>)>]
+    [<TestCase("c:\\abc\\..\\*.c", "c:\\abc\\..\\a.c", ExpectedResult = true)>]
 
     member o.MaskWithParent(m,t) = matches m "" t

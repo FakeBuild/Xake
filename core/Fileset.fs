@@ -91,11 +91,33 @@ module Fileset =
             let fsroot = if dir <> null && (dir.StartsWith("\\") || dir.StartsWith("/")) then [FsRoot] else []
             let filepart = if parseDir then [] else [pattern |> Path.GetFileName |> (iif isMask FileMask FileName)]
 
-            Pattern <| fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
+            let rec n = function
+            | Directory _::Parent::t -> t
+            | CurrentDir::t -> t
+            | [] -> []
+            | x::tail -> x::(n tail)
+
+            let rec nr = function
+                | [] -> []
+                | x::[] -> [x]
+                | x::tail ->               
+                    match x::(nr tail) with
+                    | Directory _::Parent::t -> t
+                    | CurrentDir::t -> t
+                    | _ as rest -> rest
+
+            let rawParts = fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
+            rawParts |> nr |> Pattern
+
+        /// Parses file mask
+        let parseFileMask = parseDirFileMask false
+
+        /// Parses file mask
+        let parseDir = parseDirFileMask true
         
         let FileSystem = {
             GetDisk = fun d -> d + Path.DirectorySeparatorChar.ToString()
-            GetDirRoot = Directory.GetDirectoryRoot
+            GetDirRoot = fun x -> Directory.GetDirectoryRoot x
             GetParent = Directory.GetParent >> fullname
             AllDirs = fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
             ScanDirs = fun mask dir -> Directory.EnumerateDirectories(dir, mask, SearchOption.TopDirectoryOnly)
@@ -131,7 +153,7 @@ module Fileset =
             let applyPart (paths:#seq<string>) = function
             | Disk d          -> fs.GetDisk d |> Seq.singleton
             | FsRoot          -> paths |> Seq.map fs.GetDirRoot
-            | CurrentDir      -> paths
+            | CurrentDir      -> paths |> Seq.map id
             | Parent          -> paths |> Seq.map fs.GetParent
             | Recurse         -> paths |> Seq.collect fs.AllDirs |> Seq.append paths
             | DirectoryMask mask -> paths |> Seq.collect (fs.ScanDirs mask)
@@ -141,12 +163,6 @@ module Fileset =
             in
             pat |> List.fold applyPart startIn
         
-        /// Parses file mask
-        let parseFileMask = parseDirFileMask false
-
-        /// Parses file mask
-        let parseDir = parseDirFileMask true
-
         let eq s1 s2 = System.StringComparer.OrdinalIgnoreCase.Equals(s1, s2)
 
         let matchPart p1 p2 =
@@ -164,14 +180,6 @@ module Fileset =
             | [], [] -> true
             | [], x::xs -> false
             | m::ms, [] -> false
-
-            (* parent support is not complete, supports up to two parent refs TODO normalize mask instead *)
-            | CurrentDir::ms, _
-            | Directory _::Parent::ms, _
-            | Directory _::Directory _::Parent::Parent::ms, _
-            | DirectoryMask _::Parent::ms, _
-            | DirectoryMask _::DirectoryMask _::Parent::Parent::ms, _
-                -> (matchPathsImpl ms p)
 
             | Directory _::Recurse::Parent::ms, _
                 -> (matchPathsImpl (Recurse::ms) p)
@@ -335,7 +343,7 @@ module Fileset =
         // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
 
         // TODO alternative implementation, convert pattern to a match function using combinators
-        Impl.matchesPattern <| joinPattern (rootPath |> parseDir) (filePattern |> parseFileMask)
+        Impl.matchesPattern <| joinPattern (parseDir rootPath) (parseFileMask filePattern)
     
     let FileSystem = Impl.FileSystem
             
