@@ -25,6 +25,7 @@ module Fileset =
     type PatternPart =
         | FsRoot
         | Parent
+        | CurrentDir
         | Disk of string
         | DirectoryMask of string
         | Directory of string
@@ -78,6 +79,7 @@ module Fileset =
 
             let mapPart = function
                 | "**" -> Recurse
+                | "." -> CurrentDir
                 | ".." -> Parent (* works well now with Path.Combine() *)
                 | a when a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
                 | a -> a |> iif isMask DirectoryMask Directory
@@ -109,6 +111,7 @@ module Fileset =
         let cd (fs:FileSystemType) startIn (Pattern path) =
             // TODO check path exists after each step
             let applyPart (path:string) = function
+            | CurrentDir  -> path
             | Disk d      -> fs.GetDisk d
             | FsRoot      -> path |> fs.GetDirRoot
             | Parent      -> path |> fs.GetParent
@@ -128,6 +131,7 @@ module Fileset =
             let applyPart (paths:#seq<string>) = function
             | Disk d          -> fs.GetDisk d |> Seq.singleton
             | FsRoot          -> paths |> Seq.map fs.GetDirRoot
+            | CurrentDir      -> paths
             | Parent          -> paths |> Seq.map fs.GetParent
             | Recurse         -> paths |> Seq.collect fs.AllDirs |> Seq.append paths
             | DirectoryMask mask -> paths |> Seq.collect (fs.ScanDirs mask)
@@ -162,6 +166,7 @@ module Fileset =
             | m::ms, [] -> false
 
             (* parent support is not complete, supports up to two parent refs TODO normalize mask instead *)
+            | CurrentDir::ms, _
             | Directory _::Parent::ms, _
             | Directory _::Directory _::Parent::Parent::ms, _
             | DirectoryMask _::Parent::ms, _
@@ -189,7 +194,7 @@ module Fileset =
         let scan fileSystem root (Fileset (options,filesetItems)) =
 
             let startDirPat = options.BaseDir |> ifNone root |> parseDir
-            let startDir = startDirPat |> cd fileSystem ""
+            let startDir = startDirPat |> cd fileSystem "."
 
             // TODO check performance, build function
             let includes src = [startDir] |> (listFiles fileSystem) >> Seq.append src

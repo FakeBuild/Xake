@@ -132,9 +132,9 @@ type MiscTests() =
                       ]
                     BuildResult.Steps = []
                 }
-                when fileDep = Artifact(@"C:\projects\Mine\xake\bin\bbb.c") && depDate = cdate
+                when System.IO.Path.GetFileName(fileDep.Name) = "bbb.c" && depDate = cdate
                  -> true
-              | _ -> false
+              | a -> false
 
           Assert.IsTrue <|
             match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test1"), ch) with
