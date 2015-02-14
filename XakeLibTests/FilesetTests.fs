@@ -23,7 +23,7 @@ type FilesetTests() =
     let MockFileSystem root =
         {
         FileSystem with
-            GetDisk = fun d -> root </> d.Substring(0,1) + "_drive" // Path.DirectorySeparatorChar.ToString()
+            GetDisk = fun d -> root </> d.Substring(0,1) + "_drive"
             GetDirRoot = fun _ -> root
         }
 
@@ -37,13 +37,13 @@ type FilesetTests() =
         let fs =
             {
             FileSystem with
-                GetDisk = fun d -> vroot </> d.Substring(0,1) + "_drive" // Path.DirectorySeparatorChar.ToString()
+                GetDisk = fun d -> vroot </> d.Substring(0,1) + "_drive"
                 GetDirRoot = fun _ -> vroot
             }
         let (Filelist files) = f |> (toFileList1 fs (vroot </> start))
         in files
 
-    let root1 = currentDir </> "testdata" </> "withdrive" // </> "c_drive" </> "rpt"
+    let root1 = currentDir </> "testdata" </> "withdrive"
 
     [<Test (Description = "Verifies ls function")>]
     member o.LsSimple() =
@@ -51,11 +51,19 @@ type FilesetTests() =
         let files = ls "a*" |> getFiles1 root1 @"c:\rpt"
         Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"]))
 
-    [<Test (Description = "Verifies strange DOS (ok Windows) behavior when looking for files by '*.txt' mask")>]
+    [<Test (Description = "Verifies strange DOS (on Windows) behavior when looking for files by '*.txt' mask")>]
+    [<Platform("Win")>]
     member o.LsThreeLetterExtension() =
 
         let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
         Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"; "c.rdlx"; "c1.rdlx"]))
+
+    [<Test (Description = "Verifies strange DOS (on Windows) behavior when looking for files by '*.txt' mask")>]
+    [<Platform("Unix")>]
+    member o.LsThreeLetterExtensionUnix() =
+
+        let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
+        Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"]))
 
     [<Test (Description = "Verifies fileset exec function removes duplicates from result")>]
     member o.ExecDoesntRemovesDuplicates() =

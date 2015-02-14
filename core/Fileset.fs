@@ -55,6 +55,9 @@ module Fileset =
 
         open System.Text.RegularExpressions
 
+        let dirSeparator = Path.DirectorySeparatorChar
+        let notNullOrEmpty = System.String.IsNullOrEmpty >> not
+
         let driveRegex = Regex(@"^[A-Za-z]:$", RegexOptions.Compiled)
         let isMask (a:string) = a.IndexOfAny([|'*';'?'|]) >= 0
         let iif fn b c a = match fn a with | true -> b a | _ -> c a
@@ -76,7 +79,8 @@ module Fileset =
 
         /// Converts Ant-style file pattern to a list of parts
         let parseDirFileMask (parseDir:bool) pattern =
-
+         
+            let pattern = pattern |> String.map (function |'\\' | '/' -> dirSeparator | ch -> ch)
             let mapPart = function
                 | "**" -> Recurse
                 | "." -> CurrentDir
@@ -85,10 +89,10 @@ module Fileset =
                 | a -> a |> iif isMask DirectoryMask Directory
 
             let dir = if parseDir then pattern else Path.GetDirectoryName(pattern)
-            let parts = if dir = null then [||] else dir.Split([|'\\';'/'|], System.StringSplitOptions.RemoveEmptyEntries)
+            let parts = if dir = null then [||] else dir.Split([|dirSeparator|], System.StringSplitOptions.RemoveEmptyEntries)
 
             // parse root "\" to FsRoot
-            let fsroot = if dir <> null && (dir.StartsWith("\\") || dir.StartsWith("/")) then [FsRoot] else []
+            let fsroot = if notNullOrEmpty dir && dir.[0] = dirSeparator then [FsRoot] else []
             let filepart = if parseDir then [] else [pattern |> Path.GetFileName |> (iif isMask FileMask FileName)]
 
             let rec n = function
