@@ -13,6 +13,6 @@ deploy:
   file:
   - bin\Xake.Core.dll
   - bin\Xake.Core.XML
+  skip_cleanup: true
   on:
-    repo: OlegZee/Xake
-    branch: dev
+    tags: true
