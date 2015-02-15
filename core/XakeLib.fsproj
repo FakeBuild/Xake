@@ -59,6 +59,8 @@
     <Compile Include="DotNetFwk.fs" />
     <Compile Include="DotnetTasks.fs" />
     <None Include="filesets.fsx" />
+    <Compile Include="VersionInfo.fs" />
+    <Compile Include="AssemblyInfo.fs" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
