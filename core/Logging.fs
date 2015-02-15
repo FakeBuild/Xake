@@ -109,3 +109,9 @@ let CombineLogger (log1 : ILogger) (log2 : ILogger) =
                   log1.Log level "%s" s
                   log2.Log level "%s" s
               Printf.kprintf write fmt }
+
+let PrefixLogger (prefix:string) (log : ILogger) = 
+    { new ILogger with
+          member __.Log level format = 
+              let write = sprintf "%s%s" prefix >> log.Log level "%s"
+              Printf.kprintf write format }

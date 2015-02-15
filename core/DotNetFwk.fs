@@ -41,11 +41,14 @@ module DotNetFwk =
     type FrameworkInfo = {
         Version: string
         InstallPath: string
+        AssemblyDirs: string list
         ToolDir: string
         CscTool: string
         MsbuildTool: string
         EnvVars: (string* string) list
         }
+
+    let private (~%) = System.Environment.GetEnvironmentVariable
 
     module internal registry =
 
@@ -63,99 +66,126 @@ module DotNetFwk =
         open Xake
         open registry
 
-        let private (~%) = System.Environment.GetEnvironmentVariable
         let MonoProbeKeys = [@"SOFTWARE\Wow6432Node\Novell\Mono"; @"SOFTWARE\Novell\Mono"]
 
         let tryLocateFwk fwk : option<FrameworkInfo> * string =
 
-            let prefix =
+            let (monover,sdkroot,libdir,configdir,err) =
                 if pkg_config.exists "mono" then
-                    Some <| pkg_config.get_variable "mono" "prefix"
+                    let prefix = pkg_config.get_variable "mono" "prefix" in
+                    let winpath (str:string) = str.Replace('/', Path.DirectorySeparatorChar)
+                    (
+                        pkg_config.get_mod_version "mono",
+                        prefix |> winpath,
+                        pkg_config.get_variable "mono" "libdir" |> winpath,
+                        prefix |> winpath </> "etc",
+                        null
+                    )
                 else
-                    match MonoProbeKeys |> List.tryPick (open_subkey HKLM) with
-                    | Some key ->
-                        try
-                            key
-                                |> registry.get_value_str "DefaultCLR"
-                                |> Option.bind (open_subkey key)
-                                |> Option.bind (registry.get_value_str "SdkInstallRoot")
-                        with _ ->
-                            failwith "Failed to obtain mono framework location from registry"
-                    | None -> None
-            match prefix with
-            | None -> None, "Mono was not found (pkg-config codepath)"
-            | Some prefix ->
-                let binpath = prefix.Replace('/', Path.DirectorySeparatorChar) </> "bin"
-                let defaultMonoFwkInfo = {
-                        InstallPath = prefix
-                        ToolDir = ""
-                        Version = "2.0.50727"
-                        CscTool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
+                    let key = MonoProbeKeys |> List.tryPick (open_subkey HKLM)
+                    let monover = key |> Option.bind (registry.get_value_str "DefaultCLR")
+                    let monokey = monover |> Option.bind (open_subkey (Option.get key))
+
+                    match monover, monokey with
+                    | Some monover, Some monokey ->
+                        let gets key = monokey |> registry.get_value_str key |> Option.get in
+                        (
+                            monover,
+                            gets "SdkInstallRoot",
+                            gets "FrameworkAssemblyDirectory",
+                            gets "MonoConfigDir",
+                            null
+                        )
+                    | _ ->
+                        ("", "", "", "", "Failed to obtain mono framework location from registry")
+            match err with
+            | null ->
+                let csc_tool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
+                let fwkinfo libpath ver = Some {
+                        InstallPath = sdkroot
+                        AssemblyDirs = [libdir]
+                        ToolDir = libdir </> "mono" </> libpath
+                        Version = ver
+                        CscTool = csc_tool
                         MsbuildTool = "xbuild"
-                        EnvVars =["PATH", binpath + ";" + (%"PATH")]
+                        EnvVars =["PATH", sdkroot </> "bin" + ";" + (%"PATH")]
                     }
                 // TODO proper tool (xbuild) lookup
                 match fwk with
-                | "mono-20" | "mono-2.0" | "2.0" ->
-                    Some {defaultMonoFwkInfo with ToolDir = prefix </> "lib/mono/2.0"}, null
-                | "mono-35" | "mono-3.5" | "3.5" ->
-                    Some {defaultMonoFwkInfo with ToolDir = prefix </> "lib/mono/3.5"}, null
-                | "mono-40" | "mono-4.0" | "4.0" ->
-                    Some {defaultMonoFwkInfo with ToolDir = prefix </> "lib/mono/4.0"; Version = "4.0.30319"}, null
-                | "mono-45" | "mono-4.5" | "4.5" ->
-                    Some {defaultMonoFwkInfo with ToolDir = prefix </> "lib/mono/4.5"; Version = "4.5.50709"}, null
+                | "mono-20" | "mono-2.0" | "2.0" -> fwkinfo "2.0" "2.0.50727", null
+                | "mono-35" | "mono-3.5" | "3.5" -> fwkinfo "3.5" "2.0.50727", null
+                | "mono-40" | "mono-4.0" | "4.0" -> fwkinfo "4.0" "4.0.30319", null
+                | "mono-45" | "mono-4.5" | "4.5" -> fwkinfo "4.0" "4.5.50709", null
                 | _ ->
                     None, sprintf "Unknown or unsupported profile '%s'" fwk
-                
+            | _ ->
+                None, err
 
     module internal MsImpl =
-
         open registry
 
-        let getRegKey = function
-            //            | "1.1" -> "v1.1.4322"
-            | "net-20" | "net-2.0" | "2.0" -> "v2.0.50727"
-            | "net-30" | "net-3.0" | "3.0" -> "v3.0\Setup\InstallSuccess"
-            | "net-35" | "net-3.5" | "3.5" -> "v3.5"
-            | "net-40c"| "net-4.0c" | "4.0-client"
-                -> "v4\\Client"
-            | "net-40" | "net-4.0" | "4.0"| "4.0-full"
-            | "net-45" | "net-4.5" | "4.5"| "4.5-full"
-                -> "v4\\Full"
-            | _ -> null
+        let tryLocateFwk fwk =
+            let fwkKey = open_subkey HKLM @"SOFTWARE\Microsoft\.NETFramework"
+            let installRoot_ = fwkKey |> Option.bind (get_value_str "InstallRoot")
+            let installRoot = installRoot_ |> Option.get    // TODO gracefully fail
 
-        let tryLocateFwk fwk : FrameworkInfo option * string =
+            let (version,fwkdir,asmpaths,vars,err) =
+                match fwk with
+                | "net-20" | "net-2.0" | "2.0" ->
+                    ("2.0.50727", "v2.0.50727",
+                        [
+                            installRoot </> "v2.0.50727"
+                        ], [], null)
+                | "net-35" | "net-3.5" | "3.5" ->
+                    ("3.5", "v3.5",
+                        [
+                            installRoot </> "v2.0.50727"
+                            %"ProgramFiles" </> @"Reference Assemblies\Microsoft\Framework\v3.0"
+                            %"ProgramFiles" </> @"Reference Assemblies\Microsoft\Framework\v3.5"
+                        ],
+                        [("COMPLUS_VERSION", "v2.0.50727")], null)
+                | "net-40" | "net-4.0" | "4.0" | "4.0-full"
+                | "net-45" | "net-4.5" | "4.5"| "4.5-full" ->
+                    ("4.0", "v4.0.30319",
+                        [
+                            installRoot </> "v4.0.30319"
+                            installRoot </> "v4.0.30319" </> "WPF"
+                            %"ProgramFiles" </> @"\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0"
+                        ], [("COMPLUS_VERSION", "v4.0.30319")],null)
+                | _ ->
+                    ("", "", [], [], "framework is not available on this PC")
 
-            match getRegKey fwk, open_subkey HKLM @"SOFTWARE\Microsoft\NET Framework Setup\NDP" with
-            | null, _ -> None, sprintf "unknown or unsupported profile '%s'" fwk
-            | _, None -> None, "cannot open/find .NET Framework Setup registry key"
-            | key, (Some ndp) ->
-                let fwk_ = open_subkey ndp key
-                match fwk_, fwk_ |> Option.bind (get_value "Install") with
-                | Some fwk, Some o when o.Equals(1) ->
-                    let installPath = fwk |> get_value_str "InstallPath" |> Option.get
-                    let version = fwk |> get_value_str "Version" |> Option.get
-
-                    Some {
-                        InstallPath = installPath; ToolDir = installPath; Version = version
-                        CscTool = installPath </> "csc.exe"
-                        MsbuildTool = installPath </> "msbuild.exe"
-                        EnvVars = []
-                    }, null
-                | _ -> None, "framework is not available on this PC"
+            match err with
+            | null ->
+                let fwkdir = installRoot </> fwkdir in
+                Some {
+                    InstallPath = fwkdir; ToolDir = fwkdir
+                    Version = version
+                    AssemblyDirs = asmpaths
+                    CscTool = fwkdir </> "csc.exe"
+                    MsbuildTool = fwkdir </> "msbuild.exe"
+                    EnvVars = vars
+                }, null
+            | _ ->
+                None, err
 
     module internal impl =
 
         type Key<'K> = K of 'K
         let memoize f =
             let cache = ref Map.empty
+            let lck = new System.Object()
             fun x ->
                 match !cache |> Map.tryFind (K x) with
                 | Some v -> v
                 | None ->
-                    let res = f x
-                    cache := !cache |> Map.add (K x) res
-                    res
+                    lock lck (fun () ->
+                        match !cache |> Map.tryFind (K x) with
+                        | Some v -> v
+                        | None ->
+                            let res = f x
+                            cache := !cache |> Map.add (K x) res
+                            res)
 
         let locateFramework (fwk) : FrameworkInfo =
             let flip f x y = f y x
@@ -185,3 +215,19 @@ module DotNetFwk =
     /// </summary>
     /// <param name="fwk"></param>
     let locateFramework = impl.memoize impl.locateFramework
+
+    /// <summary>
+    /// Locates "global" assembly for specific framework
+    /// </summary>
+    /// <param name="fwk"></param>
+    let locateAssembly fwkInfo =
+        let lookupFile file =
+            fwkInfo.AssemblyDirs
+            |> List.tryPick (fun dir ->
+                let fullName = dir </> file
+                match File.Exists(dir </> file) with
+                | true -> Some fullName | _ -> None
+            )
+            |> function | Some x -> x | None -> file
+            
+        impl.memoize lookupFile

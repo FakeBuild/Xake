@@ -3,6 +3,7 @@ syntax: glob
 
 # Ignore folders
 build/
+testrunner/
 [Oo]bj/
 [Bb]in/
 _ReSharper*/

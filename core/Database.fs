@@ -1,203 +1,218 @@
 ﻿namespace Xake
 
-module BuildLog =
+module BuildLog = 
     open Xake
     open System
-
+    
     let XakeVersion = "0.2-c"
-
+    
     // structures, database processor and store
     type Timestamp = System.DateTime
-
+    
     [<Measure>]
     type ms
-
-    type StepInfo =
+    
+    type StepInfo = 
         | StepInfo of string * int<ms>
-
-    type Dependency =
-        | File of Artifact * Timestamp  // regular file (such as source code file), triggers when file date/time is changed
-        | ArtifactDep of Target         // other target (triggers when target is rebuilt)
+    
+    type Dependency = 
+        | File of Artifact * Timestamp // regular file (such as source code file), triggers when file date/time is changed
+        | ArtifactDep of Target // other target (triggers when target is rebuilt)
         | EnvVar of string * string option // environment variable
         | Var of string * string option // any other data such as compiler version (not used yet)
-        | AlwaysRerun                   // trigger always
+        | AlwaysRerun // trigger always
         | GetFiles of Fileset * Filelist // depends on set of files. Triggers when resulting filelist is changed
-
-    type BuildResult =
+    
+    type BuildResult = 
         { Result : Target
           Built : Timestamp
           Depends : Dependency list
           Steps : StepInfo list }
-
-    type DatabaseHeader =
+    
+    type DatabaseHeader = 
         { XakeSign : string
           XakeVer : string
           ScriptDate : Timestamp }
-
-    type Database =
+    
+    type Database = 
         { Status : Map<Target, BuildResult> }
-
+    
     (* API *)
 
     /// Creates a new build result
-    let makeResult target =
+    let makeResult target = 
         { Result = target
           Built = DateTime.Now
           Depends = []
           Steps = [] }
-
+    
     /// Creates a new database
     let newDatabase() = { Database.Status = Map.empty }
-
+    
     /// Adds result to a database
-    let addResult db result =
+    let addResult db result = 
         { db with Status = db.Status |> Map.add (result.Result) result }
 
 type Agent<'t> = MailboxProcessor<'t>
 
-module Storage =
+module Storage = 
     open BuildLog
-
-    module private Persist =
+    
+    module private Persist = 
         open System
         open Pickler
-
+        
         let artifact = wrap (toArtifact, fun a -> a.Name) str
-
-        let target =
-            alt (function
+        
+        let target = 
+            alt (function 
                 | FileTarget _ -> 0
-                | PhonyAction _ -> 1)
-                [| wrap (toArtifact >> FileTarget, fun (FileTarget f) -> f.Name)
+                | PhonyAction _ -> 1) 
+                [| wrap (toArtifact >> FileTarget, fun (FileTarget f) -> f.Name) 
                        str
                    wrap (PhonyAction, (fun (PhonyAction a) -> a)) str |]
-
-        let step =
-            wrap
-                ((fun (n, d) -> StepInfo(n, d * 1<ms>)),
+        
+        let step = 
+            wrap 
+                ((fun (n, d) -> StepInfo(n, d * 1<ms>)), 
                  fun (StepInfo(n, d)) -> (n, d / 1<ms>)) (pair str int)
-
+        
         // Fileset of FilesetOptions * FilesetElement list
-        let dependency =
-            alt (function
+        let dependency = 
+            alt (function 
                 | ArtifactDep _ -> 0
                 | File _ -> 1
                 | EnvVar _ -> 2
                 | Var _ -> 3
                 | AlwaysRerun _ -> 4
-                | GetFiles _ -> 5)
+                | GetFiles _ -> 5) 
                 [| wrap (ArtifactDep, fun (ArtifactDep f) -> f) target
-                   wrap (File, fun (File(f, ts)) -> (f, ts)) (pair artifact date)
-                   wrap (EnvVar, fun (EnvVar(n, v)) -> n, v) (pair str (option str))
+                   
+                   wrap (File, fun (File(f, ts)) -> (f, ts)) 
+                       (pair artifact date)
+                   
+                   wrap (EnvVar, fun (EnvVar(n, v)) -> n, v) 
+                       (pair str (option str))
                    wrap (Var, fun (Var(n, v)) -> n, v) (pair str (option str))
                    wrap0 AlwaysRerun
-                   wrap (GetFiles, fun (GetFiles(fs, fi)) -> fs, fi)
+                   
+                   wrap (GetFiles, fun (GetFiles(fs, fi)) -> fs, fi) 
                        (pair filesetPickler filelistPickler) |]
-
-        let result =
-            wrap
-                ((fun (r, built, deps, steps) -> { Result = r; Built = built; Depends = deps; Steps = steps }),
-                 fun r -> (r.Result, r.Built, r.Depends, r.Steps))
+        
+        let result = 
+            wrap 
+                ((fun (r, built, deps, steps) -> 
+                 { Result = r
+                   Built = built
+                   Depends = deps
+                   Steps = steps }), 
+                 fun r -> (r.Result, r.Built, r.Depends, r.Steps)) 
                 (quad target date (list dependency) (list step))
-
-        let dbHeader =
-            wrap
-                ((fun (sign, ver, scriptDate) -> { DatabaseHeader.XakeSign = sign; XakeVer = ver; ScriptDate = scriptDate }),
-                 fun h -> (h.XakeSign, h.XakeVer, h.ScriptDate))
+        
+        let dbHeader = 
+            wrap 
+                ((fun (sign, ver, scriptDate) -> 
+                 { DatabaseHeader.XakeSign = sign
+                   XakeVer = ver
+                   ScriptDate = scriptDate }), 
+                 fun h -> (h.XakeSign, h.XakeVer, h.ScriptDate)) 
                 (triple str str date)
-
-    module private impl =
+    
+    module private impl = 
         open System.IO
-
-        let internal writeHeader w =
-            let h =
-                {
-                    DatabaseHeader.XakeSign = "XAKE"
-                    XakeVer = XakeVersion
-                    ScriptDate = System.DateTime.Now }
+        
+        let internal writeHeader w = 
+            let h = 
+                { DatabaseHeader.XakeSign = "XAKE"
+                  XakeVer = XakeVersion
+                  ScriptDate = System.DateTime.Now }
             Persist.dbHeader.pickle h w
-
-        let internal openDatabaseFile path (logger:ILogger) = 
+        
+        let internal openDatabaseFile path (logger : ILogger) = 
             let log = logger.Log
             let resultPU = Persist.result
-
             let dbpath, bkpath = path </> ".xake", path </> ".xake" <.> "bak"
-
             // if exists backup restore
-            if File.Exists(bkpath) then
-                log Level.Message "Backup file found ('%s'), restoring db" bkpath
-                try
+            if File.Exists(bkpath) then 
+                log Level.Message "Backup file found ('%s'), restoring db" 
+                    bkpath
+                try 
                     File.Delete(dbpath)
                 with _ -> ()
                 File.Move(bkpath, dbpath)
             let db = ref (newDatabase())
             let recordCount = ref 0
             // read database
-            if File.Exists(dbpath) then
-                try
+            if File.Exists(dbpath) then 
+                try 
                     use reader = new BinaryReader(File.OpenRead(dbpath))
                     let stream = reader.BaseStream
                     let header = Persist.dbHeader.unpickle reader
-                    if header.XakeVer < XakeVersion then
-                        failwith "Database version is old. Recreating"
+                    if header.XakeVer < XakeVersion then 
+                        failwith "Database version is old."
                     while stream.Position < stream.Length do
                         let result = resultPU.unpickle reader
                         db := result |> addResult !db
                         recordCount := !recordCount + 1
                 // if fails create new
-                with ex ->
-                    log Level.Error "Failed to read database, so recreating. Got \"%s\"" <| ex.ToString()
-                    try
+                with ex -> 
+                    log Level.Error 
+                        "Failed to read database, so recreating. Got \"%s\"" 
+                    <| ex.ToString()
+                    try 
                         File.Delete(dbpath)
                     with _ -> ()
             // check if we can cleanup db
-            if !recordCount > (!db).Status.Count * 5 then
+            if !recordCount > (!db).Status.Count * 5 then 
                 log Level.Message "Compacting database"
                 File.Move(dbpath, bkpath)
-
-                use writer = new BinaryWriter(File.Open(dbpath, FileMode.CreateNew))
+                use writer = 
+                    new BinaryWriter(File.Open(dbpath, FileMode.CreateNew))
                 writeHeader writer
-                (!db).Status |> Map.toSeq |> Seq.map snd |> Seq.iter (fun r -> resultPU.pickle r writer)
+                (!db).Status
+                |> Map.toSeq
+                |> Seq.map snd
+                |> Seq.iter (fun r -> resultPU.pickle r writer)
                 File.Delete(bkpath)
-
-            let dbwriter = new BinaryWriter(File.Open (dbpath, FileMode.Append, FileAccess.Write))
+            let dbwriter = 
+                new BinaryWriter(File.Open
+                                     (dbpath, FileMode.Append, FileAccess.Write))
             if dbwriter.BaseStream.Position = 0L then writeHeader dbwriter
-
             db, dbwriter
-
-    type DatabaseApi =
+    
+    type DatabaseApi = 
         | GetResult of Target * AsyncReplyChannel<Option<BuildResult>>
         | Store of BuildResult
         | Close
         | CloseWait of AsyncReplyChannel<unit>
-
+    
     let resultPU = Persist.result
-
+    
     /// <summary>
     /// Opens database.
     /// </summary>
     /// <param name="path"></param>
     /// <param name="logger"></param>
-    let openDb path (logger : ILogger) =
-
+    let openDb path (logger : ILogger) = 
         let db, dbwriter = impl.openDatabaseFile path logger
-
-        MailboxProcessor.Start(fun mbox ->
-            let rec loop (db) =
-                async {
+        MailboxProcessor.Start(fun mbox -> 
+            let rec loop (db) = 
+                async { 
                     let! msg = mbox.Receive()
                     match msg with
-                    | GetResult(key, chnl) ->
-                        db.Status |> Map.tryFind key |> chnl.Reply
+                    | GetResult(key, chnl) -> 
+                        db.Status
+                        |> Map.tryFind key
+                        |> chnl.Reply
                         return! loop (db)
-                    | Store result ->
+                    | Store result -> 
                         Persist.result.pickle result dbwriter
                         return! loop (result |> addResult db)
-                    | Close ->
+                    | Close -> 
                         logger.Log Info "Closing database"
                         dbwriter.Dispose()
                         return ()
-                    | CloseWait ch ->
+                    | CloseWait ch -> 
                         logger.Log Info "Closing database"
                         dbwriter.Dispose()
                         ch.Reply()

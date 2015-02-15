@@ -5,6 +5,18 @@ module Fileset =
 
     open System.IO
 
+    /// <summary>
+    /// Defines interface to a file system
+    /// </summary>
+    type FileSystemType = {
+        GetDisk: string -> string
+        GetDirRoot: string -> string
+        GetParent: string -> string
+        AllDirs: string -> string seq
+        ScanDirs: string -> string -> string seq  // mask -> dir -> dirs
+        ScanFiles: string -> string -> string seq // mask -> dir -> files
+    }
+
     type FilePattern = string
 
     /// <summary>
@@ -13,6 +25,7 @@ module Fileset =
     type PatternPart =
         | FsRoot
         | Parent
+        | CurrentDir
         | Disk of string
         | DirectoryMask of string
         | Directory of string
@@ -42,6 +55,9 @@ module Fileset =
 
         open System.Text.RegularExpressions
 
+        let dirSeparator = Path.DirectorySeparatorChar
+        let notNullOrEmpty = System.String.IsNullOrEmpty >> not
+
         let driveRegex = Regex(@"^[A-Za-z]:$", RegexOptions.Compiled)
         let isMask (a:string) = a.IndexOfAny([|'*';'?'|]) >= 0
         let iif fn b c a = match fn a with | true -> b a | _ -> c a
@@ -63,50 +79,94 @@ module Fileset =
 
         /// Converts Ant-style file pattern to a list of parts
         let parseDirFileMask (parseDir:bool) pattern =
-
+         
+            let pattern = pattern |> String.map (function |'\\' | '/' -> dirSeparator | ch -> ch)
             let mapPart = function
                 | "**" -> Recurse
+                | "." -> CurrentDir
                 | ".." -> Parent (* works well now with Path.Combine() *)
                 | a when a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
                 | a -> a |> iif isMask DirectoryMask Directory
 
             let dir = if parseDir then pattern else Path.GetDirectoryName(pattern)
-            let parts = if dir = null then [||] else dir.Split([|'\\';'/'|], System.StringSplitOptions.RemoveEmptyEntries)
+            let parts = if dir = null then [||] else dir.Split([|dirSeparator|], System.StringSplitOptions.RemoveEmptyEntries)
 
             // parse root "\" to FsRoot
-            let fsroot = if dir <> null && (dir.StartsWith("\\") || dir.StartsWith("/")) then [FsRoot] else []
+            let fsroot = if notNullOrEmpty dir && dir.[0] = dirSeparator then [FsRoot] else []
             let filepart = if parseDir then [] else [pattern |> Path.GetFileName |> (iif isMask FileMask FileName)]
 
-            Pattern <| fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
-            
-        /// Recursively applies the pattern rules to every item is start list
-        let listFiles startIn (Pattern pat) =
+            let rec n = function
+            | Directory _::Parent::t -> t
+            | CurrentDir::t -> t
+            | [] -> []
+            | x::tail -> x::(n tail)
 
-            let scanall dir = Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
+            let rec nr = function
+                | [] -> []
+                | x::[] -> [x]
+                | x::tail ->               
+                    match x::(nr tail) with
+                    | Directory _::Parent::t -> t
+                    | CurrentDir::t -> t
+                    | _ as rest -> rest
 
-            // The pattern without mask become "explicit" file reference which is always included in resulting file list, regardless file presence. See impl notes for details.
-            let isExplicitRule = pat |> List.exists (function | DirectoryMask _ | FileMask _ -> true | _ -> false)
-            let filterDir = if isExplicitRule then Seq.filter Directory.Exists else id
-            let filterFile = if isExplicitRule then Seq.filter File.Exists else id
+            let rawParts = fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
+            rawParts |> nr |> Pattern
 
-            let applyPart (paths:#seq<string>) = function
-            | Disk d          -> seq {yield d + "\\"}
-            | FsRoot          -> paths |> Seq.map Directory.GetDirectoryRoot
-            | Parent          -> paths |> Seq.map (Directory.GetParent >> fullname)
-            | Recurse         -> paths |> Seq.collect scanall |> Seq.append paths
-            | DirectoryMask m -> paths |> Seq.collect (fun dir -> Directory.EnumerateDirectories(dir, m, SearchOption.TopDirectoryOnly))
-            | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> filterDir
-            | FileMask mask   -> paths |> Seq.collect (fun dir -> Directory.EnumerateFiles(dir, mask))
-            | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) |> filterFile
-            in
-            pat |> List.fold applyPart startIn
-        
         /// Parses file mask
         let parseFileMask = parseDirFileMask false
 
         /// Parses file mask
         let parseDir = parseDirFileMask true
+        
+        let FileSystem = {
+            GetDisk = fun d -> d + Path.DirectorySeparatorChar.ToString()
+            GetDirRoot = fun x -> Directory.GetDirectoryRoot x
+            GetParent = Directory.GetParent >> fullname
+            AllDirs = fun dir -> Directory.EnumerateDirectories(dir, "*", SearchOption.AllDirectories)
+            ScanDirs = fun mask dir -> Directory.EnumerateDirectories(dir, mask, SearchOption.TopDirectoryOnly)
+            ScanFiles = fun mask dir -> Directory.EnumerateFiles(dir, mask)
+        }
 
+        /// <summary>
+        ///  Changes current directory
+        /// </summary>
+        /// <param name="fs">File system implementation</param>
+        /// <param name="startIn">Starting path</param>
+        /// <param name="path">target path</param>
+        let cd (fs:FileSystemType) startIn (Pattern path) =
+            // TODO check path exists after each step
+            let applyPart (path:string) = function
+            | CurrentDir  -> path
+            | Disk d      -> fs.GetDisk d
+            | FsRoot      -> path |> fs.GetDirRoot
+            | Parent      -> path |> fs.GetParent
+            | Directory d -> Path.Combine(path, d)
+            | _ -> failwith "ChDir could only contain disk or directory names"
+            in
+            path |> List.fold applyPart startIn
+            
+        /// Recursively applies the pattern rules to every item is start list
+        let listFiles (fs:FileSystemType) startIn (Pattern pat) =
+
+            // The pattern without mask become "explicit" file reference which is always included in resulting file list, regardless file presence. See impl notes for details.
+            let isExplicitRule = pat |> List.exists (function | DirectoryMask _ | FileMask _ | Recurse -> true | _ -> false) |> not
+            let filterDir = if isExplicitRule then id else Seq.filter Directory.Exists
+            let filterFile = if isExplicitRule then id else Seq.filter File.Exists
+
+            let applyPart (paths:#seq<string>) = function
+            | Disk d          -> fs.GetDisk d |> Seq.singleton
+            | FsRoot          -> paths |> Seq.map fs.GetDirRoot
+            | CurrentDir      -> paths |> Seq.map id
+            | Parent          -> paths |> Seq.map fs.GetParent
+            | Recurse         -> paths |> Seq.collect fs.AllDirs |> Seq.append paths
+            | DirectoryMask mask -> paths |> Seq.collect (fs.ScanDirs mask)
+            | Directory d     -> paths |> Seq.map (fun dir -> Path.Combine(dir, d)) |> filterDir
+            | FileMask mask   -> paths |> Seq.collect (fs.ScanFiles mask)
+            | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) |> filterFile
+            in
+            pat |> List.fold applyPart startIn
+        
         let eq s1 s2 = System.StringComparer.OrdinalIgnoreCase.Equals(s1, s2)
 
         let matchPart p1 p2 =
@@ -124,13 +184,6 @@ module Fileset =
             | [], [] -> true
             | [], x::xs -> false
             | m::ms, [] -> false
-
-            (* parent support is not complete, supports up to two parent refs TODO normalize mask instead *)
-            | Directory _::Parent::ms, _
-            | Directory _::Directory _::Parent::Parent::ms, _
-            | DirectoryMask _::Parent::ms, _
-            | DirectoryMask _::DirectoryMask _::Parent::Parent::ms, _
-                -> (matchPathsImpl ms p)
 
             | Directory _::Recurse::Parent::ms, _
                 -> (matchPathsImpl (Recurse::ms) p)
@@ -150,13 +203,15 @@ module Fileset =
 
         /// Draft implementation of fileset execute
         /// "Materializes" fileset to a filelist
-        let scan root (Fileset (options,filesetItems)) =
+        let scan fileSystem root (Fileset (options,filesetItems)) =
 
-            let startDir = options.BaseDir |> ifNone root
+            let startDirPat = options.BaseDir |> ifNone root |> parseDir
+            let startDir = startDirPat |> cd fileSystem "."
+
             // TODO check performance, build function
-            let includes src = [startDir] |> listFiles >> Seq.append src
+            let includes src = [startDir] |> (listFiles fileSystem) >> Seq.append src
             let excludes src pat =
-                let matchFile = pat |> joinPattern (startDir |> parseDir) |> matchesPattern in
+                let matchFile = pat |> joinPattern startDirPat |> matchesPattern in
                 src |> Seq.filter (matchFile >> not)
 
             let folditem i = function
@@ -292,10 +347,19 @@ module Fileset =
         // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
 
         // TODO alternative implementation, convert pattern to a match function using combinators
-        Impl.matchesPattern <| joinPattern (rootPath |> parseDir) (filePattern |> parseFileMask)
+        Impl.matchesPattern <| joinPattern (parseDir rootPath) (parseFileMask filePattern)
+    
+    let FileSystem = Impl.FileSystem
             
-    /// "Materializes fileset to a filelist
-    let toFileList = Impl.scan
+    /// <summary>
+    /// "Materializes" fileset to a filelist
+    /// </summary>
+    let toFileList = Impl.scan Impl.FileSystem
+
+    /// <summary>
+    /// The same as toFileList but allows to provide file system adapter
+    /// </summary>
+    let toFileList1 = Impl.scan
 
     type ListDiffType<'a> = | Added of 'a | Removed of 'a
 

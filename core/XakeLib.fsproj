@@ -6,7 +6,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{6B39C22F-6741-428D-B21A-33580AF7BD8E}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>tests</RootNamespace>
+    <RootNamespace>Xake.Core</RootNamespace>
     <AssemblyName>Xake.Core</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <Name>XakeLib</Name>
@@ -17,7 +17,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <Tailcalls>false</Tailcalls>
-    <OutputPath>..\bin\</OutputPath>
+    <OutputPath>..\bin\Debug</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <StartAction>Program</StartAction>
@@ -26,13 +26,14 @@
     <StartArguments>\projects\Mine\xake\samples\ar\build.fsx</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
+    <DebugType>none</DebugType>
     <Optimize>true</Optimize>
     <Tailcalls>true</Tailcalls>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>..\bin</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
-    <DocumentationFile>bin\Release\tests.XML</DocumentationFile>
+    <DocumentationFile>..\bin\Xake.Core.XML</DocumentationFile>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
@@ -50,6 +51,7 @@
     <Compile Include="Fileset.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Core.fs" />
+    <Compile Include="WorkerPool.fs" />
     <Compile Include="XakeScript.fs" />
     <Compile Include="Common.fs" />
     <Compile Include="FileTasks.fs" />

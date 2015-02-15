@@ -8,6 +8,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csc", "csc", "{4A657E43-9D0
 		samples\csc\a.cs = samples\csc\a.cs
 		samples\csc\build.fsx = samples\csc\build.fsx
 		samples\csc\helloworld.fsx = samples\csc\helloworld.fsx
+		samples\csc\hw-net2-net4.fsx = samples\csc\hw-net2-net4.fsx
 		samples\csc\hwmono.fsx = samples\csc\hwmono.fsx
 	EndProjectSection
 EndProject
@@ -16,27 +17,22 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ar", "ar", "{B8F979DC-5E33-
 		samples\ar\build.fsx = samples\ar\build.fsx
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Wiki", "Wiki", "{75E5F305-BC77-4A89-A1C8-3433E212A9E9}"
-	ProjectSection(SolutionItems) = preProject
-		implnotes.md = implnotes.md
-		readme.md = readme.md
-		todo.md = todo.md
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{95BC11CD-0495-44ED-B195-113B69D61F86}"
-	ProjectSection(SolutionItems) = preProject
-		readme.md = readme.md
-		todo.md = todo.md
-	EndProjectSection
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLib", "core\XakeLib.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "msbuild", "msbuild", "{217A4EC0-6FF7-40E9-9E0C-12B0DF1B8BA7}"
 	ProjectSection(SolutionItems) = preProject
 		samples\msbuild\build.fsx = samples\msbuild\build.fsx
 	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Wiki", "Wiki", "{75E5F305-BC77-4A89-A1C8-3433E212A9E9}"
+	ProjectSection(SolutionItems) = preProject
+		docs\implnotes.md = docs\implnotes.md
+		docs\overview.md = docs\overview.md
+		readme.md = readme.md
+		docs\todo.md = docs\todo.md
+	EndProjectSection
+EndProject
+Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "XakeLib", "core\XakeLib.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
+EndProject
+Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -44,17 +40,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B7A9196-F7F9-47E6-ABC7-381432F613B2}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
+		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B39C22F-6741-428D-B21A-33580AF7BD8E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
@@ -63,5 +56,8 @@ Global
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = core\XakeLib.fsproj
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

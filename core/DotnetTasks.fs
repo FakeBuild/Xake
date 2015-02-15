@@ -31,6 +31,8 @@ module DotNetTaskTypes =
             Define: string list
             /// Allows unsafe code.
             Unsafe: bool
+            /// Target .NET framework
+            TargetFramework: string
             /// Custom command-line arguments
             CommandArgs: string list
             /// Build fails on compile error.
@@ -88,16 +90,12 @@ module DotnetTasks =
         Resources = []
         Define = []
         Unsafe = false
+        TargetFramework = null
         CommandArgs = []
         FailOnError = true
     }
 
     module internal Impl =
-        let private refIid = ref 0
-
-        let internal newProcPrefix () = 
-            System.Threading.Interlocked.Increment(refIid) |> sprintf "[CSC%i]"
-
         /// Escapes argument according to CSC.exe rules (see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx)
         let escapeArgument (str:string) =
             let escape c s =
@@ -199,8 +197,6 @@ module DotnetTasks =
         let platformStr = function
             |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
         
-        let pfx = Impl.newProcPrefix()
-
         action {
             let! options = getCtxOptions()
             let getFiles = toFileList options.ProjectRoot
@@ -219,6 +215,28 @@ module DotnetTasks =
 
             do! needFiles (Filelist (src @ refs @ resfiles))
 
+            let! globalTargetFwk = getVar "NETFX-TARGET"
+            let targetFramework =
+                match settings.TargetFramework, globalTargetFwk with
+                | s, _ when s <> null && s <> "" -> s
+                | _, Some s when s <> "" -> s
+                | _ -> null
+
+            let (globalRefs,nostdlib,noconfig) =
+                match targetFramework with
+                | null ->
+                    let mapfn = (+) "/r:"
+                    // TODO provide an option for user to explicitly specify all grefs (currently csc.rsp is used)
+                    (settings.RefGlobal |> List.map mapfn), false, false
+                | tgt ->
+                    let fwk = Some tgt |> DotNetFwk.locateFramework in
+                    let lookup = DotNetFwk.locateAssembly fwk
+                    let mapfn = (fun name -> "/r:" + (lookup name))
+
+                    //do! writeLog Info "Using libraries from %A" fwk.AssemblyDirs
+
+                    ("mscorlib.dll" :: settings.RefGlobal |> List.map mapfn), true, true
+
             let args =
                 seq {
                     yield "/nologo"
@@ -229,6 +247,9 @@ module DotnetTasks =
                     if settings.Unsafe then
                         yield "/unsafe"
 
+                    if nostdlib then
+                        yield "/nostdlib+"
+
                     if not outFile.IsUndefined then
                         yield sprintf "/out:%s" outFile.FullName
 
@@ -236,8 +257,9 @@ module DotnetTasks =
                         yield "/define:" + (settings.Define |> String.concat ";")
 
                     yield! src |> List.map (fun f -> f.FullName) 
+
                     yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
-                    yield! settings.RefGlobal |> List.map ((+) "/r:")
+                    yield! globalRefs
 
                     yield! resinfos |> List.map (fun(name,file,_) -> sprintf "/res:%s,%s" file.FullName name)
                     yield! settings.CommandArgs
@@ -246,17 +268,23 @@ module DotnetTasks =
             let! dotnetFwk = getVar "NETFX"
             let fwkInfo = DotNetFwk.locateFramework dotnetFwk
 
-// for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
+// TODO for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
             let rspFile = Path.GetTempFileName()
             File.WriteAllLines(rspFile, args |> Seq.map Impl.escapeArgument |> List.ofSeq)
-            let commandLine = "@" + rspFile
+            let commandLineArgs = 
+                seq {
+                    if noconfig then
+                        yield "/noconfig"
+                    yield "@" + rspFile
+                    }
+            let commandLine = commandLineArgs |> String.concat " "
 
-            do! writeLog Info "%s compiling '%s' using framework '%s'" pfx outFile.Name fwkInfo.Version
+            do! writeLog Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
             do! writeLog Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
                 SystemOptions with
-                    LogPrefix = pfx
+                    LogPrefix = "[CSC] "
                     StdOutLevel = Level.Verbose     // consider standard compiler output too noisy
                     EnvVars = fwkInfo.EnvVars
                 }
@@ -274,29 +302,29 @@ module DotnetTasks =
             }
             |> Seq.iter File.Delete
 
-            do! writeLog Info "%s done '%s'" pfx outFile.Name
             if exitCode <> 0 then
-                do! writeLog Error "%s ('%s') failed with exit code '%i'" pfx outFile.Name exitCode
-                if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
+                do! writeLog Error "('%s') failed with exit code '%i'" outFile.Name exitCode
+                if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
         }
 
     (* csc options builder *)
     type CscSettingsBuilder() =
 
-        [<CustomOperation("target")>]   member this.Target(s:CscSettingsType, value) = {s with Target = value}
-        [<CustomOperation("out")>]      member this.OutFile(s, value) =     {s with Out = value}
-        [<CustomOperation("src")>]      member this.SrcFiles(s, value) =    {s with Src = value}
+        [<CustomOperation("target")>]    member this.Target(s:CscSettingsType, value) = {s with Target = value}
+        [<CustomOperation("targetfwk")>] member this.TargetFwk(s:CscSettingsType, value) = {s with TargetFramework = value}
+        [<CustomOperation("out")>]       member this.OutFile(s, value) =     {s with Out = value}
+        [<CustomOperation("src")>]       member this.SrcFiles(s, value) =    {s with Src = value}
 
-        [<CustomOperation("ref")>]     member this.Ref(s, value) =         {s with Ref = s.Ref + value}
+        [<CustomOperation("ref")>]       member this.Ref(s, value) =         {s with Ref = s.Ref + value}
         [<CustomOperation("refif")>]     member this.Refif(s, cond, (value:Fileset)) =         {s with Ref = s.Ref +? (cond,value)}
 
-        [<CustomOperation("refs")>]     member this.Refs(s, value) =         {s with Ref = value}
-        [<CustomOperation("grefs")>]    member this.RefGlobal(s, value) =   {s with RefGlobal = value}
+        [<CustomOperation("refs")>]      member this.Refs(s, value) =         {s with Ref = value}
+        [<CustomOperation("grefs")>]     member this.RefGlobal(s, value) =   {s with RefGlobal = value}
         [<CustomOperation("resources")>] member this.Resources(s, value) =   {s with CscSettingsType.Resources = value :: s.Resources}
         [<CustomOperation("resourceslist")>] member this.ResourcesList(s, values) = {s with CscSettingsType.Resources = values @ s.Resources}
 
-        [<CustomOperation("define")>]   member this.Define(s, value) =      {s with Define = value}
-        [<CustomOperation("unsafe")>]   member this.Unsafe(s, value) =      {s with Unsafe = value}
+        [<CustomOperation("define")>]    member this.Define(s, value) =      {s with Define = value}
+        [<CustomOperation("unsafe")>]    member this.Unsafe(s, value) =      {s with Unsafe = value}
 
         member this.Bind(x, f) = f x
         member this.Yield(()) = CscSettings
