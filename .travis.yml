@@ -1,8 +1,20 @@
 language: csharp
 solution: xake.sln
+env: VER=0.1.0
 install:
-  - nuget restore xake.sln
-  - nuget install NUnit.Runners -Version 2.6.4 -OutputDirectory testrunner
+- nuget restore xake.sln
+- nuget install NUnit.Runners -Version 2.6.4 -OutputDirectory testrunner
 script:
-  - xbuild /p:Configuration=Release xake.sln
-  - mono ./testrunner/NUnit.Runners.2.6.4/tools/nunit-console.exe ./bin/XakeLibTests.dll
+- echo module XakeConst [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\" > ./VersionInfo.fs
+- xbuild /p:Configuration=Release xake.sln
+- mono ./testrunner/NUnit.Runners.2.6.4/tools/nunit-console.exe ./bin/XakeLibTests.dll
+deploy:
+  provider: releases
+  api_key:
+    secure: Lgn2Hnagx7tYvO7gIVTiH/81DseqMyjAPrKczz7xoIH7BizFZPlErqukMY8sEIXAPyeTVDoZa1hh1Jm+49YeFqihubwHcdSk1YAc56Fo535CpFxLpESZ7I5T1fAFCG1ose1p/TZarrVWUTE2oaB7gnAhQBlcoUWp/xyMRnygMAI=
+  file:
+  - ./bin/Xake.Core.dll
+  - ./bin/Xake.Core.XML
+  skip_cleanup: true
+  on:
+    tags: true
