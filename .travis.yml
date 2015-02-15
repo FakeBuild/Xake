@@ -5,7 +5,7 @@ install:
 - nuget restore xake.sln
 - nuget install NUnit.Runners -Version 2.6.4 -OutputDirectory testrunner
 script:
-- echo module XakeConst [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\" > ./VersionInfo.fs
+- echo "module XakeConst [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\"" > ./VersionInfo.fs
 - xbuild /p:Configuration=Release xake.sln
 - mono ./testrunner/NUnit.Runners.2.6.4/tools/nunit-console.exe ./bin/XakeLibTests.dll
 deploy:
