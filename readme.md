@@ -33,7 +33,7 @@ do xake XakeOptions {
 }
 ```
 
-This script compiles helloworld assembly from the source file the the same name.
+This script compiles helloworld assembly from helloworld.cs file.
 
 ## Getting started (Mono and Microsoft's .NET framework)
 
