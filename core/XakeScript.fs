@@ -285,7 +285,7 @@ module XakeScript =
             let db = Storage.openDb options.ProjectRoot logger
             let ctx = {Ordinal = 0; TaskPool = pool; Throttler = throttler; Options = options; Rules = rules; Logger = logger; RootLogger = logger; Db = db }
 
-            logger.Log Message "Options: %A" options
+            logger.Log Info "Options: %A" options
 
             let rec unwindAggEx (e:System.Exception) = seq {
                 match e with
