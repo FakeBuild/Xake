@@ -51,9 +51,10 @@
     <Compile Include="FileTasksTests.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\core\XakeLib.fsproj">
-      <Name>XakeLib</Name>
-      <Project>{6B39C22F-6741-428D-B21A-33580AF7BD8E}</Project>
+    <ProjectReference Include="..\core\Xake.Core.fsproj">
+      <Name>Xake.Core</Name>
+      <Project>{6b39c22f-6741-428d-b21a-33580af7bd8e}</Project>
+      <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
