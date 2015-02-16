@@ -30,12 +30,6 @@
 
 ## The first script
 
-In order to use xake add the reference to core xake library:
-
-``` fsharp
-#r @"../../bin/Xake.Core.dll"
-```
-
 The most simple, but structured script looks as follows:
 
 ```fsharp
@@ -64,6 +58,42 @@ Here are we doing the following steps:
 1. define a "main" function of a build script
 1. specify the default target ("main") requires "hw.exe" target
 1. define the rule for "hw.exe" target
+
+### Boostrapping Xake.Core
+
+The steps above assumes you've downloaded xake core assembly to .tools folder.
+The next script demonstrates how to create the build script that does not require any installation steps:
+
+```fsharp
+// boostrapping xake.core
+System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
+
+let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
+if not (System.IO.File.Exists file) then
+    printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.1.2/Xake.Core.dll"
+    use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
+    printfn ""
+
+// xake build file body
+#r @"packages/Xake.Core.dll"
+
+open Xake
+
+do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
+
+  rule ("main" ==> ["helloworld.exe"])
+
+  rule("*.exe" *> fun exe -> action {
+    do! Csc {
+      CscSettings with
+        Out = exe
+        Src = !! (exe.Name -. "cs")
+      }
+    })
+
+}
+```
 
 ## So what?
 Pretty much the same result could be obtained in traditional build system without ever mentioning declarative approach. However `xake` will not only create the requested binaries but would also remember the rules it followed and any dependencies it discovered.

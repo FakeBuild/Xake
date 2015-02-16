@@ -2,6 +2,10 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5DF9487A-79E1-412A-BF67-5F02999A1988}"
+	ProjectSection(SolutionItems) = preProject
+		samples\bootstrap-build.fsx = samples\bootstrap-build.fsx
+		samples\build.fsx = samples\build.fsx
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csc", "csc", "{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD}"
 	ProjectSection(SolutionItems) = preProject

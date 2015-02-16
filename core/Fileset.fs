@@ -326,7 +326,7 @@ module Fileset =
     /// <summary>
     /// Changes or appends file extension.
     /// </summary>
-    let (-.) (file:FileInfo) newExt = Path.ChangeExtension(file.FullName,newExt)
+    let (-.) path ext = Path.ChangeExtension(path, ext)
 
     /// <summary>
     /// Combines two paths.

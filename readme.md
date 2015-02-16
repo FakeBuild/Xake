@@ -10,6 +10,31 @@ See [documentation](docs/overview.md) for more details.
 
 [![Build Status](https://travis-ci.org/OlegZee/Xake.svg?branch=master)](https://travis-ci.org/OlegZee/Xake)
 
+## The script
+
+The simple script might look like:
+```fsharp
+#r @"Xake.Core.dll"
+
+open Xake
+
+do xake XakeOptions {
+
+  rule ("main" ==> ["helloworld.exe"])
+
+  rule("*.exe" *> fun exe -> action {
+    do! Csc {
+      CscSettings with
+        Out = exe
+        Src = !! (exe.Name -. "cs")
+      }
+    })
+
+}
+```
+
+This script compiles helloworld assembly from the source file the the same name.
+
 ## Getting started (Mono and Microsoft's .NET framework)
 
 Clone the project:
