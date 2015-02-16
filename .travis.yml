@@ -18,4 +18,4 @@ deploy:
   skip_cleanup: true
   on:
     tags: true
-	condition: "${TRAVIS_TAG:0:1} = v"
+    condition: "${TRAVIS_TAG:0:1} = v"
