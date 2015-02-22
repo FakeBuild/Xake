@@ -29,15 +29,15 @@ Error handling assumes the following system behavior:
   * idea: dump the whole trace to the target
 
 ## Incremental build
-Xake attempts to reduce build time by analyzing results of last build. The following rules are implemented:
+Xake attempts to reduce build time by analyzing results of last build. Build rule is executed if any of these conditions are met:
 
- * if any of dependency source files are changed
- * if dependency artifact was rebuilt
- * if there no dependencies at all (e.g. "clean" task), otherwise with incremental builds it will never rebuild
- * in case action is marked with alwaysRerun
+ * any of dependency source files are changed
+ * dependency artifact was rebuilt
+ * there no dependencies at all (e.g. "clean" task), otherwise with incremental builds it will never rebuild
+ * action is marked with alwaysRerun
  * environment variable or script variable the script or any task requests is changed
 
-### Option 2. Analyze last run
+### Implementation: Analyze last run
 This option is found in "shake" project. It stores all targets and their dependencies in database. Whenever the target is requested it checks
 whether it needs to be built by analyzing whether any dependencies are changed.
 The benefits of this approach in comparison to option 1 are:

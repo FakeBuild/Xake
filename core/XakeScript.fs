@@ -100,14 +100,14 @@ module XakeScript =
             let matchRule rule = 
                 match rule, target with
                     |FileConditionRule (f,_), FileTarget file when (f file.FullName) = true ->
-                            // writeLog Verbose "Found phony pattern '%s'" name
-                            Some (rule)
+                        //writeLog Level.Debug "Found conditional pattern '%s'" name
+                        Some (rule)
                     |FileRule (pattern,_), FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
-                            // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
-                            Some (rule)
+                        // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
+                        Some (rule)
                     |PhonyRule (name,_), PhonyAction phony when phony = name ->
-                            // writeLog Verbose "Found phony pattern '%s'" name
-                            Some (rule)
+                        // writeLog Verbose "Found phony pattern '%s'" name
+                        Some (rule)
                     | _ -> None
                 
             rules |> List.tryPick matchRule
@@ -130,7 +130,7 @@ module XakeScript =
             {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger}
 
         /// Gets true if rebuild is required
-        let rec needRebuild ctx (tgt:Target) result =
+        let rec needRebuild ctx (tgt:Target) lastResult =
 
             // check simple rules (all but ArtifactDep) synchronously
             // request "dependencies"
@@ -163,7 +163,7 @@ module XakeScript =
                     else
                         true, sprintf "File list is changed for changeset %A: %A" fileset diff
 
-            match result with
+            match lastResult with
                 | Some {BuildResult.Depends = []} ->
                     true, "No dependencies", []
 
@@ -188,6 +188,7 @@ module XakeScript =
                     async {return true}
                 | _, _, (deps: Target list) ->
                     async {
+                        // ISSUE executes the task despite the name (should just request the status)
                         let! status = execNeed ctx deps
                         return fst status = ExecStatus.Succeed
                     }
@@ -216,17 +217,18 @@ module XakeScript =
                             return ExecStatus.Skipped
                     }, chnl)
 
-            // result expression is...
-            target
-            |> locateRule ctx.Rules ctx.Options.ProjectRoot
-            |> function
-                | Some (FileRule (_, action))
-                | Some (FileConditionRule (_, action)) ->
+            let actionFromRule = function
+                | FileRule (_, action)
+                | FileConditionRule (_, action) ->
                     let (FileTarget artifact) = target in
                     let (Action r) = action artifact in
                     Some r
-                | Some (PhonyRule (_, Action r)) -> Some r
-                | _ -> None
+                | PhonyRule (_, Action r) -> Some r
+
+            // result expression is...
+            target
+            |> locateRule ctx.Rules ctx.Options.ProjectRoot
+            |> Option.bind actionFromRule
             |> function
                 | Some action ->
                     async {
@@ -235,16 +237,22 @@ module XakeScript =
                         return status, Dependency.ArtifactDep target
                     }
                 | None ->
-                    // should always fail for phony
-                    let (FileTarget file) = target
-                    match file.Exists with
-                    | true -> async {return ExecStatus.JustFile, Dependency.File (file,file.LastWriteTime)}
-                    | false -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
+                    match target with
+                    | FileTarget file when file.Exists ->
+                        async {return ExecStatus.JustFile, Dependency.File (file, file.LastWriteTime)}
+                    | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
 
-        /// Executes several artifacts in parallel
+        /// <summary>
+        /// Executes several artifacts in parallel.
+        /// </summary>
         and private execMany ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
 
-        /// Gets the status of dependency artifacts (obtained from 'need' calls)
+        /// <summary>
+        /// Gets the status of dependency artifacts (obtained from 'need' calls).
+        /// </summary>
+        /// <returns>
+        /// ExecStatus.Succeed,... in case at least one dependency was rebuilt
+        /// </returns>
         and execNeed ctx targets : Async<ExecStatus * Dependency list> =
             async {
                 ctx.Throttler.Release() |> ignore
@@ -252,14 +260,19 @@ module XakeScript =
                 do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
 
                 let dependencies = statuses |> Array.map snd |> List.ofArray in
-                let status = match statuses |> Array.exists (fst >> (=) ExecStatus.Succeed) with
-                                | true -> ExecStatus.Succeed
-                                | _ -> ExecStatus.Skipped
 
-                return status,dependencies
+                return statuses
+                |> Array.exists (fst >> (=) ExecStatus.Succeed)
+                |> function
+                    | true -> ExecStatus.Succeed,dependencies
+                    | false -> ExecStatus.Skipped,dependencies
             }
 
-        // phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
+        /// <summary>
+        /// phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <param name="name"></param>
         let makeTarget ctx name =
             let (Rules rr) = ctx.Rules
             if rr |> List.exists (function |PhonyRule (n,_) when n = name -> true | _ -> false) then
