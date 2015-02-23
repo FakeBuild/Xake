@@ -45,6 +45,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Common.fs" />
     <Compile Include="Logging.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="Pickler.fs" />
@@ -53,7 +54,7 @@
     <Compile Include="Core.fs" />
     <Compile Include="WorkerPool.fs" />
     <Compile Include="XakeScript.fs" />
-    <Compile Include="Common.fs" />
+    <Compile Include="CommonTasks.fs" />
     <Compile Include="FileTasks.fs" />
     <Compile Include="ResourceFileset.fs" />
     <Compile Include="DotNetFwk.fs" />

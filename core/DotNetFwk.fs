@@ -7,7 +7,7 @@ open Xake
 
 module (* internal *) pkg_config =
 
-    open Xake.Common.impl
+    open Xake.CommonTasks.impl
 
     let private pkgcgf args =
         let outp = ref option<string>.None
@@ -171,22 +171,6 @@ module DotNetFwk =
 
     module internal impl =
 
-        type Key<'K> = K of 'K
-        let memoize f =
-            let cache = ref Map.empty
-            let lck = new System.Object()
-            fun x ->
-                match !cache |> Map.tryFind (K x) with
-                | Some v -> v
-                | None ->
-                    lock lck (fun () ->
-                        match !cache |> Map.tryFind (K x) with
-                        | Some v -> v
-                        | None ->
-                            let res = f x
-                            cache := !cache |> Map.add (K x) res
-                            res)
-
         let locateFramework (fwk) : FrameworkInfo =
             let flip f x y = f y x
             let startsWith fragment (s: string option) =
@@ -214,7 +198,7 @@ module DotNetFwk =
     /// Attempts to locate either .NET or Mono framework.
     /// </summary>
     /// <param name="fwk"></param>
-    let locateFramework = impl.memoize impl.locateFramework
+    let locateFramework = Common.memoize impl.locateFramework
 
     /// <summary>
     /// Locates "global" assembly for specific framework
@@ -230,4 +214,4 @@ module DotNetFwk =
             )
             |> function | Some x -> x | None -> file
             
-        impl.memoize lookupFile
+        Common.memoize lookupFile

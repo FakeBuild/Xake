@@ -13,9 +13,9 @@ do xake {XakeOptions with Vars = ["NETFX", "4.0"]; FileLogLevel = Verbosity.Diag
     "check_deps" => action {
         let! ctx = getCtx()
         let tgt = FileTarget (Artifact (ctx.Options.ProjectRoot </> "hw2.exe"))
-        let rebuild, reason = needRebuild2 ctx tgt
+        let reasons = getDirtyState ctx tgt
 
-        printfn "need: %b %s" rebuild reason
+        printfn "need: %A" reasons
     }
 
     "hw2.exe" *> fun exe -> action {

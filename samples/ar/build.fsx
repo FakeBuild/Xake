@@ -7,7 +7,7 @@
 *)
 
 //#r @"..\..\bin\Xake.Core.dll"
-#r @"\projects\xake\bin\Xake.Core.dll"
+#r @"\projects\xake\bin\Debug\Xake.Core.dll"
 open Xake
 
 let DEBUG = true
@@ -68,7 +68,7 @@ do xakeArgs fsi.CommandLineArgs {
 
     // top-level rules
     rules [
-        "main" <== ["build"]
+        "main" <== ["main"]
 
         "all" => action {
             do! need ["clean"]
@@ -80,6 +80,18 @@ do xakeArgs fsi.CommandLineArgs {
         }
 
         "build" <== executables @ dlls
+
+        "deps" => action {
+            let! ctx = getCtx()
+            let reasons = Target.PhonyAction "main" |> getDirtyState ctx
+            printfn "%A" reasons
+
+            //printfn "\r\n\r\n\r\nSlow version:\r\n"
+
+            //let reasons = Target.PhonyAction "main" |> getDirtyStateSlow ctx
+            //printfn "%A" reasons
+        }
+
     ]
 
     rules [

@@ -53,6 +53,14 @@ module XakeScript =
     /// Main type.
     type XakeScript = XakeScript of XakeOptionsType * Rules<ExecContext>
 
+    /// <summary>
+    /// Dependency state.
+    /// </summary>
+    type DepState =
+        | NotChanged
+        | Depends of Target * DepState list
+        | Other of string
+
     /// Default options
     let XakeOptions = {
         ProjectRoot = System.IO.Directory.GetCurrentDirectory()
@@ -127,113 +135,121 @@ module XakeScript =
             in
             {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger}
 
-        // check simple rules (all but ArtifactDep) synchronously
-        // request "dependencies"
-        let isOutdatedDependency getVar getFileList isOutdatedTarget = function
-            | File (a:Artifact, wrtime) ->
-                not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs), sprintf "removed or changed file '%s'" a.Name
+        /// Gets single dependency state
+        let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
+            | File (a:Artifact, wrtime) when not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
+                DepState.Other <| (sprintf "removed or changed file '%s'" a.Name)
 
             | ArtifactDep (FileTarget file) when not file.Exists ->
-                true, sprintf "target doesn't exist '%s'" file.Name
+                DepState.Other <| sprintf "target doesn't exist '%s'" file.Name
 
             | ArtifactDep dependeeTarget ->
-                let r1,d2 = isOutdatedTarget dependeeTarget in
-                r1, d2
-    
-            | EnvVar (name,value) ->
-                let newValue = getEnvVar name
-                in
-                value <> newValue, sprintf "Environment variable %s was changed from '%A' to '%A'" name value newValue
+                let ls = isOutdatedTarget dependeeTarget in
 
-            | Var (name,value) ->
-                let newValue = getVar name
-                in
-                value <> newValue, sprintf "Global script variable %s was changed '%A'->'%A'" name value newValue
-            | AlwaysRerun -> true, "alwaysRerun rule"
-            | GetFiles (fileset,files) ->
-                
+                if List.exists ((<>) DepState.NotChanged) ls then
+                    DepState.Depends (dependeeTarget,ls)
+                else
+                    NotChanged
+    
+            | EnvVar (name,value) when value <> getEnvVar name ->
+                DepState.Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (getEnvVar name)
+
+            | Var (name,value) when value <> getVar name ->
+                DepState.Other <| sprintf "Global script variable %s was changed '%A'->'%A'" name value (getVar name)
+
+            | AlwaysRerun ->
+                DepState.Other <| "alwaysRerun rule"
+
+            | GetFiles (fileset,files) ->                
                 let newfiles = getFileList fileset
                 let diff = compareFileList files newfiles
 
                 if List.isEmpty diff then
-                    false, ""
+                    NotChanged
                 else
-                    true, sprintf "File list is changed for changeset %A: %A" fileset diff
-
-        /// <summary>
-        /// Dependency break reason
-        /// </summary>
-        type Reason =
-            | Artifact of Target * Reason
-            | Other of string
+                    Other <| sprintf "File list is changed for fileset %A: %A" fileset diff
+            | _ -> NotChanged
 
         /// <summary>
         /// Gets all changed dependencies
         /// </summary>
         /// <param name="ctx"></param>
+        /// <param name="getDeps">gets state for nested dependency</param>
         /// <param name="tgt"></param>
-        let rec getDirtyDependencies (ctx:ExecContext) (tgt:Target) =
-
-            // result type: target * reason list
-            // reason
+        let getDepsImpl ctx getDeps tgt =
 
             let lastBuild = (fun ch -> GetResult(tgt, ch)) |> ctx.Db.PostAndReply
-            let isOutdated = isOutdatedDependency (getVar ctx) (toFileList ctx.Options.ProjectRoot) (getDirtyDependencies ctx)
+            let dep_state = getDepState (getVar ctx) (toFileList ctx.Options.ProjectRoot) (getDeps)
 
             match lastBuild with
-                | Some {BuildResult.Depends = []} ->
-                    true, "No dependencies"
+            | Some {BuildResult.Depends = []} ->
+                [DepState.Other "No dependencies"]
 
-                | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
-                    true, "target not found"
+            | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
+                [DepState.Other "target not found"]
 
-                | Some {BuildResult.Depends = depends} ->
-                    let artifactDeps, immediateDeps = depends |> List.partition (function |ArtifactDep (FileTarget file) when file.Exists -> true | _ -> false)
+            | Some {BuildResult.Depends = depends} ->
+                depends |> List.map dep_state |> List.filter ((<>) DepState.NotChanged)
 
-                    match immediateDeps |> List.tryFind (isOutdated >> fst) with
-                    | Some d ->
-                        let _,reason = isOutdated d in
-                        true, reason
-                    | _ ->
-                        let targets = artifactDeps |> List.map (function |ArtifactDep dep -> dep) in
-                        false, "" //, targets
+            | _ ->
+                [DepState.Other "Unknown state"]
+        
+        /// <summary>
+        /// Gets dependencies for specific target
+        /// </summary>
+        /// <param name="ctx"></param>
+        let getDeps (ctx:ExecContext) =
+            let rec mg = Common.memoize (getDepsImpl ctx (fun x -> mg x))
+            in mg
 
-                | _ -> true, "reason unknown (new file&)"
+        /// <summary>
+        /// Gets dependencies for specific target
+        /// </summary>
+        /// <param name="ctx"></param>
+        let rec getDepsSlow (ctx:ExecContext) tgt =
+            // the commented out code is very slow too
+            //let rec mg target = Common.memoize (getDepsImpl ctx mg) target
+            //in mg
+            getDepsImpl ctx (getDepsSlow ctx) tgt
+            
 
         /// Gets true if rebuild is required
-        let rec needRebuild ctx (tgt:Target) lastResult =
+        let rec needRebuild ctx (tgt:Target) =
 
-            let isOutdated = isOutdatedDependency (getVar ctx) (toFileList ctx.Options.ProjectRoot) (fun _ -> false, "")
+            let mapResultBack = function
+                | NotChanged -> false, ""
+                | DepState.Other reason -> true, reason
+                | DepState.Depends (t,_) -> true, "Depends on " + (Target.getFullName t)
 
-            match lastResult with
-                | Some {BuildResult.Depends = []} ->
-                    true, "No dependencies", []
+            let isOutdated = getDepState (getVar ctx) (toFileList ctx.Options.ProjectRoot) (fun _ -> [DepState.NotChanged]) >> mapResultBack
 
-                | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
-                    true, "target not found", []
+            let replyYes reason =
+                do ctx.Logger.Log Info "Rebuild %A: %s" (getShortname tgt) reason
+                async {return true}
 
-                | Some result ->
-                    let artifactDeps, immediateDeps = result.Depends |> List.partition (function |ArtifactDep (FileTarget file) when file.Exists -> true | _ -> false)
+            function
+            | Some {BuildResult.Depends = []} ->
+                replyYes "No dependencies"
 
-                    match immediateDeps |> List.tryFind (isOutdated >> fst) with
-                    | Some d ->
-                        let _,reason = isOutdated d in
-                        true, reason, []
-                    | _ ->
-                        let targets = artifactDeps |> List.map (function |ArtifactDep dep -> dep) in
-                        false, "", targets
+            | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
+                replyYes "target not found"
 
-                | _ -> true, "reason unknown (new file&)", []
-            |> function
-                | true, reason, _ ->
-                    do ctx.Logger.Log Info "Rebuild %A: %s" (getShortname tgt) reason
-                    async {return true}
-                | _, _, (deps: Target list) ->
+            | Some result ->
+                let artifactDeps, immediateDeps = result.Depends |> List.partition (function |ArtifactDep (FileTarget file) when file.Exists -> true | _ -> false)
+
+                match immediateDeps |> List.tryFind (isOutdated >> fst) with
+                | Some d ->
+                    let _,reason = isOutdated d in
+                    replyYes reason
+                | _ ->
+                    let targets = artifactDeps |> List.map (function |ArtifactDep dep -> dep) in
                     async {
                         // ISSUE executes the task despite the name (should just request the status)
-                        let! status = execNeed ctx deps
+                        let! status = execNeed ctx targets
                         return fst status = ExecStatus.Succeed
                     }
+
+            | _ -> replyYes "reason unknown (new file&)"
 
         // executes single artifact
         and private execOne ctx target =
@@ -485,7 +501,12 @@ module XakeScript =
 
     /// Writes a message to a log
     let writeLog = Impl.writeLog
-    let needRebuild2 = Impl.needRebuild2
+
+    /// <summary>
+    /// Gets state of particular target
+    /// </summary>
+    let getDirtyState = Impl.getDeps
+    let getDirtyStateSlow = Impl.getDepsSlow
 
     /// Defined a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
