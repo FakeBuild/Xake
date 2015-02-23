@@ -67,16 +67,13 @@ module XakeScript =
         Vars = List<string*string>.Empty
         }
 
-    let private nullableToOption = function
-        | null -> None
-        | s -> Some s
-
-    let private valueByName variableName = function |name,value when name = variableName -> Some value | _ -> None
-
     module private Impl =
         open WorkerPool
         open BuildLog
         open Storage
+
+        let nullableToOption = function | null -> None | s -> Some s
+        let valueByName variableName = function |name,value when name = variableName -> Some value | _ -> None
 
         let TimeCompareToleranceMs = 100.0
 
@@ -90,7 +87,8 @@ module XakeScript =
 
         let addRule rule (Rules rules) :Rules<_> =    Rules (rule :: rules)
 
-        let getEnvVar = System.Environment.GetEnvironmentVariable
+        let getEnvVar = System.Environment.GetEnvironmentVariable >> nullableToOption
+        let getVar ctx name = ctx.Options.Vars |> List.tryPick (valueByName name)
 
         // Ordinal of the task being added to a task pool
         let refTaskOrdinal = ref 0
@@ -129,39 +127,83 @@ module XakeScript =
             in
             {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger}
 
+        // check simple rules (all but ArtifactDep) synchronously
+        // request "dependencies"
+        let isOutdatedDependency getVar getFileList isOutdatedTarget = function
+            | File (a:Artifact, wrtime) ->
+                not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs), sprintf "removed or changed file '%s'" a.Name
+
+            | ArtifactDep (FileTarget file) when not file.Exists ->
+                true, sprintf "target doesn't exist '%s'" file.Name
+
+            | ArtifactDep dependeeTarget ->
+                let r1,d2 = isOutdatedTarget dependeeTarget in
+                r1, d2
+    
+            | EnvVar (name,value) ->
+                let newValue = getEnvVar name
+                in
+                value <> newValue, sprintf "Environment variable %s was changed from '%A' to '%A'" name value newValue
+
+            | Var (name,value) ->
+                let newValue = getVar name
+                in
+                value <> newValue, sprintf "Global script variable %s was changed '%A'->'%A'" name value newValue
+            | AlwaysRerun -> true, "alwaysRerun rule"
+            | GetFiles (fileset,files) ->
+                
+                let newfiles = getFileList fileset
+                let diff = compareFileList files newfiles
+
+                if List.isEmpty diff then
+                    false, ""
+                else
+                    true, sprintf "File list is changed for changeset %A: %A" fileset diff
+
+        /// <summary>
+        /// Dependency break reason
+        /// </summary>
+        type Reason =
+            | Artifact of Target * Reason
+            | Other of string
+
+        /// <summary>
+        /// Gets all changed dependencies
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <param name="tgt"></param>
+        let rec getDirtyDependencies (ctx:ExecContext) (tgt:Target) =
+
+            // result type: target * reason list
+            // reason
+
+            let lastBuild = (fun ch -> GetResult(tgt, ch)) |> ctx.Db.PostAndReply
+            let isOutdated = isOutdatedDependency (getVar ctx) (toFileList ctx.Options.ProjectRoot) (getDirtyDependencies ctx)
+
+            match lastBuild with
+                | Some {BuildResult.Depends = []} ->
+                    true, "No dependencies"
+
+                | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
+                    true, "target not found"
+
+                | Some {BuildResult.Depends = depends} ->
+                    let artifactDeps, immediateDeps = depends |> List.partition (function |ArtifactDep (FileTarget file) when file.Exists -> true | _ -> false)
+
+                    match immediateDeps |> List.tryFind (isOutdated >> fst) with
+                    | Some d ->
+                        let _,reason = isOutdated d in
+                        true, reason
+                    | _ ->
+                        let targets = artifactDeps |> List.map (function |ArtifactDep dep -> dep) in
+                        false, "" //, targets
+
+                | _ -> true, "reason unknown (new file&)"
+
         /// Gets true if rebuild is required
         let rec needRebuild ctx (tgt:Target) lastResult =
 
-            // check simple rules (all but ArtifactDep) synchronously
-            // request "dependencies"
-            let isOutdated = function
-                | File (a:Artifact, wrtime) ->
-                        not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs), sprintf "removed or changed file '%s'" a.Name
-
-                | ArtifactDep (FileTarget file) ->
-                        not file.Exists, sprintf "target doesn't exist '%s'" file.Name
-
-                | ArtifactDep _ -> false, ""
-    
-                | EnvVar (name,value) ->
-                        let newValue = name |> getEnvVar |> nullableToOption
-                        in
-                        value <> newValue, sprintf "Environment variable %s was changed from '%A' to '%A'" name value newValue
-
-                | Var (varname,value) ->
-                        let newValue = ctx.Options.Vars |> List.tryPick (valueByName varname)
-                        in
-                        value <> newValue, sprintf "Global script variable %s was changed '%A'->'%A'" varname value newValue
-                | AlwaysRerun -> true, "alwaysRerun rule"
-                | GetFiles (fileset,files) ->
-                
-                    let newfiles = fileset |> toFileList ctx.Options.ProjectRoot
-                    let diff = compareFileList files newfiles
-
-                    if List.isEmpty diff then
-                        false, ""
-                    else
-                        true, sprintf "File list is changed for changeset %A: %A" fileset diff
+            let isOutdated = isOutdatedDependency (getVar ctx) (toFileList ctx.Options.ProjectRoot) (fun _ -> false, "")
 
             match lastResult with
                 | Some {BuildResult.Depends = []} ->
@@ -409,7 +451,7 @@ module XakeScript =
     let getEnv variableName = action {
         let! ctx = getCtx()
 
-        let value = variableName |> Impl.getEnvVar |> nullableToOption
+        let value = Impl.getEnvVar variableName
 
         // record the dependency
         let! result = getResult()
@@ -421,7 +463,7 @@ module XakeScript =
     /// Gets the global variable
     let getVar variableName = action {
         let! ctx = getCtx()
-        let value = ctx.Options.Vars |> List.tryPick (valueByName variableName)
+        let value = ctx.Options.Vars |> List.tryPick (Impl.valueByName variableName)
         
         // record the dependency
         let! result = getResult()
@@ -443,6 +485,7 @@ module XakeScript =
 
     /// Writes a message to a log
     let writeLog = Impl.writeLog
+    let needRebuild2 = Impl.needRebuild2
 
     /// Defined a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
