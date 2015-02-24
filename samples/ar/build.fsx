@@ -84,7 +84,7 @@ do xakeArgs fsi.CommandLineArgs {
         "deps" => action {
             let! ctx = getCtx()
             let reasons = Target.PhonyAction "main" |> getDirtyState ctx
-            printfn "%A" reasons
+            printfn "%A" (reasons |> List.fold (fun (ls,cnt) item -> if cnt > 0 then ls @ [item], cnt-1 else ls, 0) ([],10))
 
             //printfn "\r\n\r\n\r\nSlow version:\r\n"
 

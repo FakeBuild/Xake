@@ -59,6 +59,8 @@ module XakeScript =
     type DepState =
         | NotChanged
         | Depends of Target * DepState list
+        | Refs of string list
+        | FilesChanged of string list
         | Other of string
 
     /// Default options
@@ -86,7 +88,7 @@ module XakeScript =
         let TimeCompareToleranceMs = 100.0
 
         /// Writes the message with formatting to a log
-        let writeLog (level:Logging.Level) fmt    =
+        let writeLog (level:Logging.Level) fmt =
             let write s = action {
                 let! (ctx:ExecContext) = getCtx()
                 return ctx.Logger.Log level "%s" s
@@ -138,7 +140,7 @@ module XakeScript =
         /// Gets single dependency state
         let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
             | File (a:Artifact, wrtime) when not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
-                DepState.Other <| (sprintf "removed or changed file '%s'" a.Name)
+                DepState.FilesChanged [a.Name]
 
             | ArtifactDep (FileTarget file) when not file.Exists ->
                 DepState.Other <| sprintf "target doesn't exist '%s'" file.Name
@@ -189,18 +191,54 @@ module XakeScript =
                 [DepState.Other "target not found"]
 
             | Some {BuildResult.Depends = depends} ->
-                depends |> List.map dep_state |> List.filter ((<>) DepState.NotChanged)
+                depends |> List.map dep_state
+                |> List.partition (function |DepState.FilesChanged _ -> true | _ -> false)
+                |> fun (filesDep, rest) ->
+                    let allFiles = filesDep |> List.map (fun (DepState.FilesChanged ls) -> ls) |> List.concat
+                    in
+                    DepState.FilesChanged allFiles :: rest
+                |> List.filter ((<>) DepState.NotChanged)
 
             | _ ->
                 [DepState.Other "Unknown state"]
         
         /// <summary>
-        /// Gets dependencies for specific target
+        /// Gets dependencies for specific target in a human friendly form
         /// </summary>
         /// <param name="ctx"></param>
         let getDeps (ctx:ExecContext) =
-            let rec mg = Common.memoize (getDepsImpl ctx (fun x -> mg x))
-            in mg
+            let rec mg = Common.memoize (getDepsImpl ctx (fun x -> mg x)) in
+
+            let rec take cnt = function |_ when cnt <= 0 -> [] |[] -> [] |a::rest -> a :: (take (cnt-1) rest)
+
+            let distinct =
+                List.fold (fun map item -> if map |> Map.containsKey item then map else map |> Map.add item 1) Map.empty
+                >> Map.toList >> List.map fst
+           
+            // list of targets + first 10 reasons and first 5 files
+            let rec stripReasons = function
+                | DepState.FilesChanged file_list -> file_list |> take 5 |> DepState.FilesChanged
+                //| DepState.Depends (t,deps) -> DepState.Depends (t, []) // deps |> List.map stripReasons
+                | _ as state -> state
+            // make plain dependent targets list for specified target
+            let rec traverseTargets = function
+                | DepState.Depends (t,deps) -> t :: (deps |> List.collect traverseTargets)
+                | _ -> []
+
+            /// Replaces all FileTarget
+            let mergeDeps depends =
+                depends
+                |> List.partition (function |DepState.Depends (FileTarget _,_) -> true | _ -> false)
+                |> fun (filesDep, rest) ->
+                    let allFiles = filesDep |> List.map (fun (DepState.Depends (FileTarget t,ls)) -> [t.FullName]) |> List.concat
+                    in
+                    DepState.Refs allFiles :: rest
+            // TODO where're phony actions
+            // TODO make it more inductive? Consider initial graph but with stripped targets
+
+            let ptgt t = t, t |> mg |> mergeDeps |> List.map stripReasons |> take 5
+            // mg >> List.map stripReasons
+            mg >> List.collect traverseTargets >> distinct >> List.map ptgt
 
         /// <summary>
         /// Gets dependencies for specific target
