@@ -48,6 +48,7 @@ module XakeScript =
         Logger: ILogger
         RootLogger: ILogger
         Ordinal: int
+        NeedRebuild: Target -> bool
     }
 
     /// Main type.
@@ -176,12 +177,12 @@ module XakeScript =
         /// Gets all changed dependencies
         /// </summary>
         /// <param name="ctx"></param>
-        /// <param name="getDeps">gets state for nested dependency</param>
-        /// <param name="tgt"></param>
-        let getDepsImpl ctx getDeps tgt =
+        /// <param name="getTargetDeps">gets state for nested dependency</param>
+        /// <param name="target">The target to analyze</param>
+        let getDepsImpl ctx getTargetDeps target =
 
-            let lastBuild = (fun ch -> GetResult(tgt, ch)) |> ctx.Db.PostAndReply
-            let dep_state = getDepState (getVar ctx) (toFileList ctx.Options.ProjectRoot) (getDeps)
+            let lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
+            let dep_state = getDepState (getVar ctx) (toFileList ctx.Options.ProjectRoot) getTargetDeps
 
             match lastBuild with
             | Some {BuildResult.Depends = []} ->
@@ -215,7 +216,7 @@ module XakeScript =
                 List.fold (fun map item -> if map |> Map.containsKey item then map else map |> Map.add item 1) Map.empty
                 >> Map.toList >> List.map fst
            
-            // list of targets + first 10 reasons and first 5 files
+            // strips the filelists to only 5 items
             let rec stripReasons = function
                 | DepState.FilesChanged file_list -> file_list |> take 5 |> DepState.FilesChanged
                 //| DepState.Depends (t,deps) -> DepState.Depends (t, []) // deps |> List.map stripReasons
@@ -225,7 +226,7 @@ module XakeScript =
                 | DepState.Depends (t,deps) -> t :: (deps |> List.collect traverseTargets)
                 | _ -> []
 
-            /// Replaces all FileTarget
+            /// Collapses all instances of FileTarget to a single one
             let mergeDeps depends =
                 depends
                 |> List.partition (function |DepState.Depends (FileTarget _,_) -> true | _ -> false)
@@ -234,7 +235,7 @@ module XakeScript =
                     in
                     DepState.Refs allFiles :: rest
             // TODO where're phony actions
-            // TODO make it more inductive? Consider initial graph but with stripped targets
+            // can I make it more inductive? Consider initial graph but with stripped targets
 
             let ptgt t = t, t |> mg |> mergeDeps |> List.map stripReasons |> take 5
             // mg >> List.map stripReasons
@@ -248,46 +249,7 @@ module XakeScript =
             // the commented out code is very slow too
             //let rec mg target = Common.memoize (getDepsImpl ctx mg) target
             //in mg
-            getDepsImpl ctx (getDepsSlow ctx) tgt
-            
-
-        /// Gets true if rebuild is required
-        let rec needRebuild ctx (tgt:Target) =
-
-            let mapResultBack = function
-                | NotChanged -> false, ""
-                | DepState.Other reason -> true, reason
-                | DepState.Depends (t,_) -> true, "Depends on " + (Target.getFullName t)
-
-            let isOutdated = getDepState (getVar ctx) (toFileList ctx.Options.ProjectRoot) (fun _ -> [DepState.NotChanged]) >> mapResultBack
-
-            let replyYes reason =
-                do ctx.Logger.Log Info "Rebuild %A: %s" (getShortname tgt) reason
-                async {return true}
-
-            function
-            | Some {BuildResult.Depends = []} ->
-                replyYes "No dependencies"
-
-            | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
-                replyYes "target not found"
-
-            | Some result ->
-                let artifactDeps, immediateDeps = result.Depends |> List.partition (function |ArtifactDep (FileTarget file) when file.Exists -> true | _ -> false)
-
-                match immediateDeps |> List.tryFind (isOutdated >> fst) with
-                | Some d ->
-                    let _,reason = isOutdated d in
-                    replyYes reason
-                | _ ->
-                    let targets = artifactDeps |> List.map (function |ArtifactDep dep -> dep) in
-                    async {
-                        // ISSUE executes the task despite the name (should just request the status)
-                        let! status = execNeed ctx targets
-                        return fst status = ExecStatus.Succeed
-                    }
-
-            | _ -> replyYes "reason unknown (new file&)"
+            getDepsImpl ctx (getDepsSlow ctx) tgt            
 
         // executes single artifact
         and private execOne ctx target =
@@ -295,11 +257,9 @@ module XakeScript =
             let run action chnl =
                 Run(target,
                     async {
-                        let! lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndAsyncReply
-
-                        let! willRebuild = needRebuild ctx target lastBuild
-
-                        if willRebuild then 
+                        match true with
+                        //match ctx.NeedRebuild target with
+                        | true ->
                             let taskContext = newTaskContext ctx                           
                             do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
 
@@ -308,12 +268,12 @@ module XakeScript =
 
                             do ctx.Logger.Log Command "Completed %s" (getShortname target)
                             return ExecStatus.Succeed
-                        else
+                        | false ->
                             do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)
                             return ExecStatus.Skipped
                     }, chnl)
 
-            let actionFromRule = function
+            let getAction = function
                 | FileRule (_, action)
                 | FileConditionRule (_, action) ->
                     let (FileTarget artifact) = target in
@@ -324,7 +284,7 @@ module XakeScript =
             // result expression is...
             target
             |> locateRule ctx.Rules ctx.Options.ProjectRoot
-            |> Option.bind actionFromRule
+            |> Option.bind getAction
             |> function
                 | Some action ->
                     async {
@@ -392,7 +352,34 @@ module XakeScript =
 
             let start = System.DateTime.Now
             let db = Storage.openDb options.ProjectRoot logger
-            let ctx = {Ordinal = 0; TaskPool = pool; Throttler = throttler; Options = options; Rules = rules; Logger = logger; RootLogger = logger; Db = db }
+
+            let ctx = {
+                Ordinal = 0
+                TaskPool = pool; Throttler = throttler
+                Options = options; Rules = rules
+                Logger = logger; RootLogger = logger; Db = db
+                NeedRebuild = fun _ -> false
+                }
+            // TODO wrap more elegantly
+            let rec get_changed_deps = Common.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
+
+            let check_rebuild target =
+                get_changed_deps >>
+                function
+                | [] -> false, ""
+                | DepState.Other reason::_            -> true, reason
+                | DepState.Depends (t,_) ::_          -> true, "Depends on target " + (Target.getFullName t)
+                | DepState.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
+                | _ -> true, "Some reason"
+                >>
+                function
+                | false, _ -> false
+                | true, reason ->
+                    do ctx.Logger.Log Info "Rebuild %A: %s" (getShortname target) reason
+                    true
+                <| target
+
+            let ctx = {ctx with NeedRebuild = check_rebuild}
 
             logger.Log Info "Options: %A" options
 
