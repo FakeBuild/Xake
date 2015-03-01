@@ -68,7 +68,7 @@ do xakeArgs fsi.CommandLineArgs {
 
     // top-level rules
     rules [
-        "main" <== ["main"]
+        "main" <== ["build"]
 
         "all" => action {
             do! need ["clean"]

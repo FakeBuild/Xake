@@ -23,7 +23,7 @@
     <StartAction>Program</StartAction>
     <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\Fsi.exe</StartProgram>
     <StartWorkingDirectory>C:\projects\ar9\Source</StartWorkingDirectory>
-    <StartArguments>build.fsx</StartArguments>
+    <StartArguments>build.fsx deps</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>

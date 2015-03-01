@@ -141,7 +141,8 @@ module XakeScript =
         /// Gets single dependency state
         let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
             | File (a:Artifact, wrtime) when not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
-                DepState.FilesChanged [a.Name]
+                let afile = a in
+                DepState.FilesChanged [afile.Name]
 
             | ArtifactDep (FileTarget file) when not file.Exists ->
                 DepState.Other <| sprintf "target doesn't exist '%s'" file.Name
@@ -192,13 +193,16 @@ module XakeScript =
                 [DepState.Other "target not found"]
 
             | Some {BuildResult.Depends = depends} ->
-                depends |> List.map dep_state
-                |> List.partition (function |DepState.FilesChanged _ -> true | _ -> false)
-                |> fun (filesDep, rest) ->
-                    let allFiles = filesDep |> List.map (fun (DepState.FilesChanged ls) -> ls) |> List.concat
-                    in
-                    DepState.FilesChanged allFiles :: rest
-                |> List.filter ((<>) DepState.NotChanged)
+                let collapseFilesChanged =
+                    ([], []) |> List.fold (fun (files, states) ->
+                        function
+                        | DepState.FilesChanged ls -> (ls @ files),states
+                        | d -> files, d :: states
+                        )
+                    >> function | ([],states) -> states | (files,states) -> DepState.FilesChanged files :: states
+                    >> List.rev
+                    
+                depends |> (List.map dep_state >> collapseFilesChanged >> List.filter ((<>) DepState.NotChanged))
 
             | _ ->
                 [DepState.Other "Unknown state"]
@@ -241,24 +245,13 @@ module XakeScript =
             // mg >> List.map stripReasons
             mg >> List.collect traverseTargets >> distinct >> List.map ptgt
 
-        /// <summary>
-        /// Gets dependencies for specific target
-        /// </summary>
-        /// <param name="ctx"></param>
-        let rec getDepsSlow (ctx:ExecContext) tgt =
-            // the commented out code is very slow too
-            //let rec mg target = Common.memoize (getDepsImpl ctx mg) target
-            //in mg
-            getDepsImpl ctx (getDepsSlow ctx) tgt            
-
         // executes single artifact
-        and private execOne ctx target =
+        let rec private execOne ctx target =
 
             let run action chnl =
                 Run(target,
                     async {
-                        match true with
-                        //match ctx.NeedRebuild target with
+                        match ctx.NeedRebuild target with
                         | true ->
                             let taskContext = newTaskContext ctx                           
                             do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
@@ -370,7 +363,7 @@ module XakeScript =
                 | DepState.Other reason::_            -> true, reason
                 | DepState.Depends (t,_) ::_          -> true, "Depends on target " + (Target.getFullName t)
                 | DepState.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
-                | _ -> true, "Some reason"
+                | reasons -> true, sprintf "Some reason %A" reasons
                 >>
                 function
                 | false, _ -> false
@@ -531,7 +524,6 @@ module XakeScript =
     /// Gets state of particular target
     /// </summary>
     let getDirtyState = Impl.getDeps
-    let getDirtyStateSlow = Impl.getDepsSlow
 
     /// Defined a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
