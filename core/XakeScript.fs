@@ -223,12 +223,30 @@ module XakeScript =
             // strips the filelists to only 5 items
             let rec stripReasons = function
                 | DepState.FilesChanged file_list -> file_list |> take 5 |> DepState.FilesChanged
-                //| DepState.Depends (t,deps) -> DepState.Depends (t, []) // deps |> List.map stripReasons
+                | DepState.Depends (t,deps) -> DepState.Depends (t, deps |> List.map stripReasons)
                 | _ as state -> state
+            
             // make plain dependent targets list for specified target
-            let rec traverseTargets = function
-                | DepState.Depends (t,deps) -> t :: (deps |> List.collect traverseTargets)
+            let rec collectTargets = function
+                | DepState.Depends (t,deps) -> t :: (deps |> List.collect collectTargets)
                 | _ -> []
+
+            let rec visitTargets (dep,visited) =
+                match dep with
+                | DepState.Depends (t,deps) when visited |> Map.containsKey t ->
+                    (DepState.Depends (t,[]), visited)
+
+                | DepState.Depends (t,deps) ->
+                    let deps',visited' =
+                        List.fold (fun (deps,v) d ->
+                            let d',v' = visitTargets (d,v) in
+                            (d'::deps, v')
+                        ) ([],visited |> Map.add t 1) deps
+                    
+                    (DepState.Depends (t, deps' |> List.rev), visited')
+                | s -> (s, visited)
+
+            let stripDuplicates dep = visitTargets (dep, Map.empty) |>  fst
 
             /// Collapses all instances of FileTarget to a single one
             let mergeDeps depends =
@@ -241,9 +259,9 @@ module XakeScript =
             // TODO where're phony actions
             // can I make it more inductive? Consider initial graph but with stripped targets
 
-            let ptgt t = t, t |> mg |> mergeDeps |> List.map stripReasons |> take 5
-            // mg >> List.map stripReasons
-            mg >> List.collect traverseTargets >> distinct >> List.map ptgt
+            //let ptgt t = t, t |> mg |> mergeDeps |> List.map stripReasons |> take 5
+            // mg >> List.collect traverseTargets >> distinct >> List.map ptgt
+            mg >> List.map stripDuplicates
 
         // executes single artifact
         let rec private execOne ctx target =
