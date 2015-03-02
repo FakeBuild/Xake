@@ -305,24 +305,6 @@ module Fileset =
     /// Create a file set for specific file mask. The same as "ls"
     let (!!) = ls
 
-    // TODO move Artifact stuff out of here
-    /// Gets the artifact file name
-    let getFullname = function
-        | FileTarget file -> file.FullName
-        | PhonyAction name -> name
-
-    // Gets the short artifact name
-    let getShortname = function
-        | FileTarget file -> file.Name
-        | PhonyAction name -> name
-
-    /// <summary>
-    /// Gets true if artifact exists.
-    /// </summary>
-    let exists = function
-        | FileTarget file -> file.Exists
-        | PhonyAction _ ->    false // TODO this is suspicious
-
     /// <summary>
     /// Changes or appends file extension.
     /// </summary>

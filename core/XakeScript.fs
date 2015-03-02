@@ -82,6 +82,7 @@ module XakeScript =
         open WorkerPool
         open BuildLog
         open Storage
+        open CommonLib
 
         let nullableToOption = function | null -> None | s -> Some s
         let valueByName variableName = function |name,value when name = variableName -> Some value | _ -> None
@@ -212,13 +213,7 @@ module XakeScript =
         /// </summary>
         /// <param name="ctx"></param>
         let getDeps (ctx:ExecContext) =
-            let rec mg = Common.memoize (getDepsImpl ctx (fun x -> mg x)) in
-
-            let rec take cnt = function |_ when cnt <= 0 -> [] |[] -> [] |a::rest -> a :: (take (cnt-1) rest)
-
-            let distinct =
-                List.fold (fun map item -> if map |> Map.containsKey item then map else map |> Map.add item 1) Map.empty
-                >> Map.toList >> List.map fst
+            let rec mg = memoize (getDepsImpl ctx (fun x -> mg x)) in
            
             // strips the filelists to only 5 items
             let rec stripReasons = function
@@ -372,14 +367,14 @@ module XakeScript =
                 NeedRebuild = fun _ -> false
                 }
             // TODO wrap more elegantly
-            let rec get_changed_deps = Common.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
+            let rec get_changed_deps = CommonLib.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
 
             let check_rebuild target =
                 get_changed_deps >>
                 function
                 | [] -> false, ""
                 | DepState.Other reason::_            -> true, reason
-                | DepState.Depends (t,_) ::_          -> true, "Depends on target " + (Target.getFullName t)
+                | DepState.Depends (t,_) ::_          -> true, "Depends on target " + (getFullName t)
                 | DepState.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
                 | reasons -> true, sprintf "Some reason %A" reasons
                 >>

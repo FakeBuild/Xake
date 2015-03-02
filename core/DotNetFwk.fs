@@ -198,7 +198,7 @@ module DotNetFwk =
     /// Attempts to locate either .NET or Mono framework.
     /// </summary>
     /// <param name="fwk"></param>
-    let locateFramework = Common.memoize impl.locateFramework
+    let locateFramework = CommonLib.memoize impl.locateFramework
 
     /// <summary>
     /// Locates "global" assembly for specific framework
@@ -214,4 +214,4 @@ module DotNetFwk =
             )
             |> function | Some x -> x | None -> file
             
-        Common.memoize lookupFile
+        CommonLib.memoize lookupFile

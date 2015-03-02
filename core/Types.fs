@@ -1,51 +1,106 @@
 ﻿namespace Xake
 
 [<AutoOpen>]
-module DomainTypes =
+module DomainTypes = 
+    let private compareNames a b = System.String.Compare(a, b, true)
+    
+    type Artifact(name : string) = 
+        let fi = lazy (System.IO.FileInfo name)
+    
+        // TODO refine our own type, keep paths relative
+            
+        interface System.IComparable with
+            member me.CompareTo other = 
+                match other with
+                | :? Artifact as a -> compareNames me.Name a.Name
+                | _ -> 1
+        
+        member this.Name = name
+        member this.FullName = fi.Value.FullName
+        
+        member this.Exists = 
+            fi.Value.Refresh()
+            fi.Value.Exists
+        
+        member this.LastWriteTime = 
+            fi.Value.Refresh()
+            fi.Value.LastWriteTime
+        
+        member this.IsUndefined = System.String.IsNullOrWhiteSpace(name)
+        static member Undefined = Artifact(null)
+        
+        override this.Equals(other) = 
+            match other with
+            | :? Artifact as a -> 0 = compareNames this.Name a.Name
+            | _ -> false
+        
+        override me.GetHashCode() = 
+            if me.IsUndefined then 0
+            else name.ToLowerInvariant().GetHashCode()
+        
+        override me.ToString() = name   
 
-  let private compareNames a b = System.String.Compare(a,b,true)
+    type Target = 
+        | FileTarget of Artifact
+        | PhonyAction of string
+    
+    // structures, database processor and store
+    type Timestamp = System.DateTime
+    
+    [<Measure>]
+    type ms
+    
+    type StepInfo = 
+        | StepInfo of string * int<ms>
+    
+    type Dependency = 
+        | File of Artifact * Timestamp // regular file (such as source code file), triggers when file date/time is changed
+        | ArtifactDep of Target // other target (triggers when target is rebuilt)
+        | EnvVar of string * string option // environment variable
+        | Var of string * string option // any other data such as compiler version (not used yet)
+        | AlwaysRerun // trigger always
+        | GetFiles of Fileset * Filelist // depends on set of files. Triggers when resulting filelist is changed
+    
+    type BuildResult = 
+        { Result : Target
+          Built : Timestamp
+          Depends : Dependency list
+          Steps : StepInfo list }
 
-  type Artifact(name:string) =
+    /// Defines common exception type
+    exception XakeException of string
 
-    let fi = lazy (System.IO.FileInfo name)
+[<AutoOpen>]
+module internal ArtifactUtil =    
+    /// <summary>
+    /// Creates a new artifact
+    /// </summary>
+    let internal newArtifact name = Artifact name
 
-    interface System.IComparable with
-      member me.CompareTo other =
-        match other with
-        | :? Artifact as a -> compareNames me.Name a.Name
-        | _ -> 1
+    // TODO move Artifact stuff out of here
 
-    member this.Name = name
-    member this.FullName = fi.Value.FullName
-    member this.Exists =
-        fi.Value.Refresh()
-        fi.Value.Exists
-    member this.LastWriteTime =
-        fi.Value.Refresh()
-        fi.Value.LastWriteTime
+    /// Gets the artifact file name
+    let getFullname = function
+        | FileTarget file -> file.FullName
+        | PhonyAction name -> name
 
-    member this.IsUndefined = System.String.IsNullOrWhiteSpace(name)
-    static member Undefined = Artifact(null)
+    // Gets the short artifact name
+    let getShortname = function
+        | FileTarget file -> file.Name
+        | PhonyAction name -> name
 
-    override this.Equals(other) =
-      match other with
-        | :? Artifact as a -> 0 = compareNames this.Name a.Name
-        | _ -> false
-    override me.GetHashCode() =
-        if me.IsUndefined then 0
-        else name.ToLowerInvariant().GetHashCode()
-    override me.ToString() = name
-    // TODO refine our own type, keep paths relative
+    /// <summary>
+    /// Gets true if artifact exists.
+    /// </summary>
+    let exists = function
+        | FileTarget file -> file.Exists
+        | PhonyAction _ ->    false // TODO this is suspicious
 
-  type Target = FileTarget of Artifact | PhonyAction of string
-  // TODO have no idea where to put this type and related methods (see fileset.fs) to
-
-  let toArtifact name = Artifact name
-
-  /// Defines common exception type
-  exception XakeException of string
-
-module Target =
-  let getFullName = function
-    | FileTarget f -> f.FullName
-    | PhonyAction a -> a
+    /// <summary>
+    /// Gets artifact name
+    /// </summary>
+    /// <param name="getFullName"></param>
+    let getFullName = 
+        function 
+        | FileTarget f -> f.FullName
+        | PhonyAction a -> a

@@ -6,36 +6,7 @@ module BuildLog =
     
     let XakeVersion = "0.2-c"
     
-    // structures, database processor and store
-    type Timestamp = System.DateTime
-    
-    [<Measure>]
-    type ms
-    
-    type StepInfo = 
-        | StepInfo of string * int<ms>
-    
-    type Dependency = 
-        | File of Artifact * Timestamp // regular file (such as source code file), triggers when file date/time is changed
-        | ArtifactDep of Target // other target (triggers when target is rebuilt)
-        | EnvVar of string * string option // environment variable
-        | Var of string * string option // any other data such as compiler version (not used yet)
-        | AlwaysRerun // trigger always
-        | GetFiles of Fileset * Filelist // depends on set of files. Triggers when resulting filelist is changed
-    
-    type BuildResult = 
-        { Result : Target
-          Built : Timestamp
-          Depends : Dependency list
-          Steps : StepInfo list }
-    
-    type DatabaseHeader = 
-        { XakeSign : string
-          XakeVer : string
-          ScriptDate : Timestamp }
-    
-    type Database = 
-        { Status : Map<Target, BuildResult> }
+    type Database = { Status : Map<Target, BuildResult> }
     
     (* API *)
 
@@ -56,19 +27,25 @@ module BuildLog =
 type Agent<'t> = MailboxProcessor<'t>
 
 module Storage = 
+    open Xake
     open BuildLog
     
     module private Persist = 
         open System
         open Pickler
+
+        type DatabaseHeader = 
+            { XakeSign : string
+              XakeVer : string
+              ScriptDate : Timestamp }
         
-        let artifact = wrap (toArtifact, fun a -> a.Name) str
+        let artifact = wrap (newArtifact, fun a -> a.Name) str
         
         let target = 
             alt (function 
                 | FileTarget _ -> 0
                 | PhonyAction _ -> 1) 
-                [| wrap (toArtifact >> FileTarget, fun (FileTarget f) -> f.Name) 
+                [| wrap (newArtifact >> FileTarget, fun (FileTarget f) -> f.Name) 
                        str
                    wrap (PhonyAction, (fun (PhonyAction a) -> a)) str |]
         
@@ -120,15 +97,16 @@ module Storage =
     
     module private impl = 
         open System.IO
+        open Persist
         
-        let internal writeHeader w = 
+        let writeHeader w = 
             let h = 
                 { DatabaseHeader.XakeSign = "XAKE"
                   XakeVer = XakeVersion
                   ScriptDate = System.DateTime.Now }
             Persist.dbHeader.pickle h w
         
-        let internal openDatabaseFile path (logger : ILogger) = 
+        let openDatabaseFile path (logger : ILogger) = 
             let log = logger.Log
             let resultPU = Persist.result
             let dbpath, bkpath = path </> ".xake", path </> ".xake" <.> "bak"
@@ -175,8 +153,7 @@ module Storage =
                 |> Seq.iter (fun r -> resultPU.pickle r writer)
                 File.Delete(bkpath)
             let dbwriter = 
-                new BinaryWriter(File.Open
-                                     (dbpath, FileMode.Append, FileAccess.Write))
+                new BinaryWriter(File.Open (dbpath, FileMode.Append, FileAccess.Write))
             if dbwriter.BaseStream.Position = 0L then writeHeader dbwriter
             db, dbwriter
     
@@ -186,6 +163,9 @@ module Storage =
         | Close
         | CloseWait of AsyncReplyChannel<unit>
     
+    /// <summary>
+    /// Build result pickler.
+    /// </summary>
     let resultPU = Persist.result
     
     /// <summary>
