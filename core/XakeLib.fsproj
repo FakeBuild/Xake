@@ -51,7 +51,7 @@
     <Compile Include="Types.fs" />
     <Compile Include="CommonLib.fs" />
     <Compile Include="Database.fs" />
-    <Compile Include="Core.fs" />
+    <Compile Include="Action.fs" />
     <Compile Include="WorkerPool.fs" />
     <Compile Include="XakeScript.fs" />
     <Compile Include="CommonTasks.fs" />

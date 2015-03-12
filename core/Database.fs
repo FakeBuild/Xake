@@ -21,7 +21,7 @@ module BuildLog =
     let newDatabase() = { Database.Status = Map.empty }
     
     /// Adds result to a database
-    let addResult db result = 
+    let internal addResult db result = 
         { db with Status = db.Status |> Map.add (result.Result) result }
 
 type Agent<'t> = MailboxProcessor<'t>
@@ -51,8 +51,8 @@ module Storage =
         
         let step = 
             wrap 
-                ((fun (n, d) -> StepInfo(n, d * 1<ms>)), 
-                 fun (StepInfo(n, d)) -> (n, d / 1<ms>)) (pair str int)
+                ((fun (n, s, d, w) -> {StepInfo.Name = n; Start = s; Total = d * 1<ms>; Wait = w * 1<ms>}), 
+                 fun ({StepInfo.Name = n; Start = s; Total = d; Wait = w}) -> (n, s, d / 1<ms>, w / 1<ms>)) (quad str date int int)
         
         // Fileset of FilesetOptions * FilesetElement list
         let dependency = 

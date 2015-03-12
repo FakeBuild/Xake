@@ -78,7 +78,7 @@ module XakeScript =
         Vars = List<string*string>.Empty
         }
 
-    module private Impl =
+    module private Impl = begin
         open WorkerPool
         open BuildLog
         open Storage
@@ -92,7 +92,7 @@ module XakeScript =
         /// Writes the message with formatting to a log
         let writeLog (level:Logging.Level) fmt =
             let write s = action {
-                let! (ctx:ExecContext) = getCtx()
+                let! ctx = getCtx()
                 return ctx.Logger.Log level "%s" s
             }
             Printf.kprintf write fmt
@@ -258,6 +258,28 @@ module XakeScript =
             // mg >> List.collect traverseTargets >> distinct >> List.map ptgt
             mg >> List.map stripDuplicates
 
+        module Step =
+
+            let start name = {StepInfo.Empty with Name = name; Start = System.DateTime.Now}
+
+            /// <summary>
+            /// Updated last (current) build step
+            /// </summary>
+            let updateLastStep fn = function
+                | {Steps = current :: rest} as result -> {result with Steps = (fn current) :: rest}
+                | _ as result -> result
+
+            /// <summary>
+            /// Adds specific amount to a wait time
+            /// </summary>
+            let updateWaitTime delta = updateLastStep (fun c -> {c with Wait = c.Wait + delta})
+            let updateTotalDuration =
+                let durationSince (startTime: System.DateTime) = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
+                updateLastStep (fun c -> {c with Total = durationSince c.Start})
+            let lastStep = function
+                | {Steps = current :: rest} -> current
+                | _ -> start "dummy"
+
         // executes single artifact
         let rec private execOne ctx target =
 
@@ -269,10 +291,13 @@ module XakeScript =
                             let taskContext = newTaskContext ctx                           
                             do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
 
-                            let! (result,_) = action (BuildLog.makeResult target,taskContext)
+                            let startResult = {BuildLog.makeResult target with Steps = [Step.start "all"]}
+                            let! (result,_) = action (startResult,taskContext)
+                            let result = Step.updateTotalDuration result
+
                             Store result |> ctx.Db.Post
 
-                            do ctx.Logger.Log Command "Completed %s" (getShortname target)
+                            do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (getShortname target) (Step.lastStep result).Total  (Step.lastStep result).Wait
                             return ExecStatus.Succeed
                         | false ->
                             do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)
@@ -414,6 +439,23 @@ module XakeScript =
             finally
                 db.PostAndReply Storage.CloseWait
 
+        /// <summary>
+        /// "need" implementation
+        /// </summary>
+        let need targets =
+            action {
+                let startTime = System.DateTime.Now
+
+                let! ctx = getCtx()
+                let! _,deps = targets |> execNeed ctx
+
+                let totalDuration = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
+                let! result = getResult()
+                let result' = {result with Depends = result.Depends @ deps} |> (Step.updateWaitTime totalDuration)
+                do! setResult result'
+            }
+    end
+
     /// Creates the rule for specified file pattern.    
     let ( *> ) pattern fnRule = FileRule (pattern, fnRule)
     let ( *?> ) fn fnRule = FileConditionRule (fn, fnRule)
@@ -461,22 +503,13 @@ module XakeScript =
 
     /// key functions implementation
 
-    let private needImpl targets =
-            action {
-                let! ctx = getCtx()
-                let! _,deps = targets |> Impl.execNeed ctx
-
-                let! result = getResult()
-                do! setResult {result with Depends = result.Depends @ deps}
-            }
-
     /// Executes and awaits specified artifacts
     let need targets =
             action {
                 let! ctx = getCtx()
                 let t' = targets |> (List.map (Impl.makeTarget ctx))
 
-                do! needImpl t'
+                do! Impl.need t'
             }
 
     let needFiles (Filelist files) =
@@ -484,7 +517,7 @@ module XakeScript =
                 let! ctx = getCtx()
                 let targets = files |> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)
 
-                do! needImpl targets
+                do! Impl.need targets
          }
 
     /// Instructs Xake to rebuild the target even if dependencies are not changed

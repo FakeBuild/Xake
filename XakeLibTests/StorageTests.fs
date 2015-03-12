@@ -16,6 +16,7 @@ type Bookmark =
 type StorageTests() =
 
   let dbname = "." </> ".xake"
+  let newStepInfo (name,duration) = {StepInfo.Empty with Name = name; Total = duration * 1<ms>}
 
   // stores object to a binary stream and immediately reads it
   let writeAndRead (pu:Pickler.PU<_>) testee =
@@ -32,7 +33,7 @@ type StorageTests() =
   let createResult name =
     {(makeResult <| FileTarget (Artifact name)) with
       Depends = [ArtifactDep <| FileTarget (Artifact "abc.c"); Var ("DEBUG", Some "false")]
-      Steps = [StepInfo ("compile", 217<ms>)]
+      Steps = [newStepInfo ("compile", 217)]
     }
 
   let (<-*) (a:Agent<DatabaseApi>) t = a.PostAndReply(fun ch -> GetResult (t,ch))
@@ -93,9 +94,9 @@ type StorageTests() =
                     Var ("DEBUG", Some "false")
                   ]
         Steps = [
-                  StepInfo ("preprocess", 187<ms>)
-                  StepInfo ("compile", 217<ms>)
-                  StepInfo ("link", 471<ms>)
+                  newStepInfo ("preprocess", 187)
+                  newStepInfo ("compile", 217)
+                  newStepInfo ("link", 471)
                 ]
       }
     

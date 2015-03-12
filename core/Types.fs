@@ -51,8 +51,11 @@ module DomainTypes =
     type ms
     
     type StepInfo = 
-        | StepInfo of string * int<ms>
-    
+        /// name, start time, total duration, wait time
+        // | StepInfo of string * System.DateTime * int<ms> * int<ms>
+        {Name: string; Start: System.DateTime; Total: int<ms>; Wait: int<ms>}
+        with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); Total = 0<ms>; Wait = 0<ms>}
+
     type Dependency = 
         | File of Artifact * Timestamp // regular file (such as source code file), triggers when file date/time is changed
         | ArtifactDep of Target // other target (triggers when target is rebuilt)
