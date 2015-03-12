@@ -130,7 +130,7 @@ type MiscTests() =
                         ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
                         Dependency.File (fileDep, depDate)
                       ]
-                    BuildResult.Steps = []
+                    //BuildResult.Steps = []
                 }
                 when System.IO.Path.GetFileName(fileDep.Name) = "bbb.c" && depDate = cdate
                  -> true
@@ -142,7 +142,7 @@ type MiscTests() =
                 {
                     BuildResult.Result = PhonyAction "test1"
                     BuildResult.Depends = [ArtifactDep (PhonyAction "aaa")]
-                    BuildResult.Steps = []
+                    //BuildResult.Steps = []
                 } -> true
               | _ -> false
 
