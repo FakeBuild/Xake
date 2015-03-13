@@ -203,7 +203,8 @@ module XakeScript =
                     >> function | ([],states) -> states | (files,states) -> DepState.FilesChanged files :: states
                     >> List.rev
                     
-                depends |> (List.map dep_state >> collapseFilesChanged >> List.filter ((<>) DepState.NotChanged))
+                depends |>
+                    (List.map dep_state >> collapseFilesChanged >> List.filter ((<>) DepState.NotChanged))
 
             | _ ->
                 [DepState.Other "Unknown state"]
@@ -212,8 +213,10 @@ module XakeScript =
         /// Gets dependencies for specific target in a human friendly form
         /// </summary>
         /// <param name="ctx"></param>
-        let getDeps (ctx:ExecContext) =
-            let rec mg = memoize (getDepsImpl ctx (fun x -> mg x)) in
+        let getDeps (ctx:ExecContext) ptgt =
+            let rec mg =
+                (getDepsImpl ctx (fun x -> mg x))
+                |> memoize
            
             // strips the filelists to only 5 items
             let rec stripReasons = function
@@ -254,9 +257,25 @@ module XakeScript =
             // TODO where're phony actions
             // can I make it more inductive? Consider initial graph but with stripped targets
 
+            let getExecTime target = 
+                (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
+                |> Option.map (fun r -> r.Steps |> List.sumBy (fun s -> s.OwnTime))
+                |> function | Some t -> t | _ -> 0<ms>
+
+            let rec collectTargets = function
+                | DepState.Depends (t,deps) -> t:: (deps |> List.collect collectTargets)
+                | _ -> []
+
             //let ptgt t = t, t |> mg |> mergeDeps |> List.map stripReasons |> take 5
             // mg >> List.collect traverseTargets >> distinct >> List.map ptgt
-            mg >> List.map stripDuplicates
+            let resultList = ptgt |> (mg >> List.map stripDuplicates) in
+
+            let totalEstimate = resultList |> List.collect collectTargets |> distinct |> List.sumBy getExecTime
+            printfn "Total execution estimate is %Ams" totalEstimate
+
+            resultList |> List.collect collectTargets |> distinct |> List.map (fun t -> (t, getExecTime t))
+
+            //resultList
 
         module Step =
 
@@ -272,10 +291,10 @@ module XakeScript =
             /// <summary>
             /// Adds specific amount to a wait time
             /// </summary>
-            let updateWaitTime delta = updateLastStep (fun c -> {c with Wait = c.Wait + delta})
+            let updateWaitTime delta = updateLastStep (fun c -> {c with WaitTime = c.WaitTime + delta})
             let updateTotalDuration =
                 let durationSince (startTime: System.DateTime) = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
-                updateLastStep (fun c -> {c with Total = durationSince c.Start})
+                updateLastStep (fun c -> {c with OwnTime = (durationSince c.Start) - c.WaitTime})
             let lastStep = function
                 | {Steps = current :: rest} -> current
                 | _ -> start "dummy"
@@ -297,7 +316,7 @@ module XakeScript =
 
                             Store result |> ctx.Db.Post
 
-                            do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (getShortname target) (Step.lastStep result).Total  (Step.lastStep result).Wait
+                            do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (getShortname target) (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
                             return ExecStatus.Succeed
                         | false ->
                             do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)

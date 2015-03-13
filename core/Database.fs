@@ -4,7 +4,7 @@ module BuildLog =
     open Xake
     open System
     
-    let XakeVersion = "0.2-c"
+    let XakeVersion = "0.3"
     
     type Database = { Status : Map<Target, BuildResult> }
     
@@ -51,8 +51,8 @@ module Storage =
         
         let step = 
             wrap 
-                ((fun (n, s, d, w) -> {StepInfo.Name = n; Start = s; Total = d * 1<ms>; Wait = w * 1<ms>}), 
-                 fun ({StepInfo.Name = n; Start = s; Total = d; Wait = w}) -> (n, s, d / 1<ms>, w / 1<ms>)) (quad str date int int)
+                ((fun (n, s, o, w) -> {StepInfo.Name = n; Start = s; OwnTime = o * 1<ms>; WaitTime = w * 1<ms>}), 
+                 fun ({StepInfo.Name = n; Start = s; OwnTime = o; WaitTime = w}) -> (n, s, o / 1<ms>, w / 1<ms>)) (quad str date int int)
         
         // Fileset of FilesetOptions * FilesetElement list
         let dependency = 

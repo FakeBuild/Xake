@@ -16,7 +16,7 @@ type Bookmark =
 type StorageTests() =
 
   let dbname = "." </> ".xake"
-  let newStepInfo (name,duration) = {StepInfo.Empty with Name = name; Total = duration * 1<ms>}
+  let newStepInfo (name,duration) = {StepInfo.Empty with Name = name; OwnTime = duration * 1<ms>}
 
   // stores object to a binary stream and immediately reads it
   let writeAndRead (pu:Pickler.PU<_>) testee =
