@@ -7,6 +7,7 @@ open NUnit.Framework
 
 open Xake
 open Xake.FileTasks
+open Xake.Storage
 
 [<TestFixture>]
 type FileTasksTests() = 
@@ -100,3 +101,8 @@ type FileTasksTests() =
         }
 
         Assert.IsTrue <| File.Exists ("aaa-copy")
+
+
+        
+
+

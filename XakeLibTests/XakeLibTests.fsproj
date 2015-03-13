@@ -45,10 +45,10 @@
   <ItemGroup>
     <Compile Include="FilesetTests.fs" />
     <Compile Include="ScriptErrorTests.fs" />
-    <Compile Include="Tests.fs" />
+    <Compile Include="MiscTests.fs" />
     <Compile Include="StorageTests.fs" />
-    <None Include="packages.config" />
     <Compile Include="FileTasksTests.fs" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\core\XakeLib.fsproj">

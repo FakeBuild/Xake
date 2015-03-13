@@ -199,3 +199,26 @@ module Storage =
                         return ()
                 }
             loop (!db))
+
+/// Utility methods to manipulate build stats
+module internal Step =
+
+    let start name = {StepInfo.Empty with Name = name; Start = System.DateTime.Now}
+
+    /// <summary>
+    /// Updated last (current) build step
+    /// </summary>
+    let updateLastStep fn = function
+        | {Steps = current :: rest} as result -> {result with Steps = (fn current) :: rest}
+        | _ as result -> result
+
+    /// <summary>
+    /// Adds specific amount to a wait time
+    /// </summary>
+    let updateWaitTime delta = updateLastStep (fun c -> {c with WaitTime = c.WaitTime + delta})
+    let updateTotalDuration =
+        let durationSince (startTime: System.DateTime) = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
+        updateLastStep (fun c -> {c with OwnTime = (durationSince c.Start) - c.WaitTime})
+    let lastStep = function
+        | {Steps = current :: rest} -> current
+        | _ -> start "dummy"

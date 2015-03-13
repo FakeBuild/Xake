@@ -39,6 +39,11 @@ module Action =
       return s,()
       })
 
+//    [<CustomOperation("step")>]
+//    member this.Step(m, name) =
+//        printfn "STEP %A %A" m name
+//        ()
+
   /// Builder for xake actions.
   let action = ActionBuilder()
 
@@ -48,6 +53,18 @@ module Action =
   let getCtx()     = Action (fun (r,c) -> async {return (r,c)})
   let getResult()  = Action (fun (s,_) -> async {return (s,s)})
   let setResult s' = Action (fun (_,_) -> async {return (s',())})
+
+  /// <summary>
+  /// Finalizes current build step and starts a new one
+  /// </summary>
+  /// <param name="name">New step name</param>
+  let newstep name =
+    Action (fun (r,_) ->
+        async {
+            let r' = Step.updateTotalDuration r
+            let r'' = {r' with Steps = (Step.start name) :: r'.Steps}
+            return (r'',())
+        })
   
   /// Ignores action result
   let ActIgnore act = act >>= (fun _ -> returnF ())
