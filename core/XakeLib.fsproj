@@ -45,6 +45,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="WindowsTaskbar.fs" />
     <Compile Include="Logging.fs" />
     <Compile Include="Pickler.fs" />
     <Compile Include="Fileset.fs" />

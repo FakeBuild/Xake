@@ -568,7 +568,7 @@ module XakeScript =
     /// </summary>
     let getDirtyState = Impl.getDeps
 
-    /// Defined a rule that demands specified targets
+    /// Defines a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
     let (<==) name targets = PhonyRule (name,action {
         do! need targets
