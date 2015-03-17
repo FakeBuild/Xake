@@ -1,4 +1,4 @@
-﻿module WindowsTaskbar
+﻿module internal Xake.WindowsTaskbar
 
 open System
 open System.Runtime.InteropServices
