@@ -34,12 +34,6 @@ type ProgressTests() =
         | Free -> 0
         | BusyUntil (CpuTime x) -> x
 
-    /// Updates first item matching criteria
-    let rec updateFirst predicate upd = function
-        | [] -> []
-        | c::list when predicate c -> upd c :: list
-        | c::list -> c::(updateFirst predicate upd list)
-
     /// Updates the first item matching the criteria and returns the updated value
     let rec updateFirst1 predicate upd = function
         | [] -> None,[]
