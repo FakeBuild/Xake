@@ -49,6 +49,7 @@
     <Compile Include="StorageTests.fs" />
     <Compile Include="FileTasksTests.fs" />
     <None Include="packages.config" />
+    <Compile Include="ProgressTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\core\XakeLib.fsproj">
