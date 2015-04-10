@@ -9,10 +9,8 @@ type Task =
 type CpuTime = CpuTime of int
 type CpuState = | Free | BusyUntil of CpuTime
 
-type TaskState = | TaskCompleted of CpuTime
-
 type MachineState<'T when 'T:comparison> =
-    { Cpu: CpuState list; Tasks: Map<'T,TaskState>}
+    { Cpu: CpuState list; Tasks: Map<'T,CpuTime>}
 
 [<TestFixture>]
 type ProgressTests() =
@@ -50,7 +48,7 @@ type ProgressTests() =
             let slot = mstate.Cpu |> nearest endTime
             let Some (BusyUntil result), newState =
                 mstate.Cpu |> updateFirst1 ((=) slot) (readyAt >> (max endTime) >> ((+) (getDuration task)) >> CpuTime >> BusyUntil)
-            {Cpu = newState; Tasks = mstate.Tasks |> Map.add task (TaskCompleted result)}, TaskCompleted result
+            {Cpu = newState; Tasks = mstate.Tasks |> Map.add task result}, result
 //        |> fun r ->
 //            printf "after %A" (task_name task)
 //            printf "   %A\n\n" r
@@ -61,7 +59,7 @@ type ProgressTests() =
         let machineState,endTime =
             goals |> List.fold (
                 fun (prevState,prevTime) t ->
-                    let newState,(TaskCompleted (CpuTime time)) = exec prevState t getDuration getDeps in
+                    let newState,CpuTime time = exec prevState t getDuration getDeps in
                     (newState, max time prevTime)
                 ) (state,0)
 
@@ -77,7 +75,7 @@ type ProgressTests() =
             | Task (_,d) -> d
             | TaskWithDeps (_,d,_) -> d
 
-        let tasks_map = completed_tasks |> List.map (fun t -> (t, TaskCompleted <| CpuTime 0)) |> Map.ofList
+        let tasks_map = completed_tasks |> List.map (fun t -> (t, CpuTime 0)) |> Map.ofList
         let machine_state = {Cpu = (Free |> List.replicate threadCount); Tasks = tasks_map}
         let taskMap = tasks |> List.map (fun task -> getTaskName task, task) |> Map.ofList
 
