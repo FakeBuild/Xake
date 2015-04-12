@@ -1,63 +1,13 @@
 ﻿namespace XakeLibTests
 
 open NUnit.Framework
+open Xake.Progress.Estimate
 
 type TaskDeps = string list
 type Task = | Task of string * int * TaskDeps
 
-type CpuState = | BusyUntil of int
-
-type MachineState<'T when 'T:comparison> =
-    { Cpu: CpuState list; Tasks: Map<'T,int>}
-
 [<TestFixture>]
 type ProgressTests() =
-
-    let rec exec state task getDurationDeps =
-        // Gets the thread that will be freed after specific moment
-        let nearest after =
-            let ready (BusyUntil x) = if x <= after then 0 else x in
-            List.minBy ready
-
-        // Updates the first item matching the criteria and returns the updated value
-        let rec updateFirst predicate upd = function
-            | [] -> None,[]
-            | c::list when predicate c ->
-                let updated = upd c in
-                Some updated, updated :: list
-            | c::list ->
-                let result,list = (updateFirst predicate upd list) in
-                result, c::list
-        
-        match state.Tasks |> Map.tryFind task with
-        | Some result -> state,result
-        | None ->
-            let duration,deps = task |> getDurationDeps
-            let readyAt (BusyUntil x)= x
-
-            let mstate, endTime =
-                match deps with
-                | [] ->   state, 0
-                | deps -> execMany state deps getDurationDeps
-            let slot = mstate.Cpu |> nearest endTime
-            let Some (BusyUntil result), newState =
-                mstate.Cpu |> updateFirst ((=) slot) (readyAt >> max endTime >> (+) duration >> BusyUntil)
-            {Cpu = newState; Tasks = mstate.Tasks |> Map.add task result}, result
-//        |> fun r ->
-//            printf "after %A" (task_name task)
-//            printf "   %A\n\n" r
-//            r
-
-    // exec all deps, collect latest, allocate cpu
-    and execMany state goals getDurationDeps =
-        let machineState,endTime =
-            goals |> List.fold (
-                fun (prevState,prevTime) t ->
-                    let newState,time = exec prevState t getDurationDeps in
-                    (newState, max time prevTime)
-                ) (state,0)
-
-        machineState, endTime
 
     let estimate threadCount completed_tasks tasks goals =
 
@@ -69,7 +19,7 @@ type ProgressTests() =
 
         let taskByName name = Map.find name taskMap
         let getDurationDeps (Task (_,duration,deps)) = duration,deps |> List.map taskByName
-        let _,endTime = execMany machine_state (goals |> List.map taskByName) getDurationDeps
+        let _,endTime = execMany machine_state getDurationDeps (goals |> List.map taskByName)
         in
         endTime
 

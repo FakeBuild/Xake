@@ -70,6 +70,15 @@ module DomainTypes =
           Depends : Dependency list
           Steps : StepInfo list }
 
+    // expression type
+    type Action<'a,'b> = Action of (BuildResult * 'a -> Async<BuildResult * 'b>)
+
+    type Rule<'ctx> = 
+        | FileRule of string * (Artifact -> Action<'ctx,unit>)
+        | PhonyRule of string * Action<'ctx,unit>
+        | FileConditionRule of (string -> bool) * (Artifact -> Action<'ctx,unit>)
+    type Rules<'ctx> = Rules of Rule<'ctx> list
+
     /// Defines common exception type
     exception XakeException of string
 

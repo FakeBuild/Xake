@@ -29,15 +29,8 @@ module XakeScript =
         FailOnError: bool
     }
 
-
-    type Rule<'ctx> = 
-            | FileRule of string * (Artifact -> Action<'ctx,unit>)
-            | PhonyRule of string * Action<'ctx,unit>
-            | FileConditionRule of (string -> bool) * (Artifact -> Action<'ctx,unit>)
-    type Rules<'ctx> = Rules of Rule<'ctx> list
-
-    type ExecStatus = | Succeed | Skipped | JustFile
-    type TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
+    type private ExecStatus = | Succeed | Skipped | JustFile
+    type private TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
 
     type ExecContext = {
         TaskPool: TaskPool
@@ -49,6 +42,7 @@ module XakeScript =
         RootLogger: ILogger
         Ordinal: int
         NeedRebuild: Target -> bool
+        Progress: Agent<Progress.ProgressReport>
     }
 
     /// Main type.
@@ -82,7 +76,6 @@ module XakeScript =
         open WorkerPool
         open BuildLog
         open Storage
-        open CommonLib
 
         let nullableToOption = function | null -> None | s -> Some s
         let valueByName variableName = function |name,value when name = variableName -> Some value | _ -> None
@@ -138,6 +131,16 @@ module XakeScript =
             let prefix = ordinal |> sprintf "%i> "
             in
             {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger}
+
+        /// <summary>
+        /// Gets target execution time in the last run
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <param name="target"></param>
+        let getExecTime ctx target = 
+            (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
+            |> Option.map (fun r -> r.Steps |> List.sumBy (fun s -> s.OwnTime))
+            |> function | Some t -> t | _ -> 0<ms>
 
         /// Gets single dependency state
         let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
@@ -213,10 +216,7 @@ module XakeScript =
         /// Gets dependencies for specific target in a human friendly form
         /// </summary>
         /// <param name="ctx"></param>
-        let getDeps (ctx:ExecContext) ptgt =
-            let rec mg =
-                (getDepsImpl ctx (fun x -> mg x))
-                |> memoize
+        let getPlainDeps getDepStates getExecTime ptgt =
            
             // strips the filelists to only 5 items
             let rec stripReasons = function
@@ -225,9 +225,7 @@ module XakeScript =
                 | _ as state -> state
             
             // make plain dependent targets list for specified target
-            let rec collectTargets = function
-                | DepState.Depends (t,deps) -> t :: (deps |> List.collect collectTargets)
-                | _ -> []
+
 
             let rec visitTargets (dep,visited) =
                 match dep with
@@ -257,18 +255,13 @@ module XakeScript =
             // TODO where're phony actions
             // can I make it more inductive? Consider initial graph but with stripped targets
 
-            let getExecTime target = 
-                (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
-                |> Option.map (fun r -> r.Steps |> List.sumBy (fun s -> s.OwnTime))
-                |> function | Some t -> t | _ -> 0<ms>
-
             let rec collectTargets = function
                 | DepState.Depends (t,deps) -> t:: (deps |> List.collect collectTargets)
                 | _ -> []
 
             //let ptgt t = t, t |> mg |> mergeDeps |> List.map stripReasons |> take 5
             // mg >> List.collect traverseTargets >> distinct >> List.map ptgt
-            let resultList = ptgt |> (mg >> List.map stripDuplicates) in
+            let resultList = ptgt |> getDepStates |> List.map stripDuplicates in
 
             let totalEstimate = resultList |> List.collect collectTargets |> distinct |> List.sumBy getExecTime
             printfn "Total execution estimate is %Ams" totalEstimate
@@ -280,26 +273,26 @@ module XakeScript =
         // executes single artifact
         let rec private execOne ctx target =
 
-            let run action chnl =
-                Run(target,
-                    async {
-                        match ctx.NeedRebuild target with
-                        | true ->
-                            let taskContext = newTaskContext ctx                           
-                            do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
+            let run action =
+                async {
+                    match ctx.NeedRebuild target with
+                    | true ->
+                        let taskContext = newTaskContext ctx                           
+                        do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
 
-                            let startResult = {BuildLog.makeResult target with Steps = [Step.start "all"]}
-                            let! (result,_) = action (startResult,taskContext)
-                            let result = Step.updateTotalDuration result
+                        let startResult = {BuildLog.makeResult target with Steps = [Step.start "all"]}
+                        let! (result,_) = action (startResult,taskContext)
+                        let result = Step.updateTotalDuration result
 
-                            Store result |> ctx.Db.Post
+                        Store result |> ctx.Db.Post
 
-                            do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (getShortname target) (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
-                            return ExecStatus.Succeed
-                        | false ->
-                            do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)
-                            return ExecStatus.Skipped
-                    }, chnl)
+                        do Progress.TaskComplete target |> ctx.Progress.Post
+                        do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (getShortname target) (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
+                        return ExecStatus.Succeed
+                    | false ->
+                        do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)
+                        return ExecStatus.Skipped
+                }
 
             let getAction = function
                 | FileRule (_, action)
@@ -316,12 +309,12 @@ module XakeScript =
             |> function
                 | Some action ->
                     async {
-                        let! waitTask = run action |> ctx.TaskPool.PostAndAsyncReply
+                        let! waitTask = (fun channel -> Run(target, run action, channel)) |> ctx.TaskPool.PostAndAsyncReply
                         let! status = waitTask
                         return status, Dependency.ArtifactDep target
                     }
                 | None ->
-                    match target with
+                    target |> function
                     | FileTarget file when file.Exists ->
                         async {return ExecStatus.JustFile, Dependency.File (file, file.LastWriteTime)}
                     | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
@@ -387,6 +380,7 @@ module XakeScript =
                 Options = options; Rules = rules
                 Logger = logger; RootLogger = logger; Db = db
                 NeedRebuild = fun _ -> false
+                Progress = Progress.emptyProgress()
                 }
             // TODO wrap more elegantly
             let rec get_changed_deps = CommonLib.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
@@ -407,7 +401,21 @@ module XakeScript =
                     true
                 <| target
 
-            let ctx = {ctx with NeedRebuild = check_rebuild}
+            // define targets
+            let targets =
+                match options.Want with
+                | [] ->
+                    do logger.Log Level.Message "No target(s) specified. Defaulting to 'main'"
+                    ["main"]
+                | tt -> tt
+                |> List.map (makeTarget ctx)
+
+            let getDurationDeps t =
+                let collectTargets = List.collect (function |Depends (t,_) -> [t] | _ -> [])
+                (getExecTime ctx t) / 1000<ms>, get_changed_deps t |> collectTargets
+            let progressSink = Progress.openProgress getDurationDeps options.Threads targets
+
+            let ctx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
 
             logger.Log Info "Options: %A" options
 
@@ -419,13 +427,7 @@ module XakeScript =
 
             try
                 try
-                    let checkEmpty = function
-                    | [] ->
-                        logger.Log Level.Message "No target(s) specified. Defaulting to 'main'"
-                        ["main"]
-                    | targets -> targets
-
-                    options.Want |> checkEmpty |> (List.map (makeTarget ctx) >> execMany ctx >> Async.RunSynchronously >> ignore)
+                    targets |> execMany ctx |> Async.RunSynchronously |> ignore
                     logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
                 with 
                     | exn ->
@@ -435,6 +437,7 @@ module XakeScript =
                         logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
             finally
                 db.PostAndReply Storage.CloseWait
+                do Progress.Finish |> ctx.Progress.Post
 
         /// <summary>
         /// "need" implementation
@@ -564,9 +567,16 @@ module XakeScript =
     let writeLog = Impl.writeLog
 
     /// <summary>
-    /// Gets state of particular target
+    /// Gets state of particular target.
+    /// Temporary method for analyzing changes impact.
     /// </summary>
-    let getDirtyState = Impl.getDeps
+    let getPlainDeps ctx =
+
+        let rec getDeps:Target -> DepState list =
+            (Impl.getDepsImpl ctx (fun x -> getDeps x))
+            |> memoize
+    
+        Impl.getPlainDeps getDeps (Impl.getExecTime ctx)
 
     /// Defines a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]

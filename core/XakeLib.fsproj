@@ -46,7 +46,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="WindowsTaskbar.fs" />
-    <Compile Include="Progress.fs" />
     <Compile Include="Logging.fs" />
     <Compile Include="Pickler.fs" />
     <Compile Include="Fileset.fs" />
@@ -55,6 +54,7 @@
     <Compile Include="Database.fs" />
     <Compile Include="Action.fs" />
     <Compile Include="WorkerPool.fs" />
+    <Compile Include="Progress.fs" />
     <Compile Include="XakeScript.fs" />
     <Compile Include="CommonTasks.fs" />
     <Compile Include="FileTasks.fs" />

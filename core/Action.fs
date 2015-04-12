@@ -5,9 +5,6 @@ module Action =
 
   open BuildLog
 
-  // expression type
-  type Action<'a,'b> = Action of (BuildResult * 'a -> Async<BuildResult * 'b>)
-
   // reset context for nested action
   let private runAction (Action r) = r
   let private returnF a = Action (fun (s,_) -> async {return (s,a)})
