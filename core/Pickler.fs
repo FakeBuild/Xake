@@ -11,7 +11,7 @@ module Pickler =
     /// <summary>
     /// Main pickler type.
     /// </summary>
-    type PU<'a> = { pickle: 'a -> OutState -> unit; unpickle:  InState -> 'a }
+    type 'a PU = { pickle: 'a -> OutState -> unit; unpickle:  InState -> 'a }
   
     /// <summary>
     /// Unit pickler, does nothing.
@@ -87,5 +87,5 @@ module Pickler =
             (function | None _ -> 0 | Some _ -> 1)
             [|
                 wrap ((fun () -> None), fun _ -> ()) unit
-                wrap (Some, fun (Some x) -> x) pu
+                wrap (Some, Option.get) pu
             |]

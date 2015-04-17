@@ -102,16 +102,16 @@ module XakeScript =
         let private locateRule (Rules rules) projectRoot target =
             let matchRule rule = 
                 match rule, target with
-                    |FileConditionRule (f,_), FileTarget file when (f file.FullName) = true ->
-                        //writeLog Level.Debug "Found conditional pattern '%s'" name
-                        Some (rule)
-                    |FileRule (pattern,_), FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
-                        // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
-                        Some (rule)
-                    |PhonyRule (name,_), PhonyAction phony when phony = name ->
-                        // writeLog Verbose "Found phony pattern '%s'" name
-                        Some (rule)
-                    | _ -> None
+                |FileConditionRule (f,_), FileTarget file when (f file.FullName) = true ->
+                    //writeLog Level.Debug "Found conditional pattern '%s'" name
+                    Some (rule)
+                |FileRule (pattern,_), FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
+                    // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
+                    Some (rule)
+                |PhonyRule (name,_), PhonyAction phony when phony = name ->
+                    // writeLog Verbose "Found phony pattern '%s'" name
+                    Some (rule)
+                | _ -> None
                 
             rules |> List.tryPick matchRule
 

@@ -24,7 +24,7 @@ module BuildLog =
     let internal addResult db result = 
         { db with Status = db.Status |> Map.add (result.Result) result }
 
-type Agent<'t> = MailboxProcessor<'t>
+type 't Agent = 't MailboxProcessor
 
 module Storage = 
     open Xake

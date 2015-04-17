@@ -50,12 +50,6 @@ module DomainTypes =
     [<Measure>]
     type ms
     
-    type StepInfo = 
-        /// name, start time, total duration, wait time
-        // | StepInfo of string * System.DateTime * int<ms> * int<ms>
-        {Name: string; Start: System.DateTime; OwnTime: int<ms>; WaitTime: int<ms>}
-        with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); OwnTime = 0<ms>; WaitTime = 0<ms>}
-
     type Dependency = 
         | File of Artifact * Timestamp // regular file (such as source code file), triggers when file date/time is changed
         | ArtifactDep of Target // other target (triggers when target is rebuilt)
@@ -63,6 +57,12 @@ module DomainTypes =
         | Var of string * string option // any other data such as compiler version (not used yet)
         | AlwaysRerun // trigger always
         | GetFiles of Fileset * Filelist // depends on set of files. Triggers when resulting filelist is changed
+
+    type StepInfo = 
+        /// name, start time, total duration, wait time
+        // | StepInfo of string * System.DateTime * int<ms> * int<ms>
+        {Name: string; Start: System.DateTime; OwnTime: int<ms>; WaitTime: int<ms>}
+        with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); OwnTime = 0<ms>; WaitTime = 0<ms>}
     
     type BuildResult = 
         { Result : Target
@@ -82,37 +82,11 @@ module DomainTypes =
     /// Defines common exception type
     exception XakeException of string
 
-[<AutoOpen>]
-module internal ArtifactUtil =    
-    /// <summary>
-    /// Creates a new artifact
-    /// </summary>
-    let internal newArtifact name = Artifact name
+/// <summary>
+/// A message to a progress reporter.
+/// </summary>
+type ProgressMessage =
+    | Begin of System.TimeSpan
+    | Progress of System.TimeSpan * int
+    | End
 
-    // TODO move Artifact stuff out of here
-
-    /// Gets the artifact file name
-    let getFullname = function
-        | FileTarget file -> file.FullName
-        | PhonyAction name -> name
-
-    // Gets the short artifact name
-    let getShortname = function
-        | FileTarget file -> file.Name
-        | PhonyAction name -> name
-
-    /// <summary>
-    /// Gets true if artifact exists.
-    /// </summary>
-    let exists = function
-        | FileTarget file -> file.Exists
-        | PhonyAction _ ->    false // TODO this is suspicious
-
-    /// <summary>
-    /// Gets artifact name
-    /// </summary>
-    /// <param name="getFullName"></param>
-    let getFullName = 
-        function 
-        | FileTarget f -> f.FullName
-        | PhonyAction a -> a
