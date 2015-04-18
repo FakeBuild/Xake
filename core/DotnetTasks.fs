@@ -77,7 +77,7 @@ module DotNetTaskTypes =
 [<AutoOpen>]
 module DotnetTasks =
 
-    open Common.impl
+    open CommonTasks.impl
 
     /// Default setting for CSC task so that you could only override required settings
     let CscSettings = {

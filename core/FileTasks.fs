@@ -3,7 +3,7 @@ module Xake.FileTasks
 
 open System.IO
 open Xake
-open Common.impl
+open CommonTasks.impl
 
 /// <summary>
 /// Removes the files.

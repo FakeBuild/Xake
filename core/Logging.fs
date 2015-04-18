@@ -51,7 +51,9 @@ let private logFilter =
 // defines output detail level
 let private filterLevels = logFilter Chatty
 
+/// <summary>
 /// The inteface loggers need to implement.
+/// </summary>
 type ILogger = 
     abstract Log : Level -> Printf.StringFormat<'a, unit> -> 'a
 
@@ -65,6 +67,11 @@ let private createFileLogger fileName =
             }
         loop())
 
+/// <summary>
+/// Creates a custom logger.
+/// </summary>
+/// <param name="filter">The filter to apply to messages</param>
+/// <param name="writeFn">The function that dumps a message</param>
 let CustomLogger filter writeFn = 
     { new ILogger with
           member __.Log level format = 
@@ -74,7 +81,11 @@ let CustomLogger filter writeFn =
                   else ignore
               Printf.kprintf write format }
 
-/// Writes to file.
+/// <summary>
+/// A logger that writes to file.
+/// </summary>
+/// <param name="name"></param>
+/// <param name="maxLevel"></param>
 let FileLogger name maxLevel = 
     let filterLevels = logFilter maxLevel
     System.IO.File.Delete name
@@ -89,7 +100,10 @@ let FileLogger name maxLevel =
                   | false -> ignore
               Printf.kprintf write format }
 
-/// Writes to console.
+/// <summary>
+/// Console logger.
+/// </summary>
+/// <param name="maxLevel"></param>
 let ConsoleLogger maxLevel = 
     let filterLevels = logFilter maxLevel
     { new ILogger with
@@ -102,6 +116,11 @@ let ConsoleLogger maxLevel =
                   | false -> ignore
               Printf.kprintf write format }
 
+/// <summary>
+/// Creates a logger that is combination of two loggers.
+/// </summary>
+/// <param name="log1"></param>
+/// <param name="log2"></param>
 let CombineLogger (log1 : ILogger) (log2 : ILogger) = 
     { new ILogger with
           member __.Log level (fmt : Printf.StringFormat<'a, unit>) : 'a = 
@@ -110,6 +129,11 @@ let CombineLogger (log1 : ILogger) (log2 : ILogger) =
                   log2.Log level "%s" s
               Printf.kprintf write fmt }
 
+/// <summary>
+/// A logger decorator that adds specific prefix to a message.
+/// </summary>
+/// <param name="prefix"></param>
+/// <param name="log"></param>
 let PrefixLogger (prefix:string) (log : ILogger) = 
     { new ILogger with
           member __.Log level format = 

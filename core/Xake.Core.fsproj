@@ -9,7 +9,7 @@
     <RootNamespace>Xake.Core</RootNamespace>
     <AssemblyName>Xake.Core</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <Name>Xake.Core</Name>
+    <Name>XakeLib</Name>
     <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -23,7 +23,7 @@
     <StartAction>Program</StartAction>
     <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\Fsi.exe</StartProgram>
     <StartWorkingDirectory>C:\projects\ar9\Source</StartWorkingDirectory>
-    <StartArguments>\projects\Mine\xake\samples\ar\build.fsx</StartArguments>
+    <StartArguments>build.fsx deps</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -46,14 +46,17 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Logging.fs" />
-    <Compile Include="Types.fs" />
     <Compile Include="Pickler.fs" />
     <Compile Include="Fileset.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="ArtifactUtil.fs" />
+    <Compile Include="CommonLib.fs" />
     <Compile Include="Database.fs" />
-    <Compile Include="Core.fs" />
+    <Compile Include="Action.fs" />
     <Compile Include="WorkerPool.fs" />
+    <Compile Include="Progress.fs" />
     <Compile Include="XakeScript.fs" />
-    <Compile Include="Common.fs" />
+    <Compile Include="CommonTasks.fs" />
     <Compile Include="FileTasks.fs" />
     <Compile Include="ResourceFileset.fs" />
     <Compile Include="DotNetFwk.fs" />

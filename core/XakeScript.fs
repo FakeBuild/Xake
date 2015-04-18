@@ -29,15 +29,8 @@ module XakeScript =
         FailOnError: bool
     }
 
-
-    type Rule<'ctx> = 
-            | FileRule of string * (Artifact -> Action<'ctx,unit>)
-            | PhonyRule of string * Action<'ctx,unit>
-            | FileConditionRule of (string -> bool) * (Artifact -> Action<'ctx,unit>)
-    type Rules<'ctx> = Rules of Rule<'ctx> list
-
-    type ExecStatus = | Succeed | Skipped | JustFile
-    type TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
+    type private ExecStatus = | Succeed | Skipped | JustFile
+    type private TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
 
     type ExecContext = {
         TaskPool: TaskPool
@@ -47,11 +40,24 @@ module XakeScript =
         Rules: Rules<ExecContext>
         Logger: ILogger
         RootLogger: ILogger
+        Progress: Agent<Progress.ProgressReport>
+        Tgt: Target option
         Ordinal: int
+        NeedRebuild: Target -> bool
     }
 
     /// Main type.
     type XakeScript = XakeScript of XakeOptionsType * Rules<ExecContext>
+
+    /// <summary>
+    /// Dependency state.
+    /// </summary>
+    type DepState =
+        | NotChanged
+        | Depends of Target * DepState list
+        | Refs of string list
+        | FilesChanged of string list
+        | Other of string
 
     /// Default options
     let XakeOptions = {
@@ -67,30 +73,28 @@ module XakeScript =
         Vars = List<string*string>.Empty
         }
 
-    let private nullableToOption = function
-        | null -> None
-        | s -> Some s
-
-    let private valueByName variableName = function |name,value when name = variableName -> Some value | _ -> None
-
-    module private Impl =
+    module private Impl = begin
         open WorkerPool
         open BuildLog
         open Storage
 
+        let nullableToOption = function | null -> None | s -> Some s
+        let valueByName variableName = function |name,value when name = variableName -> Some value | _ -> None
+
         let TimeCompareToleranceMs = 100.0
 
         /// Writes the message with formatting to a log
-        let writeLog (level:Logging.Level) fmt    =
+        let writeLog (level:Logging.Level) fmt =
             let write s = action {
-                let! (ctx:ExecContext) = getCtx()
+                let! ctx = getCtx()
                 return ctx.Logger.Log level "%s" s
             }
             Printf.kprintf write fmt
 
         let addRule rule (Rules rules) :Rules<_> =    Rules (rule :: rules)
 
-        let getEnvVar = System.Environment.GetEnvironmentVariable
+        let getEnvVar = System.Environment.GetEnvironmentVariable >> nullableToOption
+        let getVar ctx name = ctx.Options.Vars |> List.tryPick (valueByName name)
 
         // Ordinal of the task being added to a task pool
         let refTaskOrdinal = ref 0
@@ -99,16 +103,16 @@ module XakeScript =
         let private locateRule (Rules rules) projectRoot target =
             let matchRule rule = 
                 match rule, target with
-                    |FileConditionRule (f,_), FileTarget file when (f file.FullName) = true ->
-                            // writeLog Verbose "Found phony pattern '%s'" name
-                            Some (rule)
-                    |FileRule (pattern,_), FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
-                            // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
-                            Some (rule)
-                    |PhonyRule (name,_), PhonyAction phony when phony = name ->
-                            // writeLog Verbose "Found phony pattern '%s'" name
-                            Some (rule)
-                    | _ -> None
+                |FileConditionRule (f,_), FileTarget file when (f file.FullName) = true ->
+                    //writeLog Level.Debug "Found conditional pattern '%s'" name
+                    Some (rule)
+                |FileRule (pattern,_), FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
+                    // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
+                    Some (rule)
+                |PhonyRule (name,_), PhonyAction phony when phony = name ->
+                    // writeLog Verbose "Found phony pattern '%s'" name
+                    Some (rule)
+                | _ -> None
                 
             rules |> List.tryPick matchRule
 
@@ -123,143 +127,235 @@ module XakeScript =
         /// <summary>
         /// Creates a context for a new task
         /// </summary>
-        let newTaskContext ctx =
+        let newTaskContext target ctx =
             let ordinal = System.Threading.Interlocked.Increment(refTaskOrdinal)
             let prefix = ordinal |> sprintf "%i> "
             in
-            {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger}
+            {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger; Tgt = Some target}
 
-        /// Gets true if rebuild is required
-        let rec needRebuild ctx (tgt:Target) result =
+        /// <summary>
+        /// Gets target execution time in the last run
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <param name="target"></param>
+        let getExecTime ctx target = 
+            (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
+            |> Option.map (fun r -> r.Steps |> List.sumBy (fun s -> s.OwnTime))
+            |> function | Some t -> t | _ -> 0<ms>
 
-            // check simple rules (all but ArtifactDep) synchronously
-            // request "dependencies"
-            let isOutdated = function
-                | File (a:Artifact, wrtime) ->
-                        not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs), sprintf "removed or changed file '%s'" a.Name
+        /// Gets single dependency state
+        let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
+            | File (a:Artifact, wrtime) when not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
+                let afile = a in
+                DepState.FilesChanged [afile.Name]
 
-                | ArtifactDep (FileTarget file) ->
-                        not file.Exists, sprintf "target doesn't exist '%s'" file.Name
+            | ArtifactDep (FileTarget file) when not file.Exists ->
+                DepState.Other <| sprintf "target doesn't exist '%s'" file.Name
 
-                | ArtifactDep _ -> false, ""
+            | ArtifactDep dependeeTarget ->
+                let ls = dependeeTarget |> isOutdatedTarget
+                in
+                match ls |> List.exists ((<>) DepState.NotChanged) with
+                | true -> DepState.Depends (dependeeTarget,ls)
+                | false -> NotChanged
     
-                | EnvVar (name,value) ->
-                        let newValue = name |> getEnvVar |> nullableToOption
-                        in
-                        value <> newValue, sprintf "Environment variable %s was changed from '%A' to '%A'" name value newValue
+            | EnvVar (name,value) when value <> getEnvVar name ->
+                DepState.Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (getEnvVar name)
 
-                | Var (varname,value) ->
-                        let newValue = ctx.Options.Vars |> List.tryPick (valueByName varname)
-                        in
-                        value <> newValue, sprintf "Global script variable %s was changed '%A'->'%A'" varname value newValue
-                | AlwaysRerun -> true, "alwaysRerun rule"
-                | GetFiles (fileset,files) ->
-                
-                    let newfiles = fileset |> toFileList ctx.Options.ProjectRoot
-                    let diff = compareFileList files newfiles
+            | Var (name,value) when value <> getVar name ->
+                DepState.Other <| sprintf "Global script variable %s was changed '%A'->'%A'" name value (getVar name)
 
-                    if List.isEmpty diff then
-                        false, ""
-                    else
-                        true, sprintf "File list is changed for changeset %A: %A" fileset diff
+            | AlwaysRerun ->
+                DepState.Other <| "alwaysRerun rule"
 
-            match result with
-                | Some {BuildResult.Depends = []} ->
-                    true, "No dependencies", []
+            | GetFiles (fileset,files) ->                
+                let newfiles = getFileList fileset
+                let diff = compareFileList files newfiles
 
-                | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
-                    true, "target not found", []
+                if List.isEmpty diff then
+                    NotChanged
+                else
+                    Other <| sprintf "File list is changed for fileset %A: %A" fileset diff
+            | _ -> NotChanged
 
-                | Some result ->
-                    let artifactDeps, immediateDeps = result.Depends |> List.partition (function |ArtifactDep (FileTarget file) when file.Exists -> true | _ -> false)
+        /// <summary>
+        /// Gets all changed dependencies
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <param name="getTargetDeps">gets state for nested dependency</param>
+        /// <param name="target">The target to analyze</param>
+        let getDepsImpl ctx getTargetDeps target =
 
-                    match immediateDeps |> List.tryFind (isOutdated >> fst) with
-                    | Some d ->
-                        let _,reason = isOutdated d in
-                        true, reason, []
-                    | _ ->
-                        let targets = artifactDeps |> List.map (function |ArtifactDep dep -> dep) in
-                        false, "", targets
+            let lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
+            let dep_state = getDepState (getVar ctx) (toFileList ctx.Options.ProjectRoot) getTargetDeps
 
-                | _ -> true, "reason unknown (new file&)", []
-            |> function
-                | true, reason, _ ->
-                    do ctx.Logger.Log Info "Rebuild %A: %s" (getShortname tgt) reason
-                    async {return true}
-                | _, _, (deps: Target list) ->
-                    async {
-                        let! status = execNeed ctx deps
-                        return fst status = ExecStatus.Succeed
-                    }
+            match lastBuild with
+            | Some {BuildResult.Depends = []} ->
+                [DepState.Other "No dependencies"]
+
+            | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
+                [DepState.Other "target not found"]
+
+            | Some {BuildResult.Depends = depends} ->
+                let collapseFilesChanged =
+                    ([], []) |> List.fold (fun (files, states) ->
+                        function
+                        | DepState.FilesChanged ls -> (ls @ files),states
+                        | d -> files, d :: states
+                        )
+                    >> function | ([],states) -> states | (files,states) -> DepState.FilesChanged files :: states
+                    >> List.rev
+                    
+                depends |>
+                    (List.map dep_state >> collapseFilesChanged >> List.filter ((<>) DepState.NotChanged))
+
+            | _ ->
+                [DepState.Other "Unknown state"]
+        
+        /// <summary>
+        /// Gets dependencies for specific target in a human friendly form
+        /// </summary>
+        /// <param name="ctx"></param>
+        let getPlainDeps getDepStates getExecTime ptgt =
+           
+            // strips the filelists to only 5 items
+            let rec stripReasons = function
+                | DepState.FilesChanged file_list -> file_list |> take 5 |> DepState.FilesChanged
+                | DepState.Depends (t,deps) -> DepState.Depends (t, deps |> List.map stripReasons)
+                | _ as state -> state
+            
+            // make plain dependent targets list for specified target
+
+
+            let rec visitTargets (dep,visited) =
+                match dep with
+                | DepState.Depends (t,deps) when visited |> Map.containsKey t ->
+                    (DepState.Depends (t,[]), visited)
+
+                | DepState.Depends (t,deps) ->
+                    let deps',visited' =
+                        List.fold (fun (deps,v) d ->
+                            let d',v' = visitTargets (d,v) in
+                            (d'::deps, v')
+                        ) ([],visited |> Map.add t 1) deps
+                    
+                    (DepState.Depends (t, deps' |> List.rev), visited')
+                | s -> (s, visited)
+
+            let stripDuplicates dep = visitTargets (dep, Map.empty) |>  fst
+
+            /// Collapses all instances of FileTarget to a single one
+            let mergeDeps depends =
+                depends
+                |> List.partition (function |DepState.Depends (FileTarget _,_) -> true | _ -> false)
+                |> fun (filesDep, rest) ->
+                    let allFiles = filesDep |> List.map (fun (DepState.Depends (FileTarget t,ls)) -> [t.FullName]) |> List.concat
+                    in
+                    DepState.Refs allFiles :: rest
+            // TODO where're phony actions
+            // can I make it more inductive? Consider initial graph but with stripped targets
+
+            let rec collectTargets = function
+                | DepState.Depends (t,deps) -> t:: (deps |> List.collect collectTargets)
+                | _ -> []
+
+            //let ptgt t = t, t |> mg |> mergeDeps |> List.map stripReasons |> take 5
+            // mg >> List.collect traverseTargets >> distinct >> List.map ptgt
+            let resultList = ptgt |> getDepStates |> List.map stripDuplicates in
+
+            let totalEstimate = resultList |> List.collect collectTargets |> distinct |> List.sumBy getExecTime
+            printfn "Total execution estimate is %Ams" totalEstimate
+
+            resultList |> List.collect collectTargets |> distinct |> List.map (fun t -> (t, getExecTime t))
+
+            //resultList
 
         // executes single artifact
-        and private execOne ctx target =
+        let rec private execOne ctx target =
 
-            let run action chnl =
-                Run(target,
-                    async {
-                        let! lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndAsyncReply
+            let run action =
+                async {
+                    match ctx.NeedRebuild target with
+                    | true ->
+                        let taskContext = newTaskContext target ctx
+                        do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
 
-                        let! willRebuild = needRebuild ctx target lastBuild
+                        do Progress.TaskStart target |> ctx.Progress.Post
 
-                        if willRebuild then 
-                            let taskContext = newTaskContext ctx                           
-                            do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
+                        let startResult = {BuildLog.makeResult target with Steps = [Step.start "all"]}
+                        let! (result,_) = action (startResult,taskContext)
+                        let result = Step.updateTotalDuration result
 
-                            let! (result,_) = action (BuildLog.makeResult target,taskContext)
-                            Store result |> ctx.Db.Post
+                        Store result |> ctx.Db.Post
 
-                            do ctx.Logger.Log Command "Completed %s" (getShortname target)
-                            return ExecStatus.Succeed
-                        else
-                            do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)
-                            return ExecStatus.Skipped
-                    }, chnl)
+                        do Progress.TaskComplete target |> ctx.Progress.Post
+                        do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (getShortname target) (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
+                        return ExecStatus.Succeed
+                    | false ->
+                        do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)
+                        return ExecStatus.Skipped
+                }
+
+            let getAction = function
+                | FileRule (_, action)
+                | FileConditionRule (_, action) ->
+                    let (FileTarget artifact) = target in
+                    let (Action r) = action artifact in
+                    Some r
+                | PhonyRule (_, Action r) -> Some r
 
             // result expression is...
             target
             |> locateRule ctx.Rules ctx.Options.ProjectRoot
-            |> function
-                | Some (FileRule (_, action))
-                | Some (FileConditionRule (_, action)) ->
-                    let (FileTarget artifact) = target in
-                    let (Action r) = action artifact in
-                    Some r
-                | Some (PhonyRule (_, Action r)) -> Some r
-                | _ -> None
+            |> Option.bind getAction
             |> function
                 | Some action ->
                     async {
-                        let! waitTask = run action |> ctx.TaskPool.PostAndAsyncReply
+                        let! waitTask = (fun channel -> Run(target, run action, channel)) |> ctx.TaskPool.PostAndAsyncReply
                         let! status = waitTask
                         return status, Dependency.ArtifactDep target
                     }
                 | None ->
-                    // should always fail for phony
-                    let (FileTarget file) = target
-                    match file.Exists with
-                    | true -> async {return ExecStatus.JustFile, Dependency.File (file,file.LastWriteTime)}
-                    | false -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
+                    target |> function
+                    | FileTarget file when file.Exists ->
+                        async {return ExecStatus.JustFile, Dependency.File (file, file.LastWriteTime)}
+                    | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
 
-        /// Executes several artifacts in parallel
+        /// <summary>
+        /// Executes several artifacts in parallel.
+        /// </summary>
         and private execMany ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
 
-        /// Gets the status of dependency artifacts (obtained from 'need' calls)
+        /// <summary>
+        /// Gets the status of dependency artifacts (obtained from 'need' calls).
+        /// </summary>
+        /// <returns>
+        /// ExecStatus.Succeed,... in case at least one dependency was rebuilt
+        /// </returns>
         and execNeed ctx targets : Async<ExecStatus * Dependency list> =
             async {
-                ctx.Throttler.Release() |> ignore
+                ctx.Tgt |> Option.iter (Progress.TaskSuspend >> ctx.Progress.Post)
+
+                do ctx.Throttler.Release() |> ignore
                 let! statuses = targets |> execMany ctx
                 do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
+                
+                ctx.Tgt |> Option.iter (Progress.TaskResume >> ctx.Progress.Post)
 
                 let dependencies = statuses |> Array.map snd |> List.ofArray in
-                let status = match statuses |> Array.exists (fst >> (=) ExecStatus.Succeed) with
-                                | true -> ExecStatus.Succeed
-                                | _ -> ExecStatus.Skipped
 
-                return status,dependencies
+                return statuses
+                |> Array.exists (fst >> (=) ExecStatus.Succeed)
+                |> function
+                    | true -> ExecStatus.Succeed,dependencies
+                    | false -> ExecStatus.Skipped,dependencies
             }
 
-        // phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
+        /// <summary>
+        /// phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <param name="name"></param>
         let makeTarget ctx name =
             let (Rules rr) = ctx.Rules
             if rr |> List.exists (function |PhonyRule (n,_) when n = name -> true | _ -> false) then
@@ -283,7 +379,50 @@ module XakeScript =
 
             let start = System.DateTime.Now
             let db = Storage.openDb options.ProjectRoot logger
-            let ctx = {Ordinal = 0; TaskPool = pool; Throttler = throttler; Options = options; Rules = rules; Logger = logger; RootLogger = logger; Db = db }
+
+            let ctx = {
+                Ordinal = 0
+                TaskPool = pool; Throttler = throttler
+                Options = options; Rules = rules
+                Logger = logger; RootLogger = logger; Db = db
+                Progress = Progress.emptyProgress()
+                NeedRebuild = fun _ -> false
+                Tgt = None
+                }
+            // TODO wrap more elegantly
+            let rec get_changed_deps = CommonLib.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
+
+            let check_rebuild target =
+                get_changed_deps >>
+                function
+                | [] -> false, ""
+                | DepState.Other reason::_            -> true, reason
+                | DepState.Depends (t,_) ::_          -> true, "Depends on target " + (getFullName t)
+                | DepState.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
+                | reasons -> true, sprintf "Some reason %A" reasons
+                >>
+                function
+                | false, _ -> false
+                | true, reason ->
+                    do ctx.Logger.Log Info "Rebuild %A: %s" (getShortname target) reason
+                    true
+                <| target
+
+            // define targets
+            let targets =
+                match options.Want with
+                | [] ->
+                    do logger.Log Level.Message "No target(s) specified. Defaulting to 'main'"
+                    ["main"]
+                | tt -> tt
+                |> List.map (makeTarget ctx)
+
+            let getDurationDeps t =
+                let collectTargets = List.collect (function |Depends (t,_) -> [t] | _ -> [])
+                (getExecTime ctx t) / 1000<ms>, get_changed_deps t |> collectTargets
+            let progressSink = Progress.openProgress getDurationDeps options.Threads targets
+
+            let ctx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
 
             logger.Log Info "Options: %A" options
 
@@ -295,13 +434,7 @@ module XakeScript =
 
             try
                 try
-                    let checkEmpty = function
-                    | [] ->
-                        logger.Log Level.Message "No target(s) specified. Defaulting to 'main'"
-                        ["main"]
-                    | targets -> targets
-
-                    options.Want |> checkEmpty |> (List.map (makeTarget ctx) >> execMany ctx >> Async.RunSynchronously >> ignore)
+                    targets |> execMany ctx |> Async.RunSynchronously |> ignore
                     logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
                 with 
                     | exn ->
@@ -311,6 +444,24 @@ module XakeScript =
                         logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
             finally
                 db.PostAndReply Storage.CloseWait
+                do Progress.Finish |> ctx.Progress.Post
+
+        /// <summary>
+        /// "need" implementation
+        /// </summary>
+        let need targets =
+            action {
+                let startTime = System.DateTime.Now
+
+                let! ctx = getCtx()
+                let! _,deps = targets |> execNeed ctx
+
+                let totalDuration = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
+                let! result = getResult()
+                let result' = {result with Depends = result.Depends @ deps} |> (Step.updateWaitTime totalDuration)
+                do! setResult result'
+            }
+    end
 
     /// Creates the rule for specified file pattern.    
     let ( *> ) pattern fnRule = FileRule (pattern, fnRule)
@@ -359,22 +510,13 @@ module XakeScript =
 
     /// key functions implementation
 
-    let private needImpl targets =
-            action {
-                let! ctx = getCtx()
-                let! _,deps = targets |> Impl.execNeed ctx
-
-                let! result = getResult()
-                do! setResult {result with Depends = result.Depends @ deps}
-            }
-
     /// Executes and awaits specified artifacts
     let need targets =
             action {
                 let! ctx = getCtx()
                 let t' = targets |> (List.map (Impl.makeTarget ctx))
 
-                do! needImpl t'
+                do! Impl.need t'
             }
 
     let needFiles (Filelist files) =
@@ -382,7 +524,7 @@ module XakeScript =
                 let! ctx = getCtx()
                 let targets = files |> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)
 
-                do! needImpl targets
+                do! Impl.need targets
          }
 
     /// Instructs Xake to rebuild the target even if dependencies are not changed
@@ -396,7 +538,7 @@ module XakeScript =
     let getEnv variableName = action {
         let! ctx = getCtx()
 
-        let value = variableName |> Impl.getEnvVar |> nullableToOption
+        let value = Impl.getEnvVar variableName
 
         // record the dependency
         let! result = getResult()
@@ -408,7 +550,7 @@ module XakeScript =
     /// Gets the global variable
     let getVar variableName = action {
         let! ctx = getCtx()
-        let value = ctx.Options.Vars |> List.tryPick (valueByName variableName)
+        let value = ctx.Options.Vars |> List.tryPick (Impl.valueByName variableName)
         
         // record the dependency
         let! result = getResult()
@@ -431,7 +573,19 @@ module XakeScript =
     /// Writes a message to a log
     let writeLog = Impl.writeLog
 
-    /// Defined a rule that demands specified targets
+    /// <summary>
+    /// Gets state of particular target.
+    /// Temporary method for analyzing changes impact.
+    /// </summary>
+    let getPlainDeps ctx =
+
+        let rec getDeps:Target -> DepState list =
+            (Impl.getDepsImpl ctx (fun x -> getDeps x))
+            |> memoize
+    
+        Impl.getPlainDeps getDeps (Impl.getExecTime ctx)
+
+    /// Defines a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
     let (<==) name targets = PhonyRule (name,action {
         do! need targets

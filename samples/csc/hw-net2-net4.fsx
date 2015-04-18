@@ -1,5 +1,5 @@
 // xake build file
-#r @"../../bin/Xake.Core.dll"
+#r @"../../bin/Debug/Xake.Core.dll"
 
 open Xake
 
@@ -7,7 +7,16 @@ do xake {XakeOptions with Vars = ["NETFX", "4.0"]; FileLogLevel = Verbosity.Diag
 
   rules [
 
-    "main" <== ["hw2.exe"; "hw4.exe"]
+    "main" <== ["check_deps"]
+    //"main" <== ["hw2.exe"; "hw4.exe"]
+
+    "check_deps" => action {
+        let! ctx = getCtx()
+        let tgt = FileTarget (Artifact (ctx.Options.ProjectRoot </> "hw2.exe"))
+        let reasons = getDirtyState ctx tgt
+
+        printfn "need: %A" reasons
+    }
 
     "hw2.exe" *> fun exe -> action {
         do! alwaysRerun()

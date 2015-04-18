@@ -5,10 +5,9 @@
     * various compiler options (including those not supported)
   * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question.
   * ресурсы (CPU и пр.) для управления очередностью
-  * multiple outputs
+  * multiple outputs for one rule
   * chocolatey support
   * ...
-  * let "main" be default rule so that I can skip 'want ["blablabla"]' in most scripts
   * dependency rule: compiler version
   * accept filemasks in 'need' parameters (WHY?)
 
@@ -27,8 +26,9 @@
 ## In progress
 
 ## Done
-* specify target framework for 4.0+ compiler
-* MONO support
+ * let "main" be default rule so that I can skip 'want ["blablabla"]' in most scripts
+ * specify target framework for 4.0+ compiler
+ * MONO support
    * explicitly target mono
    * configure mono from registry
    * probing paths for tools
