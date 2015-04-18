@@ -40,9 +40,10 @@ module XakeScript =
         Rules: Rules<ExecContext>
         Logger: ILogger
         RootLogger: ILogger
+        Progress: Agent<Progress.ProgressReport>
+        Tgt: Target option
         Ordinal: int
         NeedRebuild: Target -> bool
-        Progress: Agent<Progress.ProgressReport>
     }
 
     /// Main type.
@@ -126,11 +127,11 @@ module XakeScript =
         /// <summary>
         /// Creates a context for a new task
         /// </summary>
-        let newTaskContext ctx =
+        let newTaskContext target ctx =
             let ordinal = System.Threading.Interlocked.Increment(refTaskOrdinal)
             let prefix = ordinal |> sprintf "%i> "
             in
-            {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger}
+            {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger; Tgt = Some target}
 
         /// <summary>
         /// Gets target execution time in the last run
@@ -152,12 +153,11 @@ module XakeScript =
                 DepState.Other <| sprintf "target doesn't exist '%s'" file.Name
 
             | ArtifactDep dependeeTarget ->
-                let ls = isOutdatedTarget dependeeTarget in
-
-                if List.exists ((<>) DepState.NotChanged) ls then
-                    DepState.Depends (dependeeTarget,ls)
-                else
-                    NotChanged
+                let ls = dependeeTarget |> isOutdatedTarget
+                in
+                match ls |> List.exists ((<>) DepState.NotChanged) with
+                | true -> DepState.Depends (dependeeTarget,ls)
+                | false -> NotChanged
     
             | EnvVar (name,value) when value <> getEnvVar name ->
                 DepState.Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (getEnvVar name)
@@ -277,8 +277,10 @@ module XakeScript =
                 async {
                     match ctx.NeedRebuild target with
                     | true ->
-                        let taskContext = newTaskContext ctx                           
+                        let taskContext = newTaskContext target ctx
                         do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
+
+                        do Progress.TaskStart target |> ctx.Progress.Post
 
                         let startResult = {BuildLog.makeResult target with Steps = [Step.start "all"]}
                         let! (result,_) = action (startResult,taskContext)
@@ -332,9 +334,13 @@ module XakeScript =
         /// </returns>
         and execNeed ctx targets : Async<ExecStatus * Dependency list> =
             async {
-                ctx.Throttler.Release() |> ignore
+                ctx.Tgt |> Option.iter (Progress.TaskSuspend >> ctx.Progress.Post)
+
+                do ctx.Throttler.Release() |> ignore
                 let! statuses = targets |> execMany ctx
                 do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
+                
+                ctx.Tgt |> Option.iter (Progress.TaskResume >> ctx.Progress.Post)
 
                 let dependencies = statuses |> Array.map snd |> List.ofArray in
 
@@ -379,8 +385,9 @@ module XakeScript =
                 TaskPool = pool; Throttler = throttler
                 Options = options; Rules = rules
                 Logger = logger; RootLogger = logger; Db = db
-                NeedRebuild = fun _ -> false
                 Progress = Progress.emptyProgress()
+                NeedRebuild = fun _ -> false
+                Tgt = None
                 }
             // TODO wrap more elegantly
             let rec get_changed_deps = CommonLib.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in

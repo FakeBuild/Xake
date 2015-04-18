@@ -59,11 +59,11 @@ module internal WindowsProgress =
 
             function
             | Begin ts ->
-                System.Console.Title <- sprintf "{%i%%} %s - %s" 0 (fmt_ts ts) title
+                System.Console.Title <- sprintf "%s - %s" (fmt_ts ts) title
                 ti.SetProgressState (handle, TaskbarStates.Normal)
                 ()
             | Progress (ts,pct) ->
-                System.Console.Title <- sprintf "{%i%%} %s - %s" pct (fmt_ts ts) title
+                System.Console.Title <- sprintf "%i%% %s - %s" pct (fmt_ts ts) title
                 ti.SetProgressValue(handle, uint64 pct, 100UL)
                 ()
             | End ->
@@ -73,6 +73,21 @@ module internal WindowsProgress =
         with _ ->
             fun _ -> ()
 
+module internal Impl =
+    /// <summary>
+    /// Updates the first item matching the criteria and returns the updated value.
+    /// </summary>
+    /// <param name="predicate"></param>
+    /// <param name="upd"></param>
+    let rec updateFirst predicate upd = function
+        | [] -> None,[]
+        | c::list when predicate c ->
+            let updated = upd c in
+            Some updated, updated :: list
+        | c::list ->
+            let result,list = (updateFirst predicate upd list) in
+            result, c::list
+
 /// Estimate the task execution times
 module Estimate =
 
@@ -81,7 +96,7 @@ module Estimate =
         { Cpu: CpuState list; Tasks: Map<'T,int>}
 
     /// <summary>
-    ///  "Executes" one task
+    /// "Executes" one task
     /// </summary>
     /// <param name="state">Initial "machine" state</param>
     /// <param name="getDurationDeps">Provide a task information to exec function</param>
@@ -92,16 +107,6 @@ module Estimate =
             let ready (BusyUntil x) = if x <= after then 0 else x in
             List.minBy ready
 
-        // Updates the first item matching the criteria and returns the updated value
-        let rec updateFirst predicate upd = function
-            | [] -> None,[]
-            | c::list when predicate c ->
-                let updated = upd c in
-                Some updated, updated :: list
-            | c::list ->
-                let result,list = (updateFirst predicate upd list) in
-                result, c::list
-        
         match state.Tasks |> Map.tryFind task with
         | Some result -> state,result
         | None ->
@@ -111,10 +116,10 @@ module Estimate =
             let mstate, endTime = execMany state getDurationDeps deps
             let slot = mstate.Cpu |> nearest endTime
             let Some (BusyUntil result), newState =
-                mstate.Cpu |> updateFirst ((=) slot) (readyAt >> max endTime >> (+) duration >> BusyUntil)
+                mstate.Cpu |> Impl.updateFirst ((=) slot) (readyAt >> max endTime >> (+) duration >> BusyUntil)
             {Cpu = newState; Tasks = mstate.Tasks |> Map.add task result}, result
 //        |> fun r ->
-//            printf "after %A" (task_name task)
+//            printf "after %A" task
 //            printf "   %A\n\n" r
 //            r
 
@@ -134,11 +139,11 @@ module Estimate =
 /// </summary>
 type ProgressReport =
     | TaskStart of Target
+    | TaskSuspend of Target
+    | TaskResume of Target
     | TaskComplete of Target
     | Refresh
     | Finish
-
-// TODO isolate implementation in private nested module
 
 open Estimate
 
@@ -152,6 +157,8 @@ let emptyProgress () =
                 let! msg = mbox.Receive()
                 match msg with
                 | TaskStart _
+                | TaskSuspend _
+                | TaskResume _
                 | Refresh _
                 | TaskComplete _ -> 
                     return! loop()
@@ -176,33 +183,64 @@ let openProgress getDurationDeps threadCount goals =
     let startTime = System.DateTime.Now
     progressBar <| ProgressMessage.Begin (System.TimeSpan.FromSeconds (float endTime))
 
-    //let db, dbwriter = impl.openDatabaseFile path logger
-    let rec processor = MailboxProcessor.Start(fun mbox -> 
+    /// We track currently running tasks and subtract already passed time from task duration
+    let getDuration2 running_tasks t =
+        match running_tasks |> Map.tryFind t with
+        | Some(running_time,_) ->
+            let originalDuration,deps = getDurationDeps t
+            //do printf "\nestimate %A: %A\n" t timeToComplete
+            in
+            originalDuration - running_time/1000 |> max 0, deps
+        | _ ->
+            getDurationDeps t
+
+    let reportProgress (state,running_tasks) =
+        let timePassed = int (System.DateTime.Now - startTime).TotalSeconds in
+        let _,leftTime = execMany state (getDuration2 running_tasks) goals
+        //printf "progress %A to %A " timePassed endTime
+        let percentDone = timePassed * 100 / (timePassed + leftTime) |> int
+        ProgressMessage.Progress (System.TimeSpan.FromSeconds (leftTime |> float), percentDone)
+        |> progressBar
+
+    let updTime = ref System.DateTime.Now
+    let advanceRunningTime rt =
+        let now = System.DateTime.Now
+        let increment = int (now - !updTime).TotalMilliseconds
+        updTime := now
+        rt |> Map.map (
+            fun t (cpu,is_running) ->
+                let ncpu = if is_running then cpu + increment else cpu in
+                (ncpu,is_running)
+                )
+
+    let suspend target t (cpu,is_running) = (cpu,is_running && t <> target)
+    let resume  target t (cpu,is_running) = (cpu,is_running || t = target)
+
+    MailboxProcessor.Start(fun mbox -> 
         let rec loop (state,running_tasks) = 
-            async { 
-                let! msg = mbox.Receive()
-                match msg with
-                | TaskStart target ->
-                    processor.Post Refresh
-                    return! loop (state, target::running_tasks)
-                | Refresh _ ->
-                    // TODO update running tasks
+            async {
+                try
+                    let! msg = mbox.Receive(1000)
+                    let running_tasks = running_tasks |> advanceRunningTime
+
+                    match msg with
+                    | TaskStart target ->    return! loop (state, running_tasks |> Map.add target (0,true))
+                    | TaskSuspend target ->  return! loop (state, running_tasks |> Map.map (suspend target))
+                    | TaskResume target ->   return! loop (state, running_tasks |> Map.map (resume target))
+                    | Refresh _ ->
+                        reportProgress (state,running_tasks)
+                        return! loop (state,running_tasks)
+
+                    | TaskComplete target ->
+                        let newState = ({state with Tasks = state.Tasks |> Map.add target 0}, running_tasks |> Map.remove target)
+                        reportProgress newState
+                        return! loop newState
+
+                    | Finish -> 
+                        ProgressMessage.End |> progressBar
+                        return ()
+                with _ ->
+                    mbox.Post Refresh
                     return! loop (state,running_tasks)
-                | TaskComplete target -> 
-
-                    let timePassed = int (System.DateTime.Now - startTime).TotalSeconds in
-                    let newState = {machine_state with Tasks = machine_state.Tasks |> Map.add target timePassed}
-
-                    let _,endTime = execMany newState getDurationDeps goals
-                    let percentDone = timePassed * 100 / endTime |> int
-                    ProgressMessage.Progress (System.TimeSpan.FromSeconds (float endTime), percentDone)
-                    |> progressBar
-
-                    return! loop (newState, target::running_tasks)
-                | Finish -> 
-                    ProgressMessage.End |> progressBar
-                    return ()
             }
-        loop (machine_state,[]))
-
-    processor
+        loop (machine_state, Map.empty))

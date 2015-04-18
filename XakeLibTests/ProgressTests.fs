@@ -70,3 +70,17 @@ type ProgressTests() =
             Task ("strings", 2, [])
             ]
         estimate threads [] tasks1 ["build"]
+
+    [<TestCase(1, Result = 9)>]
+    [<TestCase(2, Result = 5)>]
+    member this.TestPara2(threads) =
+
+        let tasks1 =
+            [
+                Task ("main", 0, ["t1"; "t2"])
+                Task ("t1", 4, [])
+                Task ("t2", 5, [])
+            ]
+
+        estimate threads [] tasks1 ["main"]       
+
