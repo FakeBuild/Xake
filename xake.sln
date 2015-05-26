@@ -5,8 +5,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5DF9
 	ProjectSection(SolutionItems) = preProject
 		samples\bootstrap-build.fsx = samples\bootstrap-build.fsx
 		samples\build.fsx = samples\build.fsx
-		samples\mt.fsx = samples\mt.fsx
-		samples\mt1.fsx = samples\mt1.fsx
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csc", "csc", "{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD}"
@@ -36,9 +34,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Wiki", "Wiki", "{75E5F305-B
 		docs\todo.md = docs\todo.md
 	EndProjectSection
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLib", "core\XakeLib.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Xake.Core", "core\Xake.Core.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project files", "Project files", "{CA08F45F-D8B4-46D4-B7EC-38C68C7AF0B2}"
+	ProjectSection(SolutionItems) = preProject
+		.travis.yml = .travis.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

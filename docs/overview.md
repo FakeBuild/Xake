@@ -3,6 +3,7 @@
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
   - [The first script](#the-first-script)
+    - [Boostrapping Xake.Core](#boostrapping-xakecore)
   - [So what?](#so-what)
     - [Dependencies tracking](#dependencies-tracking)
     - [Running multiple rules in parallel](#running-multiple-rules-in-parallel)
@@ -71,7 +72,7 @@ System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
 if not (System.IO.File.Exists file) then
     printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.1.2/Xake.Core.dll"
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.1.3/Xake.Core.dll"
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 

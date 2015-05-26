@@ -1,15 +1,17 @@
 ﻿## TODOs
 
   * xakeArgs: support for sequential running of targets, properties
-  * MONO support
-    * various compiler options (including those not supported)
-  * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question.
-  * ресурсы (CPU и пр.) для управления очередностью
+  * __MONO__ support: pass command line switches
+  * resources (CPU, disks etx) for improved load balancing
   * multiple outputs for one rule
-  * chocolatey support
+  * ~~chocolatey~~ __paket__ support
+  * __nuget__ support: retrieve binaries, update packages
   * ...
   * dependency rule: compiler version
-  * accept filemasks in 'need' parameters (WHY?)
+
+## Ideas
+  * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question.
+  * accept filemasks in 'need' parameters (WHY I added it here?)
 
 ## Improvements
   * detect changes in build script (internal changes), e.g. new target added that was not in .xake database
@@ -26,6 +28,7 @@
 ## In progress
 
 ## Done
+ * progress indicator API (not documented and is not pluggable yet), Windows progress bar indicator
  * let "main" be default rule so that I can skip 'want ["blablabla"]' in most scripts
  * specify target framework for 4.0+ compiler
  * MONO support

@@ -1,11 +1,11 @@
 language: csharp
 solution: xake.sln
-env: VER=0.1.0
+env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}; else echo 0.0.0; fi;)
 install:
 - nuget restore xake.sln
 - nuget install NUnit.Runners -Version 2.6.4 -OutputDirectory testrunner
 script:
-- echo "module XakeConst [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\"" > ./VersionInfo.fs
+- echo "module Xake.Const [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\"" > ./core/VersionInfo.fs
 - xbuild /p:Configuration=Release xake.sln
 - mono ./testrunner/NUnit.Runners.2.6.4/tools/nunit-console.exe ./bin/XakeLibTests.dll
 deploy:
@@ -18,3 +18,4 @@ deploy:
   skip_cleanup: true
   on:
     tags: true
+    condition: "${TRAVIS_TAG:0:1} = v"
