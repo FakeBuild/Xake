@@ -1,5 +1,6 @@
 ﻿## TODOs
 
+  * handle missing targets in progress indication
   * xakeArgs: support for sequential running of targets, properties
   * __MONO__ support: pass command line switches
   * resources (CPU, disks etx) for improved load balancing
