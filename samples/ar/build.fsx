@@ -63,7 +63,7 @@ module libs =
 let copyToOutput lib srcpath = ("out" </> lib) *> fun outfile -> action {do! cp (srcpath </> lib) outfile.FullName}
 
 // do xake {XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4 } {
-do xakeArgs fsi.CommandLineArgs {
+do xakeArgs {
     XakeOptions with FileLog = "build.log"; FileLogLevel = Verbosity.Diag; Threads = 4; Vars = [("NETFX", "4.0"); ("NETFX-TARGET","3.5")] } {
 
     // top-level rules

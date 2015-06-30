@@ -490,17 +490,6 @@ module XakeScript =
         [<CustomOperation("want")>] member this.Want(script, targets)               = updTargets script (function |[] -> targets | _ as x -> x)    // Options override script!
         [<CustomOperation("wantOverride")>] member this.WantOverride(script,targets)= updTargets script (fun _ -> targets)
 
-    /// creates xake build script
-    let xake options =
-        new RulesBuilder(options)
-
-    /// Create xake build script using command-line arguments to define script options
-    let xakeArgs args options =
-        let _::targets = Array.toList args
-        // this is very basic implementation which only recognizes target names
-        // TODO support global variables (with dependency tracking)
-        // TODO support sequential/parallel runs e.g. "clean release-build;debug-build"
-        new RulesBuilder({options with Want = targets})
 
     /// Gets the script options.
     let getCtxOptions() = action {
