@@ -15,26 +15,27 @@ module internal ParseArgs = begin
     | "--" :: rest -> rest
     | _ :: tail -> get_script_args tail
 
-    let parseTopLevel arg optionsSoFar = 
-        match arg with 
+    let parseTopLevel (arg:string) optionsSoFar = 
+        match arg.ToLowerInvariant() with 
 
         // TODO support sequential/parallel runs e.g. "clean release-build;debug-build"
 
         | "-t" | "/t" -> 
             (optionsSoFar, Number ("thread count", fun o v -> {o with XakeOptionsType.Threads = v}))
-        | "-R" | "/R" -> 
+        | "-r" | "/r" -> 
             (optionsSoFar, String ("root folder", fun o v -> {o with XakeOptionsType.ProjectRoot = v}))
-        | "-FL" | "/FL" -> 
+        | "-fl" | "/fl" -> 
             (optionsSoFar, String ("file log filename", fun o v -> {o with XakeOptionsType.FileLog = v}))
-        | "-D" | "/D" -> 
+        | "-d" | "/d" -> 
             (optionsSoFar, KeyValue ("variable", fun o k v -> {o with Vars = o.Vars @ [(k,v)] }))
-        | "-LL" | "/LL" -> 
+        | "-ll" | "/ll" -> 
             (optionsSoFar, String ("console verbosity", fun o s -> {o with ConLogLevel = s |> parseVerbosity }))
-        | "-FLL" | "/FLL" -> 
+        | "-fll" | "/fll" -> 
             (optionsSoFar, String ("filelog verbosity", fun o s -> {o with FileLogLevel = s |> parseVerbosity }))
 
         // handle unrecognized option
-        | x when x.StartsWith("-") -> 
+        | x when x.StartsWith("-") || x.StartsWith("/") ->
+            // TODO write errors to log?
             printfn "Option '%s' is unrecognized" x
             (optionsSoFar, TopLevel)
         | x -> 
@@ -64,19 +65,29 @@ module internal ParseArgs = begin
 
         (fn optionsSoFar k v, TopLevel)
 
-    let foldFunction state element  = 
-        match state with
-        | (optionsSoFar, TopLevel) ->
-            parseTopLevel element optionsSoFar
+    let foldFunction state element =
+        try
+            match state with
+            | (optionsSoFar, TopLevel) ->
+                parseTopLevel element optionsSoFar
 
-        | (optionsSoFar, Number (name, fn)) ->
-            readNumber name element optionsSoFar fn
+            | (optionsSoFar, Number (name, fn)) ->
+                readNumber name element optionsSoFar fn
 
-        | (optionsSoFar, String (name, fn)) ->
-            readString name element optionsSoFar fn
+            | (optionsSoFar, String (name, fn)) ->
+                readString name element optionsSoFar fn
 
-        | (optionsSoFar, KeyValue (name, fn)) ->
-            readKeyValue name element optionsSoFar fn
+            | (optionsSoFar, KeyValue (name, fn)) ->
+                readKeyValue name element optionsSoFar fn
+        with e ->
+            let argName =
+                match state with
+                | (_, Number (name, _)) | (_, KeyValue (name, _)) | (_, String (name, _)) ->
+                    name
+                | _ ->
+                    "switch"
+            printfn "Failed to parse '%s' due to %s" argName e.Message
+            (fst state, TopLevel)
 
 end
 
@@ -86,27 +97,22 @@ module Main =
     open ParseArgs
 
     /// <summary>
-    /// creates xake build script
-    /// </summary>
-    /// <param name="options"></param>
-    let xake options =
-
-        new RulesBuilder(options)
-
-    /// <summary>
     /// Creates a script with script parameters passed as list of strings.
     /// </summary>
     /// <param name="args"></param>
     /// <param name="initialOptions"></param>
-    let xakeArgsStr args initialOptions =
-        let options = args |> List.fold foldFunction (initialOptions, TopLevel) |> fst
+    let xakeArgs args initialOptions =
+        let options =
+            if initialOptions.IgnoreCommandLine then initialOptions
+            else args |> List.fold foldFunction (initialOptions, TopLevel) |> fst
         new RulesBuilder (options)
 
     /// <summary>
     /// Create xake build script using command-line arguments to define script options
     /// </summary>
-    /// <param name="args"></param>
-    /// <param name="options"></param>
-    let xakeArgs =
+    /// <param name="options">Initial options set. Could be overridden by a command line arguments.
+    /// Define option IgnoreCommandLine=true to ignore command line arguments
+    /// </param>
+    let xake options =
         let args = get_args() |> get_script_args in
-        xakeArgsStr args
+        xakeArgs args options

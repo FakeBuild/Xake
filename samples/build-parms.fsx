@@ -3,7 +3,7 @@
 
 open Xake
 
-do xakeArgs {XakeOptions with FileLog = "build.log"; Threads = 4 } {
+do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
 
   phony "main" (action {
     do! writeLog Message "Hello world!"

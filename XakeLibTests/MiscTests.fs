@@ -7,7 +7,7 @@ open Xake
 open Storage
 open BuildLog
 
-[<TestFixture (Description = "Verious tests")>]
+[<TestFixture (Description = "Various tests")>]
 type MiscTests() =
 
     [<SetUp>]

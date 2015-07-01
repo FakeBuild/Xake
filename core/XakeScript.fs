@@ -27,6 +27,9 @@ module XakeScript =
 
         /// Defines whether `run` should throw exception if script fails
         FailOnError: bool
+        
+        /// Ignores command line swithes
+        IgnoreCommandLine: bool
     }
 
     type private ExecStatus = | Succeed | Skipped | JustFile
@@ -71,6 +74,7 @@ module XakeScript =
         Want = []
         FailOnError = false
         Vars = List<string*string>.Empty
+        IgnoreCommandLine = false
         }
 
     module private Impl = begin
