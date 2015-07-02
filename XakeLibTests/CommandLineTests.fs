@@ -59,7 +59,7 @@ type CommandLineTests() =
 
         let finalOptions = !scriptOptions
         Assert.AreEqual(31, finalOptions.Threads)
-        Assert.AreEqual(["target1"; "target2"], finalOptions.Want)
+        Assert.AreEqual(["target1"; "target2"], finalOptions.Targets)
         Assert.IsTrue !executed2
 
 
@@ -80,7 +80,7 @@ type CommandLineTests() =
             ["/t"; "33"; "/R"; currentDir; "/LL"; "Loud";
             "/FL"; "aaaaa"; "target"]
     
-        do xakeArgs args {XakeOptions with IgnoreCommandLine = true; Threads = 2; FileLog = "ss"; Want = ["main"]} {
+        do xakeArgs args {XakeOptions with IgnoreCommandLine = true; Threads = 2; FileLog = "ss"; Targets = ["main"]} {
             rules [
               "main" => action {
                   let! opts = getCtxOptions()
@@ -92,4 +92,4 @@ type CommandLineTests() =
         let finalOptions = !scriptOptions
         Assert.AreEqual(2, finalOptions.Threads)
         Assert.AreEqual("ss", finalOptions.FileLog)
-        Assert.AreEqual(["main"], finalOptions.Want)
+        Assert.AreEqual(["main"], finalOptions.Targets)

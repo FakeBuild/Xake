@@ -18,4 +18,11 @@ do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
     return ()
     })
 
+  rules [
+    "t1" => action {do! writeLog Message "t1!"}
+    "t2" => action {do! writeLog Message "t2!"}
+    "t3" => action {do! writeLog Message "t3!"}
+    "t4" => action {do! writeLog Message "t4!"}
+  ]
+
 }

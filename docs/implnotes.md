@@ -92,6 +92,7 @@ where "clean" "build" and "deploy" are target names.
 
 The full list of parameters:
 
+ * -h -- displays help screen
  * -t <task count> -- use <task count> simultaneous processes to execute the build tasks. * Default value is the number of processors
  * -r <root path> -- override the root path. All the targets and filesets are resolved relatively to this path. Default is current directory
  * -ll <log level> -- console log level (Silent | Quiet | Normal | Loud | Chatty | Diag)
@@ -100,6 +101,7 @@ The full list of parameters:
  * target1 .. targetN -- define the list of targets. Targets are executed in strict order, the second one starts only after the first one is complete.
  * target1;target2;..targetN -- execute the targets simultaneously
  * -d <name>=<value> -- defines a script variable value
+ * -nologo -- remove logo string
 
 ### Do not allow to override options
 Command line arguments override the script options (XakeOptions type) unless you define options.IgnoreCommandLine = true.

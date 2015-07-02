@@ -18,8 +18,24 @@ module internal ParseArgs = begin
     let parseTopLevel (arg:string) optionsSoFar = 
         match arg.ToLowerInvariant() with 
 
-        // TODO support sequential/parallel runs e.g. "clean release-build;debug-build"
+        | "-h" | "/h" ->
+            printf """
+Usage:
+ fsi <script file> [-- options target..]
 
+Options:
+  -h                  - displays help screen
+  -t <task count>     - parallelize execution to <task count> processes. Defaults to CPU cores
+  -r <root path>      - override the root path. Default is current directory
+  -ll <log level>     - console log level (Silent | Quiet | Normal | Loud | Chatty | Diag)
+  -fl <file log path> - specifies the name of the log file
+  -fll <log level>    - specifies the logging level to a log file
+  target1 .. targetN  - define the list of targets to be executed sequentially
+  target1;target2;..targetN -- execute the targets simultaneously
+  -d <name>=<value>   - defines a script variable value
+
+            """
+            exit(0)
         | "-t" | "/t" -> 
             (optionsSoFar, Number ("thread count", fun o v -> {o with XakeOptionsType.Threads = v}))
         | "-r" | "/r" -> 
@@ -32,14 +48,14 @@ module internal ParseArgs = begin
             (optionsSoFar, String ("console verbosity", fun o s -> {o with ConLogLevel = s |> parseVerbosity }))
         | "-fll" | "/fll" -> 
             (optionsSoFar, String ("filelog verbosity", fun o s -> {o with FileLogLevel = s |> parseVerbosity }))
+        | "-nologo" -> 
+            ({optionsSoFar with Nologo = true}, TopLevel)
 
-        // handle unrecognized option
         | x when x.StartsWith("-") || x.StartsWith("/") ->
-            // TODO write errors to log?
             printfn "Option '%s' is unrecognized" x
             (optionsSoFar, TopLevel)
         | x -> 
-            ({optionsSoFar with Want = optionsSoFar.Want @ [x]}, TopLevel)
+            ({optionsSoFar with Targets = optionsSoFar.Targets @ [x]}, TopLevel)
 
     let (|NumberVar|_|) str =
         match System.Int32.TryParse str with
@@ -105,6 +121,10 @@ module Main =
         let options =
             if initialOptions.IgnoreCommandLine then initialOptions
             else args |> List.fold foldFunction (initialOptions, TopLevel) |> fst
+        
+        if not options.Nologo then
+            printf "XAKE build tool %s\n\n" Xake.Const.Version
+
         new RulesBuilder (options)
 
     /// <summary>
