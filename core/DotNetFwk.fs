@@ -126,6 +126,7 @@ module DotNetFwk =
     module internal MsImpl =
         open registry
 
+        // TODO drop Wow node lookup
         let fscTool =
             registry.open_subkey registry.HKLM @"SOFTWARE\Wow6432Node\Microsoft\FSharp\3.0\Runtime\v4.0"
             |> Option.bind (registry.get_value_str "")
