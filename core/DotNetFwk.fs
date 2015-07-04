@@ -44,6 +44,7 @@ module DotNetFwk =
         AssemblyDirs: string list
         ToolDir: string
         CscTool: string
+        FscTool: string option
         MsbuildTool: string
         EnvVars: (string* string) list
         }
@@ -107,6 +108,7 @@ module DotNetFwk =
                         ToolDir = libdir </> "mono" </> libpath
                         Version = ver
                         CscTool = csc_tool
+                        FscTool = Some "fsharpi"
                         MsbuildTool = "xbuild"
                         EnvVars =["PATH", sdkroot </> "bin" + ";" + (%"PATH")]
                     }
@@ -123,6 +125,11 @@ module DotNetFwk =
 
     module internal MsImpl =
         open registry
+
+        let fscTool =
+            registry.open_subkey registry.HKLM @"SOFTWARE\Wow6432Node\Microsoft\FSharp\3.0\Runtime\v4.0"
+            |> Option.bind (registry.get_value_str "")
+            |> Option.bind (fun p -> System.IO.Path.Combine (p, "fsc.exe") |> Some)
 
         let tryLocateFwk fwk =
             let fwkKey = open_subkey HKLM @"SOFTWARE\Microsoft\.NETFramework"
@@ -163,6 +170,7 @@ module DotNetFwk =
                     Version = version
                     AssemblyDirs = asmpaths
                     CscTool = fwkdir </> "csc.exe"
+                    FscTool = fscTool
                     MsbuildTool = fwkdir </> "msbuild.exe"
                     EnvVars = vars
                 }, null

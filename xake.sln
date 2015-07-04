@@ -42,6 +42,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project files", "Project files", "{CA08F45F-D8B4-46D4-B7EC-38C68C7AF0B2}"
 	ProjectSection(SolutionItems) = preProject
 		.travis.yml = .travis.yml
+		build.fsx = build.fsx
 		core\filesets.fsx = core\filesets.fsx
 	EndProjectSection
 EndProject

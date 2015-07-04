@@ -302,8 +302,17 @@ module Fileset =
     let ls (filePattern:FilePattern) =
         Fileset (DefaultOptions, [filePattern |> parseFileMask |> Includes])
 
+    /// <summary>
     /// Create a file set for specific file mask. The same as "ls"
+    /// </summary>
     let (!!) = ls
+
+    /// <summary>
+    /// Defines the empty fileset with a specified base dir.
+    /// </summary>
+    /// <param name="dir"></param>
+    let (~+) dir =
+        Fileset ({DefaultOptions with BaseDir = Some dir}, [])
 
     /// <summary>
     /// Changes or appends file extension.
@@ -361,13 +370,6 @@ module Fileset =
         let added = Set.difference set2 set1 |> List.ofSeq |> List.map (Added)
 
         removed @ added
-
-    /// <summary>
-    /// Defines the empty fileset with a specified base dir.
-    /// </summary>
-    /// <param name="dir"></param>
-    let (~+) dir =
-        Fileset ({DefaultOptions with BaseDir = Some dir}, [])
 
     /// <summary>
     /// Defines various operations on Fieset type.
