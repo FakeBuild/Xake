@@ -7,7 +7,7 @@ open Xake
 open Storage
 open BuildLog
 
-[<TestFixture (Description = "Verious tests")>]
+[<TestFixture (Description = "Various tests")>]
 type MiscTests() =
 
     [<SetUp>]
@@ -326,7 +326,7 @@ type MiscTests() =
 
         let count = ref 0
     
-        do xake {XakeOptions with Want = ["xxx"]; Threads = 1; FileLog=""} {  // one thread to avoid simultaneous access to 'wasExecuted'
+        do xake {XakeOptions with Targets = ["xxx"]; Threads = 1; FileLog=""} {  // one thread to avoid simultaneous access to 'wasExecuted'
             rules [
               "main" => action {
                   count := !count + 1

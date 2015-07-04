@@ -57,6 +57,9 @@ module internal WindowsProgress =
                 in
                 format_string ts |> ts.ToString
 
+            // try to change a title to ensure we will not fail later
+            System.Console.Title <- title
+
             function
             | Begin ts ->
                 System.Console.Title <- sprintf "%s - %s" (fmt_ts ts) title
@@ -87,6 +90,12 @@ module internal Impl =
         | c::list ->
             let result,list = (updateFirst predicate upd list) in
             result, c::list
+
+    let ignoreFailures f a =
+        try
+            f a
+        with _ ->
+            ()
 
 /// Estimate the task execution times
 module Estimate =
@@ -175,7 +184,7 @@ let emptyProgress () =
 /// <param name="goals"></param>
 let openProgress getDurationDeps threadCount goals = 
 
-    let progressBar = WindowsProgress.createTaskbarIndicator()
+    let progressBar = WindowsProgress.createTaskbarIndicator() |> Impl.ignoreFailures
     let machine_state = {Cpu = BusyUntil 0 |> List.replicate threadCount; Tasks = Map.empty}
 
     let _,endTime = execMany machine_state getDurationDeps goals

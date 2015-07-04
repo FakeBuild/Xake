@@ -1,6 +1,6 @@
 ﻿## TODOs
 
-  * xakeArgs: support for sequential running of targets, properties
+  * handle missing targets in progress indication
   * __MONO__ support: pass command line switches
   * resources (CPU, disks etx) for improved load balancing
   * multiple outputs for one rule
@@ -8,6 +8,8 @@
   * __nuget__ support: retrieve binaries, update packages
   * ...
   * dependency rule: compiler version
+  * FSC task (f# compiler), self bootstrap
+  * akka.net build scripts
 
 ## Ideas
   * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question.
@@ -28,6 +30,7 @@
 ## In progress
 
 ## Done
+ * command line: pass options, specify sequential/parallel targets
  * progress indicator API (not documented and is not pluggable yet), Windows progress bar indicator
  * let "main" be default rule so that I can skip 'want ["blablabla"]' in most scripts
  * specify target framework for 4.0+ compiler

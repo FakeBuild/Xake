@@ -81,6 +81,31 @@ Tasks:
  * NETFX - framework version to use for compilation, resources. E.g. "2.0", "3.5", "4.0". Default: highest available on the computer
 
 
+## Command line parameters
+
+Script arguments allow to specify execution options, list of targets, logging options and others from command line.
+According to fsi.exe "--" arguments denotes the start of script arguments so in the most common case you will use it as:
+
+  fsi.exe build.fsx -- clean build deploy
+
+where "clean" "build" and "deploy" are target names.
+
+The full list of parameters:
+
+ * -h -- displays help screen
+ * -t <task count> -- use <task count> simultaneous processes to execute the build tasks. * Default value is the number of processors
+ * -r <root path> -- override the root path. All the targets and filesets are resolved relatively to this path. Default is current directory
+ * -ll <log level> -- console log level (Silent | Quiet | Normal | Loud | Chatty | Diag)
+ * -fl <file log path> -- specifies the name of the log file
+ * -fll <log level> -- specifies the logging level to a log file
+ * target1 .. targetN -- define the list of targets. Targets are executed in strict order, the second one starts only after the first one is complete.
+ * target1;target2;..targetN -- execute the targets simultaneously
+ * -d <name>=<value> -- defines a script variable value
+ * -nologo -- remove logo string
+
+### Do not allow to override options
+Command line arguments override the script options (XakeOptions type) unless you define options.IgnoreCommandLine = true.
+
 ## Other
 
   * file names are cases sensitive now. In the future it's planned to be system-dependent

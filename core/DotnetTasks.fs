@@ -74,6 +74,38 @@ module DotNetTaskTypes =
         FailOnError: bool
     }
 
+    /// <summary>
+    /// Fsc (F# compiler) task settings.
+    /// </summary>
+    type FscSettingsType = {
+        /// Limits which platforms this code can run on. The default is anycpu.
+        Platform: TargetPlatform
+        /// Specifies the format of the output file.
+        Target: TargetType
+        /// Specifies the output file name (default: base name of file with main class or first file).
+        Out: Artifact
+        /// Source files.
+        Src: Fileset
+        /// References metadata from the specified assembly files.
+        Ref: Fileset
+        /// References the specified assemblies from GAC.
+        RefGlobal: string list
+        /// Embeds the specified resource.
+        Resources: ResourceFileset list
+        /// Defines conditional compilation symbols.
+        Define: string list
+        /// Allows unsafe code.
+        Unsafe: bool
+        /// Target .NET framework
+        TargetFramework: string
+        /// Custom command-line arguments
+        CommandArgs: string list
+        /// Build fails on compile error.
+        FailOnError: bool
+
+        Tailcalls: bool
+    }
+
 [<AutoOpen>]
 module DotnetTasks =
 
@@ -81,7 +113,7 @@ module DotnetTasks =
 
     /// Default setting for CSC task so that you could only override required settings
     let CscSettings = {
-        Platform = AnyCpu
+        CscSettingsType.Platform = AnyCpu
         Target = Auto    // try to resolve the type from name etc
         Out = Artifact.Undefined
         Src = Fileset.Empty
@@ -96,6 +128,7 @@ module DotnetTasks =
     }
 
     module internal Impl =
+        begin
         /// Escapes argument according to CSC.exe rules (see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx)
         let escapeArgument (str:string) =
             let escape c s =
@@ -179,24 +212,26 @@ module DotnetTasks =
                 (Path.ChangeExtension(res,".resources"),tempfile,true)
             | (res,file) ->
                 (res,file,false)
-    // end of Impl module
-
-    /// C# compiler task
-    let Csc settings =
-
-        let outFile = settings.Out
 
         let resolveTarget (name:string) =
             if name.EndsWith (".dll", System.StringComparison.OrdinalIgnoreCase) then Library else
             if name.EndsWith (".exe", System.StringComparison.OrdinalIgnoreCase) then Exe else
             Library
 
-        let rec targetStr = function
+        let rec targetStr fileName = function
             |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"
-            |Auto -> outFile.Name |> resolveTarget |> targetStr
+            |Auto -> fileName |> resolveTarget |> targetStr fileName
+
         let platformStr = function
             |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
-        
+    
+        end // end of Impl module
+
+    /// C# compiler task
+    let Csc (settings:CscSettingsType) =
+
+        let outFile = settings.Out
+
         action {
             let! options = getCtxOptions()
             let getFiles = toFileList options.ProjectRoot
@@ -241,8 +276,8 @@ module DotnetTasks =
                 seq {
                     yield "/nologo"
 
-                    yield "/target:" + targetStr settings.Target
-                    yield "/platform:" + platformStr settings.Platform
+                    yield "/target:" + Impl.targetStr outFile.Name settings.Target
+                    yield "/platform:" + Impl.platformStr settings.Platform
 
                     if settings.Unsafe then
                         yield "/unsafe"
@@ -396,7 +431,7 @@ module DotnetTasks =
             let! dotnetFwk = getVar "NETFX"
             let fwkInfo = DotNetFwk.locateFramework dotnetFwk
 
-            let pfx = "msbuild" // TODO thread/index
+            let pfx = "msbuild"
 
             let verbosityKey = function | Quiet -> "q" | Minimal -> "m" | Normal -> "n" | Detailed -> "d" | Diag -> "diag"
 
@@ -442,4 +477,135 @@ module DotnetTasks =
                 do! writeLog Error "%s ('%s') failed with exit code '%i'" pfx settings.BuildFile exitCode
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
             ()
+        }
+
+    /// <summary>
+    /// Default settings for Fsc task.
+    /// </summary>
+    let FscSettings = {
+        FscSettingsType.Platform = AnyCpu
+        FscSettingsType.Target = Auto
+        Out = Artifact.Undefined
+        Src = Fileset.Empty
+        Ref = Fileset.Empty
+        RefGlobal = []
+        Resources = []
+        Define = []
+        Unsafe = false
+        TargetFramework = null
+        CommandArgs = []
+        FailOnError = true
+
+        Tailcalls = true
+    }
+
+    /// F# compiler task
+    let Fsc (settings:FscSettingsType) =
+
+        let outFile = settings.Out
+
+        action {
+            let! options = getCtxOptions()
+            let getFiles = toFileList options.ProjectRoot
+
+            let resinfos = settings.Resources |> List.collect (Impl.collectResInfo options.ProjectRoot) |> List.map Impl.compileResxFiles
+            let resfiles =
+                List.ofSeq <|
+                query {
+                    for (_,file,istemp) in resinfos do
+                        where (not istemp)
+                        select (file)
+                }
+
+            let (Filelist src)  = settings.Src |> getFiles
+            let (Filelist refs) = settings.Ref |> getFiles
+
+            do! needFiles (Filelist (src @ refs @ resfiles))
+
+            // TODO implement support for targeting various frameworks
+            let! globalTargetFwk = getVar "NETFX-TARGET"
+            let targetFramework =
+                match settings.TargetFramework, globalTargetFwk with
+                | s, _ when s <> null && s <> "" -> s
+                | _, Some s when s <> "" -> s
+                | _ -> null
+
+            let (globalRefs,nostdlib,noconfig) =
+                match targetFramework with
+                | null ->
+                    let mapfn = (+) "/r:"
+                    // TODO provide an option for user to explicitly specify all grefs (currently csc.rsp is used)
+                    (settings.RefGlobal |> List.map mapfn), false, false
+                | tgt ->
+                    let fwk = Some tgt |> DotNetFwk.locateFramework in
+                    let lookup = DotNetFwk.locateAssembly fwk
+                    let mapfn = (fun name -> "/r:" + (lookup name))
+
+                    //do! writeLog Info "Using libraries from %A" fwk.AssemblyDirs
+
+                    ("mscorlib.dll" :: settings.RefGlobal |> List.map mapfn), true, true
+
+            let args =
+                seq {
+                    if noconfig then
+                        yield "/noconfig"
+                    yield "/nologo"
+
+                    yield "/target:" + Impl.targetStr outFile.Name settings.Target
+                    //yield "/platform:" + Impl.platformStr settings.Platform
+
+                    if settings.Unsafe then
+                        yield "/unsafe"
+
+                    if nostdlib then
+                        yield "/nostdlib+"
+
+                    if not outFile.IsUndefined then
+                        yield sprintf "/out:%s" outFile.FullName
+
+                    if not (List.isEmpty settings.Define) then
+                        yield "/define:" + (settings.Define |> String.concat ";")
+
+                    yield! src |> List.map (fun f -> f.FullName) 
+
+                    yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
+                    yield! globalRefs
+
+                    yield! resinfos |> List.map (fun(name,file,_) -> sprintf "/res:%s,%s" file.FullName name)
+                    yield! settings.CommandArgs
+                }
+
+            let! dotnetFwk = getVar "NETFX"
+            let fwkInfo = DotNetFwk.locateFramework dotnetFwk
+
+            if Option.isNone fwkInfo.FscTool then
+                do! writeLog Error "('%s') failed: F# compiler not found" outFile.Name
+                if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
+
+            let (Some fsc) = fwkInfo.FscTool                
+
+            do! writeLog Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
+            do! writeLog Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
+
+            let options = {
+                SystemOptions with
+                    LogPrefix = "[FSC] "
+                    StdOutLevel = Level.Verbose     // consider standard compiler output too noisy
+                    EnvVars = fwkInfo.EnvVars
+                }
+            let! exitCode = _system options fsc (args |> String.concat " ")
+
+            do! writeLog Level.Verbose "Deleting temporary files"
+            seq {
+                yield! query {
+                    for (_,file,istemp) in resinfos do
+                        where istemp
+                        select file.FullName
+                }
+            }
+            |> Seq.iter File.Delete
+
+            if exitCode <> 0 then
+                do! writeLog Error "('%s') failed with exit code '%i'" outFile.Name exitCode
+                if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
         }

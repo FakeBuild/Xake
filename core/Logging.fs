@@ -139,3 +139,17 @@ let PrefixLogger (prefix:string) (log : ILogger) =
           member __.Log level format = 
               let write = sprintf "%s%s" prefix >> log.Log level "%s"
               Printf.kprintf write format }
+
+/// <summary>
+/// Parses the string value into verbosity level.
+/// </summary>
+/// <param name="parseVerbosity"></param>
+let parseVerbosity = function
+    | "Silent" -> Verbosity.Silent
+    | "Quiet" -> Verbosity.Quiet
+    | "Normal" -> Verbosity.Normal
+    | "Loud" -> Verbosity.Loud
+    | "Chatty" -> Verbosity.Chatty
+    | "Diag" -> Verbosity.Diag
+    | s ->
+        failwithf "invalid verbosity: %s. Expected one of %s" s "Silent | Quiet | Normal | Loud | Chatty | Diag"

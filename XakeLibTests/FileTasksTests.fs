@@ -12,7 +12,7 @@ open Xake.Storage
 [<TestFixture>]
 type FileTasksTests() = 
 
-    let TestOptions = {XakeOptions with Threads = 1; Want = ["main"]; ConLogLevel = Chatty; FileLogLevel = Silent}
+    let TestOptions = {XakeOptions with Threads = 1; Targets = ["main"]; ConLogLevel = Chatty; FileLogLevel = Silent}
 
     [<Test>]
     member this.DeleteSimple() =
