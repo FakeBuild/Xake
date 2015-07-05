@@ -108,7 +108,7 @@ module DotNetFwk =
                         ToolDir = libdir </> "mono" </> libpath
                         Version = ver
                         CscTool = csc_tool
-                        FscTool = Some "fsharpi"
+                        FscTool = Some "fsharpc"
                         MsbuildTool = "xbuild"
                         EnvVars =["PATH", sdkroot </> "bin" + ";" + (%"PATH")]
                     }
