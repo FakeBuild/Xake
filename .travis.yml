@@ -2,8 +2,8 @@ language: csharp
 solution: xake.sln
 env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}; else echo 0.0.0; fi;)
 install:
-- .paket/paket.bootstrapper.exe
-- .paket/paket.exe install
+- mono .paket/paket.bootstrapper.exe
+- mono .paket/paket.exe install
 script:
 - echo "module Xake.Const [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\"" > ./core/VersionInfo.fs
 - fsharpi build.fsx -- build test
