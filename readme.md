@@ -39,12 +39,14 @@ This script compiles helloworld assembly from helloworld.cs file.
 
 Clone the project:
 
-    git clone http://githib.com/olegzee/xake
+    git clone http://github.com/olegzee/xake
 
 Build the xake.core dll:
 
     cd xake
-    xbuild xake.sln
+    fsharpi build.fsx -- get-deps build
+
+Note: use fsi if running under Windows/.NET Runtime.
 
 Run the "Hello world" sample:
 
