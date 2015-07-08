@@ -1,6 +1,11 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{C5FB2DCA-B737-43D0-92F3-4D2CE03CD022}"
+	ProjectSection(SolutionItems) = preProject
+		paket.dependencies = paket.dependencies
+	EndProjectSection
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5DF9487A-79E1-412A-BF67-5F02999A1988}"
 	ProjectSection(SolutionItems) = preProject
 		samples\bootstrap-build.fsx = samples\bootstrap-build.fsx
@@ -44,11 +49,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project files", "Project fi
 		.travis.yml = .travis.yml
 		build.fsx = build.fsx
 		core\filesets.fsx = core\filesets.fsx
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{0D5E4046-AD73-4D3F-BF54-5D7E31450641}"
-	ProjectSection(SolutionItems) = preProject
-		.nuget\packages.config = .nuget\packages.config
 	EndProjectSection
 EndProject
 Global

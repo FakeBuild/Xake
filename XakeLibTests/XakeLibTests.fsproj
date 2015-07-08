@@ -50,7 +50,7 @@
     <Compile Include="FileTasksTests.fs" />
     <Compile Include="ProgressTests.fs" />
     <Compile Include="CommandLineTests.fs" />
-    <None Include="packages.config" />
+    <None Include="paket.references" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\core\Xake.Core.fsproj">

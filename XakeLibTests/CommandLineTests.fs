@@ -8,7 +8,7 @@ open Xake
 [<TestFixture (Description = "Command line tests")>]
 type CommandLineTests() =
 
-    let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "..")
+    let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "../bin")
 
     [<Test (Description = "Verifies reading common switches")>]
     member test.AcceptKnownSwitches() =
