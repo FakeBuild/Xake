@@ -1,56 +1,49 @@
 // xake build file
-#r @"bin/Debug/Xake.Core.dll"
+// boostrapping xake.core
+System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
+
+let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
+if not (System.IO.File.Exists file) then
+    printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.3.1/Xake.Core.dll"
+    use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
+    printfn ""
+
+// xake build file body
+#r @"packages/Xake.Core.dll"
+// #r @"bin/Debug/Xake.Core.dll"
 
 open Xake
 
-let fsc = """C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\fsc.exe"""
+let build target = action {
+    do! alwaysRerun()
+    do! MSBuild {MSBuildSettings with BuildFile = "xake.sln"; Property = [("Configuration", "Release")]; Target = [target]}
+}
 
 do xake {XakeOptions with FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
 
     rules [
-        "main"  <== ["build"]
-        "build" <== ["bin/Xake.Core.dll"]
-
-        "clean" => action {
-            do! rm ["bin/Xake.Core.dll"]
-        }
-
-        "bin/Xake.Core.dll" *> fun file -> action {
-
-            // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
-            
-            let sources = fileset {
-                basedir "core"
-                includes "Logging.fs"
-                includes "Pickler.fs"
-                includes "Fileset.fs"
-                includes "Types.fs"
-                includes "ArtifactUtil.fs"
-                includes "CommonLib.fs"
-                includes "Database.fs"
-                includes "Action.fs"
-                includes "WorkerPool.fs"
-                includes "Progress.fs"
-                includes "XakeScript.fs"
-                includes "CommonTasks.fs"
-                includes "FileTasks.fs"
-                includes "ResourceFileset.fs"
-                includes "DotNetFwk.fs"
-                includes "DotnetTasks.fs"
-                includes "VersionInfo.fs"
-                includes "AssemblyInfo.fs"
-                includes "Program.fs"
+        "all"  => action {
+            do! need ["get-deps"]
+            do! need ["build"]
+            do! need ["test"]
             }
 
-            do! Fsc {
-                FscSettings with
-                    Out = file
-                    Src = sources
-                    RefGlobal = ["System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
-                    Define = ["TRACE"]
-                    CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"]
-                }
+        "build" => (build "Build")
+        "clean" => (build "Clean")
 
+        "get-deps" => action {
+            let! exit_code = system ".paket/paket.bootstrapper.exe" []
+            let! exit_code = system ".paket/paket.exe" ["install"]
+
+            if exit_code <> 0 then
+                failwith "Failed to install packages"
+        }
+
+        "test" => action {
+            let! exit_code = system "packages/NUnit.Runners/tools/nunit-console.exe" ["./bin/XakeLibTests.dll"]
+            if exit_code <> 0 then
+                failwith "Failed to test"
         }
     ]
 

@@ -1,0 +1,5 @@
+NUGET
+  remote: https://www.nuget.org/api/v2
+  specs:
+    NuGet.CommandLine (2.8.5)
+    NUnit (2.6.3) - framework: >= net35
