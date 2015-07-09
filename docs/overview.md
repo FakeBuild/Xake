@@ -72,7 +72,7 @@ System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
 if not (System.IO.File.Exists file) then
     printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.2.0/Xake.Core.dll"
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.3.5/Xake.Core.dll"
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
@@ -255,6 +255,22 @@ let cp (src: string) tgt =
   action {
     do! need [src]
     File.Copy(src, tgt, true)
+  }
+```
+
+In case the action returns a value you could consume it using let-bang:
+```fsharp
+  action {
+    let! error_code = system "ls" []
+    if error_code <> 0 then failwith...
+  }
+```
+
+If the task (action) returns a value which you do not need use Action.Ignore:
+```fsharp
+  action {
+    do! system "ls" [] |> Action.Ignore
+    if error_code <> 0 then failwith...
   }
 ```
 

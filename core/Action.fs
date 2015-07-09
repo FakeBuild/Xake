@@ -46,8 +46,11 @@ module Action =
 
   // other (public) functions for Action
 
-  /// Gets action context
+  /// <summary>
+  /// Gets action context.
+  /// </summary>
   let getCtx()     = Action (fun (r,c) -> async {return (r,c)})
+
   let getResult()  = Action (fun (s,_) -> async {return (s,s)})
   let setResult s' = Action (fun (_,_) -> async {return (s',())})
 
@@ -63,5 +66,8 @@ module Action =
             return (r'',())
         })
   
-  /// Ignores action result
-  let ActIgnore act = act >>= (fun _ -> returnF ())
+  /// <summary>
+  /// Ignores action result in case task returns the value but you don't need it.
+  /// </summary>
+  /// <param name="act"></param>
+  let Ignore act = act >>= (fun _ -> returnF ())
