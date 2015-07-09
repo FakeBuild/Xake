@@ -41,7 +41,7 @@ Clone the project:
 
     git clone http://github.com/olegzee/xake
 
-Build the xake.core dll:
+Build the xake.core dll (to xake/bin folder):
 
     cd xake
     fsharpi build.fsx -- get-deps build
