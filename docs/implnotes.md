@@ -113,3 +113,9 @@ Command line arguments override the script options (XakeOptions type) unless you
     * csc task option "copy deps to output folder"
     * manually copy (need tracking which are really needed)
     * explicit external map of deps: use both
+
+### Build notes
+Release new version by tagging the commit:
+
+    git tag v0.3.6
+    git push --tags
