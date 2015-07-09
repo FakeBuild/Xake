@@ -1,4 +1,5 @@
 source https://www.nuget.org/api/v2/
 
+nuget NUnit.Runners
 nuget Nuget.CommandLine
 nuget NUnit 2.6.3 framework: >= net35

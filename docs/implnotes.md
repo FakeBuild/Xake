@@ -119,3 +119,4 @@ Release new version by tagging the commit:
 
     git tag v0.3.6
     git push --tags
+

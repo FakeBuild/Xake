@@ -285,6 +285,19 @@ Script variables are not F# variables.
 
 > TBD
 
+### Env module
+Provides information about environment.
+
+Methods are:
+* `isRunningOnMono` - executing under mono runtime (both in Windows and Unix)
+* `isUnix` - is `true` is executing in Unix/OSX/Linux operating system
+* `isWindows` - -,,- Windows operating system
+
+```fsharp
+open Xake.Env
+
+let! _ = system (if isWindows then "dir" else "ls")
+```
 ### Tasks
 
 #### File tasks

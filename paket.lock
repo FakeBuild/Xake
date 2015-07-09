@@ -3,3 +3,4 @@ NUGET
   specs:
     NuGet.CommandLine (2.8.5)
     NUnit (2.6.3) - framework: >= net35
+    NUnit.Runners (2.6.4)
