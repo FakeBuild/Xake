@@ -3,20 +3,10 @@
 [<AutoOpen>]
 module Xake.CommonTasks
 
-/// Gets true if running under Mono framework
-let internal isRunningOnMono =
-  System.Type.GetType ("Mono.Runtime") <> null
-
-let internal isRunningOnUnix =
-  match System.Environment.OSVersion.Platform with
-  | System.PlatformID.MacOSX | System.PlatformID.Unix -> true
-  | _ -> false
-
-let internal isRunningOnWin32 = not isRunningOnUnix
-
 module internal impl =
 
     open Xake
+    open Xake.Env
     open System.Diagnostics
 
     // internal implementation
@@ -73,7 +63,7 @@ module internal impl =
         let handleStd = log settings.StdOutLevel  "%s %s" settings.LogPrefix
 
         return
-            if isRunningOnWin32 && not <| isExt cmd ".exe" then
+            if isWindows && not <| isExt cmd ".exe" then
                 _pexec handleStd handleErr "cmd.exe" ("/c " + cmd + " " + args) settings.EnvVars
             else
                 _pexec handleStd handleErr cmd args settings.EnvVars
@@ -94,6 +84,12 @@ let system cmd args =
 
     return exitCode
   }
+
+/// <summary>
+/// Executes .NET application. Under unix put "mono" before command line.
+/// </summary>
+/// <param name="cmd">Command or executable name.</param>
+/// <param name="args">Command arguments.</param>
 
 // reads the file and returns all text
 //let readtext artifact =

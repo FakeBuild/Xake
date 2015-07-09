@@ -191,7 +191,7 @@ module DotNetFwk =
                 match fwk |> startsWith "mono-", fwk |> startsWith "net-" with
                 | true, _ -> monoFwkImpl.tryLocateFwk
                 | _, true -> MsImpl.tryLocateFwk
-                | _,_ -> match isRunningOnMono with | true -> monoFwkImpl.tryLocateFwk | false -> MsImpl.tryLocateFwk
+                | _,_ -> if Env.isRunningOnMono then monoFwkImpl.tryLocateFwk else MsImpl.tryLocateFwk
 
             match fwk with
             | None ->
