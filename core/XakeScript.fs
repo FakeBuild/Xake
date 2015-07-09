@@ -450,7 +450,7 @@ module XakeScript =
                         [["main"]]
                     | tt ->
                         tt |> List.map (fun s -> s.Split(';', '|') |> List.ofArray)
-                    
+
             try
                 try
                     for list in targetLists do
@@ -462,6 +462,7 @@ module XakeScript =
                         let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
                         th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
                         logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
+                        // TODO exit(1)
             finally
                 db.PostAndReply Storage.CloseWait
 
