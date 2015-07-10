@@ -5,36 +5,77 @@ module Action =
 
   open BuildLog
 
-  // reset context for nested action
-  let private runAction (Action r) = r
-  let private returnF a = Action (fun (s,_) -> async {return (s,a)})
+  module private A =
+      let runAction (Action r) = r
+      let resultF a = Action (fun (s,_) -> async {return (s,a)})
 
-  // bind action in expression like do! action {...}
-  let private (>>=) m f = Action (fun (s,r) -> async {
-      let! (s',a) = runAction m (s,r) in
-      return! runAction (f a) (s',r)
-      })
+      let bindF m f = Action (fun (s,r) -> async {
+          let! (s',a) = runAction m (s,r) in
+          return! runAction (f a) (s',r)
+          })
 
-  let private bindAsync ac f = Action (fun (s,r) -> async {
-      let! a = ac in return! runAction (f a) (s,r)
-      })
-  
+      let resultFromF m = m
+
+      let callF f a = bindF (resultF a) f
+      let delayF f = callF f ()
+      let bindA ac f = Action (fun (s,r) -> async {
+          let! a = ac in return! runAction (f a) (s,r)
+          })
+
+      //let doneF = resultF()
+      let doneF = Action (fun (s,_) -> async {return (s,())})
+      let ignoreF p = bindF p (fun _ -> doneF)
+      let combineF f g = bindF f (fun _ -> g)
+
+      let rec whileF guard prog =
+        if not (guard()) then 
+            doneF
+        else 
+            bindF prog (fun () -> whileF guard prog) 
+
+      let forF (e: seq<_>) prog =
+        let ie = e.GetEnumerator()
+        whileF
+            (fun () -> ie.MoveNext())
+            (delayF(fun () -> prog ie.Current))
+(*
+      let tryF body handler =
+        try
+            resultFromF (body())
+        with
+            e -> handler e
+
+      let tryFinallyF comp body =
+        try
+            resultFromF (body())
+        finally
+            comp()
+
+      let usingF (r:'T :> System.IDisposable) f =  
+        tryFinallyF (fun () -> r.Dispose()) (callF f r)
+
+      let forF1 (e: seq<_>) prog =
+        usingF (e.GetEnumerator()) (fun ie ->
+            whileF
+                (fun () -> ie.MoveNext())
+                (delayF(fun () -> prog ie.Current))
+        )
+*)
+  open A
+  let private (>>=) = bindF
+
   type ActionBuilder() =
-    member this.Return(c) = returnF c
-    member this.Zero()    = returnF ()
-    member this.Delay(f)  = returnF() >>= f
+    member this.Return(c) = resultF c
+    member this.Zero()    = doneF
+    member this.Delay(f)  = delayF f
 
     // binds both monadic and for async computations
     member this.Bind(m, f) = m >>= f
-    member this.Bind(m, f) = bindAsync m f
-    member this.Bind((), f) = this.Zero() >>= f
+    member this.Bind(m, f) = bindA m f
+    member this.Bind((), f) = resultF() >>= f
 
-    member this.Combine(r1, r2) = r1 >>= fun _ -> r2
-    member this.For(seq:seq<_>, f)  = Action (fun (s,x) -> async {
-      for i in seq do
-        runAction (f i) x |> ignore // TODO collect DepStatus
-      return s,()
-      })
+    member this.Combine(f, g) = combineF f g
+    member this.For(seq, f) = forF seq f
 
 //    [<CustomOperation("step")>]
 //    member this.Step(m, name) =
@@ -51,7 +92,15 @@ module Action =
   /// </summary>
   let getCtx()     = Action (fun (r,c) -> async {return (r,c)})
 
+  /// <summary>
+  /// Gets current task result.
+  /// </summary>
   let getResult()  = Action (fun (s,_) -> async {return (s,s)})
+
+  /// <summary>
+  /// Updates the build result
+  /// </summary>
+  /// <param name="s'"></param>
   let setResult s' = Action (fun (_,_) -> async {return (s',())})
 
   /// <summary>
@@ -70,4 +119,4 @@ module Action =
   /// Ignores action result in case task returns the value but you don't need it.
   /// </summary>
   /// <param name="act"></param>
-  let Ignore act = act >>= (fun _ -> returnF ())
+  let Ignore act = act |> ignoreF

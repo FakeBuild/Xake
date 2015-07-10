@@ -129,8 +129,6 @@ type ``action block allows``() =
   [<Test>]
   member test.``let! returning value``() =
 
-    let wasExecuted = ref false
-
     let errorlist = new System.Collections.Generic.List<string>()
     let note = errorlist.Add
 
@@ -143,14 +141,97 @@ type ``action block allows``() =
       phony "main" (action {
         let! s1 = testee "1"
         do note s1
-        wasExecuted := true
         let! s2 = testee ("2+" + s1)
         do note s2
         do note "3"
       })
     }
 
-    do note "4"
+    Assert.That(errorlist, Is.EqualTo(["1"; "2+1"; "3"] |> List.toArray))
 
-    Assert.IsTrue(!wasExecuted)
-    Assert.That(errorlist, Is.EqualTo(["1"; "2+1"; "3"; "4"] |> List.toArray))
+  [<Test>]
+  member test.``if of various kinds``() =
+
+    let errorlist = new System.Collections.Generic.List<string>()
+    let note = errorlist.Add
+
+    let iif f a b =
+        action {
+            return if f then a else b
+        }
+    
+    do xake DebugOptions {
+      phony "main" (action {
+        if true then
+            do note "i1-t"
+        else
+            do note "i1-f"
+
+        if false then
+            ()
+        else
+            do note "i2-f"
+
+        let! s1 = iif true "2" "2f"
+        let! s1 = if s1 = "2" then iif true "2" "2f" else action {return "2"}
+        do note s1
+        do note "3"
+      })
+    }
+
+    Assert.That(errorlist, Is.EqualTo(["i1-t"; "i2-f"; "2"; "3"] |> List.toArray))
+
+  [<Test>]
+  member test.``if without else``() =
+
+    let errorlist = new System.Collections.Generic.List<string>()
+    let note = errorlist.Add
+
+    let iif f a b =
+        action {
+            return if f then a else b
+        }
+    
+    do xake DebugOptions {
+
+      phony "main" (action {
+        if true then
+            do note "i1-t"
+
+        let! s1 = iif true "2" "2f"
+        if s1 = "2" then
+            do note "3"
+
+        for i in [1..5] do
+            ()
+        
+        do note "4"
+      })
+    }
+
+    Assert.That(errorlist, Is.EqualTo(["i1-t"; "3"; "4"] |> List.toArray))
+
+  [<Test>]
+  member test.``for``() =
+
+    let errorlist = new System.Collections.Generic.List<string>()
+    let note = errorlist.Add
+
+    do xake DebugOptions {
+
+      phony "main" (action {
+
+        let! s1 = action {return "122"}
+        let s2 = s1
+
+        for i in [1..5] do
+            do! writeLog Info "%A" i
+        
+        do note "4"
+      })
+    }
+
+    Assert.That(errorlist, Is.EqualTo(["i1-t"; "3"; "4"] |> List.toArray))
+
+// TODO use!, try etc
+
