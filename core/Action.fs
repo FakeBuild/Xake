@@ -33,34 +33,49 @@ module Action =
         else 
             bindF prog (fun () -> whileF guard prog) 
 
-      let forF (e: seq<_>) prog =
-        let ie = e.GetEnumerator()
-        whileF
-            (fun () -> ie.MoveNext())
-            (delayF(fun () -> prog ie.Current))
-(*
       let tryF body handler =
         try
             resultFromF (body())
         with
             e -> handler e
 
-      let tryFinallyF comp body =
+      let tryFinallyF body comp =
         try
             resultFromF (body())
         finally
             comp()
 
-      let usingF (r:'T :> System.IDisposable) f =  
-        tryFinallyF (fun () -> r.Dispose()) (callF f r)
+      let usingF (r:'T :> System.IDisposable) body =
+        let body' = fun () -> body r
+        tryFinallyF body' (fun () -> r.Dispose())
 
-      let forF1 (e: seq<_>) prog =
+      let forF (e: seq<_>) prog =
         usingF (e.GetEnumerator()) (fun ie ->
             whileF
                 (fun () -> ie.MoveNext())
                 (delayF(fun () -> prog ie.Current))
         )
-*)
+
+
+      // temporary defined overloads suitable for
+
+//      let tryFinallyF2 body comp =
+//        try
+//            printfn "TryWith Body"
+//            let m = body()
+//            printfn "TryWith Body/return"
+//            resultFromF m
+//            //resultFromF body
+//        finally
+//            printfn "TryWith Finally"
+//            delayF comp()
+//
+//      let tryF2 body handler =
+//        try
+//            resultFromF body
+//        with
+//            e -> handler e
+
   open A
   let private (>>=) = bindF
 
@@ -70,12 +85,17 @@ module Action =
     member this.Delay(f)  = delayF f
 
     // binds both monadic and for async computations
-    member this.Bind(m, f) = m >>= f
+    member this.Bind(m, f) = bindF m f
     member this.Bind(m, f) = bindA m f
-    member this.Bind((), f) = resultF() >>= f
+    member this.Bind((), f) = resultF () >>= f
 
     member this.Combine(f, g) = combineF f g
+    member this.While(guard, body) = whileF guard body
     member this.For(seq, f) = forF seq f
+
+//    member this.TryWith(body, handler) = tryF2 (delayF (fun () -> body)) handler
+//    member this.TryFinally(body, compensation) = tryFinallyF2 (fun () -> body) compensation
+//    member this.Using(disposable:#System.IDisposable, body) = usingF disposable body
 
 //    [<CustomOperation("step")>]
 //    member this.Step(m, name) =

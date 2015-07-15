@@ -212,7 +212,7 @@ type ``action block allows``() =
     Assert.That(errorlist, Is.EqualTo(["i1-t"; "3"; "4"] |> List.toArray))
 
   [<Test>]
-  member test.``for``() =
+  member test.``for and while``() =
 
     let errorlist = new System.Collections.Generic.List<string>()
     let note = errorlist.Add
@@ -223,15 +223,57 @@ type ``action block allows``() =
 
         let! s1 = action {return "122"}
         let s2 = s1
+        do note "1"
 
-        for i in [1..5] do
+        for i in [1..3] do
             do! writeLog Info "%A" i
+            do note (sprintf "i=%i" i)
+
+        let j = ref 3
+        while !j < 5 do
+            do note (sprintf "j=%i" !j)
+            j := !j + 1
         
         do note "4"
       })
     }
 
-    Assert.That(errorlist, Is.EqualTo(["i1-t"; "3"; "4"] |> List.toArray))
+    Assert.That(errorlist, Is.EqualTo(["1"; "i=1"; "i=2"; "i=3"; "j=3"; "j=4"; "j=5"; "4"] |> List.toArray))
 
-// TODO use!, try etc
+  [<Test; Explicit>]
+  member test.``try catch finally``() =
+
+    let errorlist = new System.Collections.Generic.List<string>()
+    let note = errorlist.Add
+
+    do xake DebugOptions {
+
+      phony "main" (action {
+
+        let! s1 = action {return "122"}
+        do note s1
+
+        note "before try"
+
+//        try
+//           printfn "Body executed"
+//           do note "try"
+//        finally
+//           printfn "Finally executed"
+//           do note "finally"
+
+//        try
+//            failwith "ee"
+//        with e ->
+//            do note e.Message
+        
+        do note "4"
+      })
+    }
+
+    // "2222"; "ee"; 
+    printfn "%A" errorlist
+    Assert.That(errorlist, Is.EqualTo(["122"; "try"; "finally"; "4"] |> List.toArray))
+
+// TODO use!, try with exception within action
 
