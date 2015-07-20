@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/OlegZee/Xake.png?label=ready&title=Ready)](https://waffle.io/OlegZee/Xake)
 ﻿Xake is a make utility made for .NET on F# language. Xake is inspired by [shake](https://github.com/ndmitchell/shake) build tool.
 
 Unlike NAnt, Fake and similar tools with imperative script style, Xake is declarative:
