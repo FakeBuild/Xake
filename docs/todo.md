@@ -1,35 +1,26 @@
-﻿## TODOs
+﻿## TODOs and ideas
 
-  * handle missing targets in progress indication
-  * __MONO__ support: pass command line switches
-  * resources (CPU, disks etx) for improved load balancing
-  * multiple outputs for one rule
-  * ~~chocolatey~~ __paket__ support
-  * __nuget__ support: retrieve binaries, update packages
-  * ...
-  * dependency rule: compiler version
-  * FSC task (f# compiler), self bootstrap
   * akka.net build scripts
-
-## Ideas
-  * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question.
-  * accept filemasks in 'need' parameters (WHY I added it here?)
-
-## Improvements
+  * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question. (we have it out of the box, need more info)
+  * accept filemasks in 'need' parameters (WHY I added it here?, the use case is very unclear)
   * detect changes in build script (internal changes), e.g. new target added that was not in .xake database
-  * performance of rules lookup (takes 2s now)
 
 ### Refactorings
   * Artifact -> FileName of string, relative path
 
-
-## Tasks TODO
-  * command-line tool
-  * MSBuild task
-
-## In progress
+## Thoughts
+ * idea: rule settings
+  * "clean" {FailOnError = true} \*\*> file a -> action {}
+  * "clean" \!\*> file a -> action {}
+  * "clean" \*\*> file a -> action ({FailOnError = true}) {}
+ * folder as a target:
+  * want ["Viewer", "Designer"]
+  * rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}
 
 ## Done
+ * MSBuild task
+ * performance of rules lookup (takes 2s now)
+ * FSC task (f# compiler), self bootstrap
  * command line: pass options, specify sequential/parallel targets
  * progress indicator API (not documented and is not pluggable yet), Windows progress bar indicator
  * let "main" be default rule so that I can skip 'want ["blablabla"]' in most scripts
@@ -64,13 +55,3 @@
    * dependency rule: environment variable
    * dependency rule: fileset change
  * условное правило (*?> функция вместо маски)
-
-## Thoughts
- * idea: rule settings
-  * "clean" {FailOnError = true} \*\*> file a -> action {}
-  * "clean" \!\*> file a -> action {}
-  * "clean" \*\*> file a -> action ({FailOnError = true}) {}
- * tracing mode: actions are not performed, only need is processed so that we get a dependency graph
- * folder as a target:
-  * want ["Viewer", "Designer"]
-  * rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}
