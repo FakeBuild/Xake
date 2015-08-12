@@ -12,7 +12,7 @@ type Ll<'a> =
 
 let x = 1 :: 2 :: Nil
 
-do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
+do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
 
   want ([1..20] |> List.map (sprintf "a%i.exe"))
   //want ["a1.exe"; "a2.exe"; "a3.exe"; "a4.exe"; "a5.exe"; "a6.exe"; "a7.exe"]

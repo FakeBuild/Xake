@@ -46,6 +46,7 @@
     <Compile Include="ActionTests.fs" />
     <Compile Include="FilesetTests.fs" />
     <Compile Include="ScriptErrorTests.fs" />
+    <Compile Include="XakeScriptTests.fs" />
     <Compile Include="MiscTests.fs" />
     <Compile Include="StorageTests.fs" />
     <Compile Include="FileTasksTests.fs" />

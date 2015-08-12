@@ -11,10 +11,10 @@ type ``action block allows``() =
 
   let MakeDebugOptions() =
     let errorlist = new System.Collections.Generic.List<string>() in
-    {XakeOptions with FailOnError = true; CustomLogger = CustomLogger ((=) Level.Error) errorlist.Add; FileLog = ""},errorlist
+    {ExecOptions.Default with FailOnError = true; CustomLogger = CustomLogger ((=) Level.Error) errorlist.Add; FileLog = ""},errorlist
 
   let DebugOptions =
-    {XakeOptions with FailOnError = true; FileLog = ""}
+    {ExecOptions.Default with FailOnError = true; FileLog = ""}
 
   [<Test (Description = "Verifies we could use logging from inside action block")>]
   member test.Simple() =

@@ -9,6 +9,7 @@ open Xake
 type ``Command line interface``() =
 
     let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "../bin")
+    let XakeOptions = ExecOptions.Default
 
     [<Test>]
     member test.``accepts various switches``() =

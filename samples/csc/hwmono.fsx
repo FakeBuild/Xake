@@ -3,7 +3,7 @@
 
 open Xake
 
-do xake {XakeOptions with Vars = ["NETFX", "mono-35"]} {
+do xake {ExecOptions.Default with Vars = ["NETFX", "mono-35"]} {
   rule ("main" <== ["hwmono.exe"])
   rules [
     //"main" <== ["hwmono.exe"]

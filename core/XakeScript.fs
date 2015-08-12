@@ -5,7 +5,7 @@ module XakeScript =
 
     open System.Threading
 
-    type XakeOptionsType = {
+    type ExecOptions = {
         /// Defines project root folder
         ProjectRoot : string    // TODO DirectoryInfo?
         /// Maximum number of rules processed simultaneously.
@@ -34,40 +34,9 @@ module XakeScript =
 
         /// Disable logo message
         Nologo: bool
-    }
-
-    type private ExecStatus = | Succeed | Skipped | JustFile
-    type private TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
-
-    type ExecContext = {
-        TaskPool: TaskPool
-        Db: Agent<Storage.DatabaseApi>
-        Throttler: SemaphoreSlim
-        Options: XakeOptionsType
-        Rules: Rules<ExecContext>
-        Logger: ILogger
-        RootLogger: ILogger
-        Progress: Agent<Progress.ProgressReport>
-        Tgt: Target option
-        Ordinal: int
-        NeedRebuild: Target -> bool
-    }
-
-    /// Main type.
-    type XakeScript = XakeScript of XakeOptionsType * Rules<ExecContext>
-
-    /// <summary>
-    /// Dependency state.
-    /// </summary>
-    type DepState =
-        | NotChanged
-        | Depends of Target * DepState list
-        | Refs of string list
-        | FilesChanged of string list
-        | Other of string
-
-    /// Default options
-    let XakeOptions = {
+    } with
+    static member Default =
+        {
         ProjectRoot = System.IO.Directory.GetCurrentDirectory()
         Threads = System.Environment.ProcessorCount
         ConLogLevel = Normal
@@ -81,6 +50,41 @@ module XakeScript =
         IgnoreCommandLine = false
         Nologo = false
         }
+    end
+
+    type private ExecStatus = | Succeed | Skipped | JustFile
+    type private TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
+
+    type ExecContext = {
+        TaskPool: TaskPool
+        Db: Agent<Storage.DatabaseApi>
+        Throttler: SemaphoreSlim
+        Options: ExecOptions
+        Rules: Rules<ExecContext>
+        Logger: ILogger
+        RootLogger: ILogger
+        Progress: Agent<Progress.ProgressReport>
+        Tgt: Target option
+        Ordinal: int
+        NeedRebuild: Target -> bool
+    }
+
+    /// Main type.
+    type XakeScript = XakeScript of ExecOptions * Rules<ExecContext>
+
+    /// <summary>
+    /// Dependency state.
+    /// </summary>
+    type DepState =
+        | NotChanged
+        | Depends of Target * DepState list
+        | Refs of string list
+        | FilesChanged of string list
+        | Other of string
+
+    /// Default options
+    [<System.Obsolete>]
+    let XakeOptions = ExecOptions.Default
 
     module private Impl = begin
         open WorkerPool
