@@ -182,16 +182,15 @@ module Fileset =
         let rec matchPathsImpl (mask:PatternPart list) (p:PatternPart list) =
             match mask,p with
             | [], [] -> true
-            | [], x::xs -> false
-            | m::ms, [] -> false
+            | [], _ | _, [] -> false
 
             | Directory _::Recurse::Parent::ms, _
                 -> (matchPathsImpl (Recurse::ms) p)
 
             | Recurse::Parent::ms, _ -> (matchPathsImpl (Recurse::ms) p)    // ignore parent ref
 
-            | Recurse::ms, FileName d2::xs -> (matchPathsImpl ms p)
-            | Recurse::ms, Directory d2::xs -> (matchPathsImpl mask xs) || (matchPathsImpl ms p)
+            | Recurse::ms, (FileName _)::_ -> (matchPathsImpl ms p)
+            | Recurse::ms, Directory _::xs -> (matchPathsImpl mask xs) || (matchPathsImpl ms p)
             | m::ms, x::xs -> (matchPart m x) && (matchPathsImpl ms xs)
 
         /// Returns true if a file name (parsedto p) matches specific file mask.            
@@ -258,7 +257,7 @@ module Fileset =
                 | FsRoot -> 0
                 | Parent -> 1
                 | Disk _ -> 2
-                | DirectoryMask m -> 3
+                | DirectoryMask _ -> 3
                 | Directory _ -> 4
                 | Recurse -> 5
                 | FileMask _ -> 6

@@ -5,13 +5,13 @@ open NUnit.Framework
 
 open Xake
 
-[<TestFixture (Description = "Command line tests")>]
-type CommandLineTests() =
+[<TestFixture>]
+type ``Command line interface``() =
 
     let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "../bin")
 
-    [<Test (Description = "Verifies reading common switches")>]
-    member test.AcceptKnownSwitches() =
+    [<Test>]
+    member test.``accepts various switches``() =
 
         let scriptOptions = ref XakeOptions
         let args =
@@ -37,8 +37,8 @@ type CommandLineTests() =
         Assert.AreEqual(Verbosity.Loud, finalOptions.ConLogLevel)
         Assert.AreEqual([("AA", "BBB"); ("AA1", "CCC")], finalOptions.Vars)
 
-    [<Test (Description = "Verifies reading target list")>]
-    member test.ReadsTargets() =
+    [<Test>]
+    member test.``reads target lists``() =
 
         let scriptOptions = ref XakeOptions
         let executed2 = ref false
@@ -63,8 +63,8 @@ type CommandLineTests() =
         Assert.IsTrue !executed2
 
 
-    [<Test (Description = "Verifies reading incorrect"); Ignore>]
-    member test.WarnsOnIncorrectSwitch() =
+    [<Test; Ignore>]
+    member test.``warns on incorrect switch``() =
 
         do xakeArgs ["/xxx"] XakeOptions {
             want ["ss"]
@@ -72,8 +72,8 @@ type CommandLineTests() =
 
         //raise <| new System.NotImplementedException()
 
-    [<Test (Description = "Verifies that command line is ignored when Ignore option is set")>]
-    member test.IgnoresCommandLine() =
+    [<Test>]
+    member test.``supports ignoring command line``() =
 
         let scriptOptions = ref XakeOptions
         let args =

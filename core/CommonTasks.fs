@@ -85,12 +85,3 @@ let system cmd args =
     return exitCode
   }
 
-/// <summary>
-/// Executes .NET application. Under unix put "mono" before command line.
-/// </summary>
-/// <param name="cmd">Command or executable name.</param>
-/// <param name="args">Command arguments.</param>
-
-// reads the file and returns all text
-//let readtext artifact =
-//  artifact |> getFullname |> System.IO.File.ReadAllText

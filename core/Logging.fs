@@ -1,9 +1,6 @@
 ﻿[<AutoOpen>]
 module Xake.Logging
 
-// modified http://fssnip.net/8j
-open System
-
 /// <summary>
 /// Log levels.
 /// </summary>
@@ -47,9 +44,6 @@ let private logFilter =
     | Loud -> set [ Message; Error; Command; Warning ]
     | Chatty -> set [ Message; Error; Command; Warning; Info ]
     | Diag -> set [ Message; Error; Command; Warning; Info; Debug; Verbose ]
-
-// defines output detail level
-let private filterLevels = logFilter Chatty
 
 /// <summary>
 /// The inteface loggers need to implement.

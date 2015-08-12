@@ -238,7 +238,7 @@ type ``action block allows``() =
       })
     }
 
-    Assert.That(errorlist, Is.EqualTo(["1"; "i=1"; "i=2"; "i=3"; "j=3"; "j=4"; "j=5"; "4"] |> List.toArray))
+    Assert.That(errorlist, Is.EqualTo(["1"; "i=1"; "i=2"; "i=3"; "j=3"; "j=4"; "4"] |> List.toArray))
 
   [<Test; Explicit>]
   member test.``try catch finally``() =
