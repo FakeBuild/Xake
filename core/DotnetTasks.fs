@@ -345,21 +345,21 @@ module DotnetTasks =
     (* csc options builder *)
     type CscSettingsBuilder() =
 
-        [<CustomOperation("target")>]    member this.Target(s:CscSettingsType, value) = {s with Target = value}
+        [<CustomOperation("target")>]    member this.Target(s:CscSettingsType, value) =    {s with Target = value}
         [<CustomOperation("targetfwk")>] member this.TargetFwk(s:CscSettingsType, value) = {s with TargetFramework = value}
-        [<CustomOperation("out")>]       member this.OutFile(s, value) =     {s with Out = value}
-        [<CustomOperation("src")>]       member this.SrcFiles(s, value) =    {s with Src = value}
+        [<CustomOperation("out")>]       member this.OutFile(s:CscSettingsType, value) =   {s with Out = value}
+        [<CustomOperation("src")>]       member this.SrcFiles(s:CscSettingsType, value) =  {s with Src = value}
 
-        [<CustomOperation("ref")>]       member this.Ref(s, value) =         {s with Ref = s.Ref + value}
-        [<CustomOperation("refif")>]     member this.Refif(s, cond, (value:Fileset)) =         {s with Ref = s.Ref +? (cond,value)}
+        [<CustomOperation("ref")>]       member this.Ref(s:CscSettingsType, value) =         {s with Ref = s.Ref + value}
+        [<CustomOperation("refif")>]     member this.Refif(s:CscSettingsType, cond, (value:Fileset)) = {s with Ref = s.Ref +? (cond,value)}
 
-        [<CustomOperation("refs")>]      member this.Refs(s, value) =         {s with Ref = value}
-        [<CustomOperation("grefs")>]     member this.RefGlobal(s, value) =   {s with RefGlobal = value}
-        [<CustomOperation("resources")>] member this.Resources(s, value) =   {s with CscSettingsType.Resources = value :: s.Resources}
-        [<CustomOperation("resourceslist")>] member this.ResourcesList(s, values) = {s with CscSettingsType.Resources = values @ s.Resources}
+        [<CustomOperation("refs")>]      member this.Refs(s:CscSettingsType, value) =        {s with Ref = value}
+        [<CustomOperation("grefs")>]     member this.RefGlobal(s:CscSettingsType, value) =   {s with RefGlobal = value}
+        [<CustomOperation("resources")>] member this.Resources(s:CscSettingsType, value) =   {s with CscSettingsType.Resources = value :: s.Resources}
+        [<CustomOperation("resourceslist")>] member this.ResourcesList(s:CscSettingsType, values) = {s with CscSettingsType.Resources = values @ s.Resources}
 
-        [<CustomOperation("define")>]    member this.Define(s, value) =      {s with Define = value}
-        [<CustomOperation("unsafe")>]    member this.Unsafe(s, value) =      {s with Unsafe = value}
+        [<CustomOperation("define")>]    member this.Define(s:CscSettingsType, value) =      {s with Define = value}
+        [<CustomOperation("unsafe")>]    member this.Unsafe(s:CscSettingsType, value) =      {s with Unsafe = value}
 
         member this.Bind(x, f) = f x
         member this.Yield(()) = CscSettings
