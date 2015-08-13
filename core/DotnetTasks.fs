@@ -314,8 +314,8 @@ module DotnetTasks =
                     }
             let commandLine = commandLineArgs |> String.concat " "
 
-            do! writeLog Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
-            do! writeLog Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
+            do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
+            do! trace Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
                 SystemOptions with
@@ -325,7 +325,7 @@ module DotnetTasks =
                 }
             let! exitCode = _system options fwkInfo.CscTool commandLine
 
-            do! writeLog Level.Verbose "Deleting temporary files"
+            do! trace Level.Verbose "Deleting temporary files"
             seq {
                 yield rspFile
 
@@ -338,7 +338,7 @@ module DotnetTasks =
             |> Seq.iter File.Delete
 
             if exitCode <> 0 then
-                do! writeLog Error "('%s') failed with exit code '%i'" outFile.Name exitCode
+                do! trace Error "('%s') failed with exit code '%i'" outFile.Name exitCode
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
         }
 
@@ -462,8 +462,8 @@ module DotnetTasks =
                         | v -> yield sprintf "/verbosity:%s" (verbosityKey v)
                 }
 
-            do! writeLog Info "%s making '%s' using framework '%s'" pfx settings.BuildFile fwkInfo.Version
-            do! writeLog Debug "Command line: '%s'" args
+            do! trace Info "%s making '%s' using framework '%s'" pfx settings.BuildFile fwkInfo.Version
+            do! trace Debug "Command line: '%s'" args
 
             let options = {
                 SystemOptions with
@@ -472,9 +472,9 @@ module DotnetTasks =
                 }
             let! exitCode = args |> _system options fwkInfo.MsbuildTool
 
-            do! writeLog Info "%s done '%s'" pfx settings.BuildFile
+            do! trace Info "%s done '%s'" pfx settings.BuildFile
             if exitCode <> 0 then
-                do! writeLog Error "%s ('%s') failed with exit code '%i'" pfx settings.BuildFile exitCode
+                do! trace Error "%s ('%s') failed with exit code '%i'" pfx settings.BuildFile exitCode
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" pfx
             ()
         }
@@ -579,13 +579,13 @@ module DotnetTasks =
             let fwkInfo = DotNetFwk.locateFramework dotnetFwk
 
             if Option.isNone fwkInfo.FscTool then
-                do! writeLog Error "('%s') failed: F# compiler not found" outFile.Name
+                do! trace Error "('%s') failed: F# compiler not found" outFile.Name
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
 
             let (Some fsc) = fwkInfo.FscTool                
 
-            do! writeLog Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
-            do! writeLog Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
+            do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
+            do! trace Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
                 SystemOptions with
@@ -595,7 +595,7 @@ module DotnetTasks =
                 }
             let! exitCode = _system options fsc (args |> String.concat " ")
 
-            do! writeLog Level.Verbose "Deleting temporary files"
+            do! trace Level.Verbose "Deleting temporary files"
             seq {
                 yield! query {
                     for (_,file,istemp) in resinfos do
@@ -606,6 +606,6 @@ module DotnetTasks =
             |> Seq.iter File.Delete
 
             if exitCode <> 0 then
-                do! writeLog Error "('%s') failed with exit code '%i'" outFile.Name exitCode
+                do! trace Error "('%s') failed with exit code '%i'" outFile.Name exitCode
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
         }

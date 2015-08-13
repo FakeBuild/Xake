@@ -289,7 +289,7 @@ In the sample above `cp` function ensures the source file is build before it's c
 ### Internal functions
 
 * `need '['<targets...>']'`
-* `writeLog <level> <format> <args...>`
+* `trace <level> <format> <args...>`
 * `getCtxOptions`
 * `getVar <varname>` - gets the variable value (and records dependency!)
 * `getEnv <varname>` - gets environment variable (and records dependency!)

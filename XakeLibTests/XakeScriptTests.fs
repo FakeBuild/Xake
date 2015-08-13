@@ -26,12 +26,12 @@ type ``Xake script``() =
 
             rules [
               "test" => action {
-                  do! writeLog Error "Running inside 'test' rule"
+                  do! trace Error "Running inside 'test' rule"
                   do! need ["aaa"]
                   wasExecuted := ("test" :: !wasExecuted)
               }
               "test1" => action {
-                  do! writeLog Error "Running inside 'test1' rule"
+                  do! trace Error "Running inside 'test1' rule"
                   do! need ["aaa"]
                   wasExecuted := ("test1" :: !wasExecuted)
               }
@@ -57,7 +57,7 @@ type ``Xake script``() =
 
             rules [
               "hlo" *> fun file -> action {
-                  do! writeLog Error "Running inside 'hlo' rule"
+                  do! trace Error "Running inside 'hlo' rule"
                   do! need ["hlo.cs"]
                   needExecuteCount := !needExecuteCount + 1
                   do! Async.Sleep 2000
@@ -89,7 +89,7 @@ type ``Xake script``() =
             rules [
               // TODO want ((=) "hlo") *?> ...
               (fun n -> n.EndsWith("hlo")) *?> fun file -> action {
-                  do! writeLog Error "Running inside 'hlo' rule"
+                  do! trace Error "Running inside 'hlo' rule"
                   needExecuteCount := !needExecuteCount + 1
                   do! Async.Sleep 500
               }
@@ -113,7 +113,7 @@ type ``Xake script``() =
 
             rules [
               "hello" *> fun file -> action {
-                  do! writeLog Error "Running inside 'hello' rule"
+                  do! trace Error "Running inside 'hello' rule"
                   let! files = (!!"hello*.cs") |> getFiles 
                   do! needFiles files
                   needExecuteCount := !needExecuteCount + 1
@@ -146,7 +146,7 @@ type ``Xake script``() =
               "hlo" *> fun file -> action {
                   do! need ["hlo.cs"]
                   let! var = getEnv("TTT")
-                  do! writeLog Command "Running inside 'hlo' rule with var:%A" var
+                  do! trace Command "Running inside 'hlo' rule with var:%A" var
                   needExecuteCount := !needExecuteCount + 1
                   do! Async.Sleep 2000
                   File.WriteAllText(file.FullName, "")

@@ -13,18 +13,18 @@ type ``Script error handling``() =
     {ExecOptions.Default with FailOnError = true; CustomLogger = CustomLogger ((=) Level.Error) errorlist.Add; FileLog = ""}
 
   [<SetUp>]
-  member test.Setup() =
+  member __.Setup() =
       try File.Delete("." </> ".xake") with _ -> ()
 
   [<Test>]
-  member test.``verifies executing target action``() =
+  member __.``verifies executing target action``() =
 
     let wasExecuted = ref false
     
     do xake ExecOptions.Default {
       want (["test"])
       phony "test" (action {
-        do! writeLog Info "Running inside 'test' rule"
+        do! trace Info "Running inside 'test' rule"
         wasExecuted := true
       })
     }
@@ -32,7 +32,7 @@ type ``Script error handling``() =
     Assert.IsTrue(!wasExecuted)
 
   [<Test>]
-  member test.``handles (throws exception) exception is thrown in script body``() =
+  member __.``handles (throws exception) exception is thrown in script body``() =
 
     let errorlist = new System.Collections.Generic.List<string>()
 
@@ -40,7 +40,7 @@ type ``Script error handling``() =
       do xake (MakeDebugOptions errorlist) {
         want (["test"])
         phony "test" (action {
-          do! writeLog Info "Running inside 'test' rule"
+          do! trace Info "Running inside 'test' rule"
           failwith "exception happens"
         })
       }) |> ignore
@@ -48,7 +48,7 @@ type ``Script error handling``() =
     Assert.IsTrue(errorlist.Exists (fun (x:string) -> x.Contains("exception happens")))
 
   [<Test>]
-  member test.``handles exception occured in inner rule``() =
+  member __.``handles exception occured in inner rule``() =
 
     let errorlist = new System.Collections.Generic.List<string>()
 
@@ -56,11 +56,11 @@ type ``Script error handling``() =
       do xake (MakeDebugOptions errorlist) {
         want (["test"])
         phony "test" (action {
-          do! writeLog Info "Running inside 'test' rule"
+          do! trace Info "Running inside 'test' rule"
           do! need ["clean"]
         })
         phony "clean" (action {
-          do! writeLog Info "Running inside 'clean' rule"
+          do! trace Info "Running inside 'clean' rule"
           failwith "exception happens"
         })
       }) |> ignore
@@ -68,7 +68,7 @@ type ``Script error handling``() =
     Assert.IsTrue(errorlist.Exists (fun (x:string) -> x.Contains("exception happens")))
 
   [<Test>]
-  member test.``fails if rule is not found``() =
+  member __.``fails if rule is not found``() =
 
     let errorlist = new List<string>()
 
@@ -76,14 +76,14 @@ type ``Script error handling``() =
       do xake (MakeDebugOptions errorlist) {
         want (["test"])
         phony "clean" (action {
-          do! writeLog Info "Running inside 'clean' rule"
+          do! trace Info "Running inside 'clean' rule"
         })
       }) |> ignore
 
     Assert.IsTrue(errorlist.Exists (fun (x:string) -> x.Contains("Neither rule nor file is found")))
 
   [<Test>]
-  member test.``handles broken database``() =
+  member __.``handles broken database``() =
 
     let dbname = "." </> ".xake"
     File.WriteAllText (dbname, "dummy text")
@@ -94,12 +94,12 @@ type ``Script error handling``() =
             want (["clean"; "make"])
             phony "clean" (action {
               do! rm ["*.failbroken"]
-              do! writeLog Info "Running inside 'clean' rule"
+              do! trace Info "Running inside 'clean' rule"
             })
             phony "make" (action {
               File.WriteAllText ("1.failbroken", "abc")
               File.WriteAllText ("2.failbroken", "def")
-              do! writeLog Info "Running inside 'build' rule"
+              do! trace Info "Running inside 'build' rule"
             })
           }
         ) |> ignore

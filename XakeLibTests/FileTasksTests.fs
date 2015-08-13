@@ -85,7 +85,7 @@ type ``File tasks module``() =
         do xake TestOptions {
             rules [
               "main" => action {
-                  do! writeLog Error "Running inside 'main' rule"
+                  do! trace Error "Running inside 'main' rule"
                   do! need ["aaa"; "clean"]
                   do! cp "aaa" "aaa-copy"
               }

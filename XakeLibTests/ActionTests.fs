@@ -1,7 +1,5 @@
 ﻿namespace XakeLibTests
 
-open System.IO
-open System.Collections.Generic
 open NUnit.Framework
 
 open Xake
@@ -9,15 +7,12 @@ open Xake
 [<TestFixture>]
 type ``action block allows``() =
 
-  let MakeDebugOptions() =
-    let errorlist = new System.Collections.Generic.List<string>() in
-    {ExecOptions.Default with FailOnError = true; CustomLogger = CustomLogger ((=) Level.Error) errorlist.Add; FileLog = ""},errorlist
-
+  let makeStringList() = new System.Collections.Generic.List<string>()
   let DebugOptions =
     {ExecOptions.Default with FailOnError = true; FileLog = ""}
 
-  [<Test (Description = "Verifies we could use logging from inside action block")>]
-  member test.Simple() =
+  [<Test>]
+  member __.``executes the body``() =
 
     let wasExecuted = ref false
     
@@ -29,12 +24,12 @@ type ``action block allows``() =
 
     Assert.IsTrue(!wasExecuted)
 
-  [<Test (Description = "Verifies simple statements")>]
-  member test.Logging() =
+  [<Test>]
+  member __.``execution is ordered``() =
 
     let wasExecuted = ref false
 
-    let errorlist = new System.Collections.Generic.List<string>()
+    let errorlist = makeStringList()
     let note = errorlist.Add
     
     do xake DebugOptions {
@@ -50,12 +45,12 @@ type ``action block allows``() =
     Assert.IsTrue(!wasExecuted)
     Assert.That(errorlist, Is.EquivalentTo(["1"; "2"; "3"]))
 
-  [<Test (Description = "Verifies do!")>]
-  member test.``do! async op``() =
+  [<Test>]
+  member __.``allows async operations``() =
 
     let wasExecuted = ref false
 
-    let errorlist = new System.Collections.Generic.List<string>()
+    let errorlist = makeStringList()
     let note = errorlist.Add
 
     do xake DebugOptions {
@@ -73,11 +68,11 @@ type ``action block allows``() =
     Assert.That(errorlist, Is.EqualTo(["1"; "2"; "3"; "4"]))
 
   [<Test>]
-  member test.``do! action``() =
+  member __.``do! action``() =
 
     let wasExecuted = ref false
 
-    let errorlist = new System.Collections.Generic.List<string>()
+    let errorlist = makeStringList()
     let note = errorlist.Add
 
     let noteAction t = action {do note t}
@@ -98,11 +93,11 @@ type ``action block allows``() =
 
 
   [<Test>]
-  member test.``do! action with result ignored``() =
+  member __.``do! action with result ignored``() =
 
     let wasExecuted = ref false
 
-    let errorlist = new System.Collections.Generic.List<string>()
+    let errorlist = makeStringList()
     let note = errorlist.Add
 
     let testee t =
@@ -127,9 +122,9 @@ type ``action block allows``() =
 
 
   [<Test>]
-  member test.``let! returning value``() =
+  member __.``let! returning value``() =
 
-    let errorlist = new System.Collections.Generic.List<string>()
+    let errorlist = makeStringList()
     let note = errorlist.Add
 
     let testee t =
@@ -150,9 +145,9 @@ type ``action block allows``() =
     Assert.That(errorlist, Is.EqualTo(["1"; "2+1"; "3"] |> List.toArray))
 
   [<Test>]
-  member test.``if of various kinds``() =
+  member __.``if of various kinds``() =
 
-    let errorlist = new System.Collections.Generic.List<string>()
+    let errorlist = makeStringList()
     let note = errorlist.Add
 
     let iif f a b =
@@ -182,9 +177,9 @@ type ``action block allows``() =
     Assert.That(errorlist, Is.EqualTo(["i1-t"; "i2-f"; "2"; "3"] |> List.toArray))
 
   [<Test>]
-  member test.``if without else``() =
+  member __.``if without else``() =
 
-    let errorlist = new System.Collections.Generic.List<string>()
+    let errorlist = makeStringList()
     let note = errorlist.Add
 
     let iif f a b =
@@ -202,7 +197,7 @@ type ``action block allows``() =
         if s1 = "2" then
             do note "3"
 
-        for i in [1..5] do
+        for _ in [1..5] do
             ()
         
         do note "4"
@@ -212,9 +207,9 @@ type ``action block allows``() =
     Assert.That(errorlist, Is.EqualTo(["i1-t"; "3"; "4"] |> List.toArray))
 
   [<Test>]
-  member test.``for and while``() =
+  member __.``for and while``() =
 
-    let errorlist = new System.Collections.Generic.List<string>()
+    let errorlist = makeStringList()
     let note = errorlist.Add
 
     do xake DebugOptions {
@@ -226,7 +221,7 @@ type ``action block allows``() =
         do note "1"
 
         for i in [1..3] do
-            do! writeLog Info "%A" i
+            do! trace Info "%A" i
             do note (sprintf "i=%i" i)
 
         let j = ref 3
@@ -241,9 +236,9 @@ type ``action block allows``() =
     Assert.That(errorlist, Is.EqualTo(["1"; "i=1"; "i=2"; "i=3"; "j=3"; "j=4"; "4"] |> List.toArray))
 
   [<Test; Explicit>]
-  member test.``try catch finally``() =
+  member __.``try catch finally``() =
 
-    let errorlist = new System.Collections.Generic.List<string>()
+    let errorlist = makeStringList()
     let note = errorlist.Add
 
     do xake DebugOptions {

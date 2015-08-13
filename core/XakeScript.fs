@@ -96,7 +96,7 @@ module XakeScript =
         let TimeCompareToleranceMs = 100.0
 
         /// Writes the message with formatting to a log
-        let writeLog (level:Logging.Level) fmt =
+        let traceLog (level:Logging.Level) fmt =
             let write s = action {
                 let! ctx = getCtx()
                 return ctx.Logger.Log level "%s" s
@@ -584,7 +584,10 @@ module XakeScript =
     /// <summary>
     /// Writes a message to a log.
     /// </summary>
-    let writeLog = Impl.writeLog
+    let trace = Impl.traceLog
+
+    [<System.Obsolete>]
+    let writeLog = Impl.traceLog
 
     /// <summary>
     /// Gets state of particular target.

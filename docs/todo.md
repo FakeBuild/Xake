@@ -1,9 +1,10 @@
 ﻿## TODOs and ideas
 
   * akka.net build scripts
-  * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question. (we have it out of the box, need more info)
+  * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question. (we have got it out of the box, need more info)
   * accept filemasks in 'need' parameters (WHY I added it here?, the use case is very unclear)
   * detect changes in build script (internal changes), e.g. new target added that was not in .xake database
+  * dependencies tracking mode: automatically rebuild when dependency is changed, execute triggers allowing to start/stop the processes which lock/hold artifacts
 
 ### Refactorings
   * Artifact -> FileName of string, relative path

@@ -26,10 +26,10 @@ type MiscTests() =
 
             rules [
               "hello" *> fun file -> action {
-                  do! writeLog Error "Running inside 'hello' rule"
+                  do! trace Error "Running inside 'hello' rule"
                   do! need ["hello.cs"]
 
-                  do! writeLog Error "Rebuilding..."
+                  do! trace Error "Rebuilding..."
                   do! Csc {
                     CscSettings with
                       Out = file
@@ -44,7 +44,7 @@ type MiscTests() =
 		                    System.Console.WriteLine("Hello world!");
 	                    }
                     }""")
-                  do! writeLog Error "Done building 'hello.cs' rule in %A" src
+                  do! trace Error "Done building 'hello.cs' rule in %A" src
                   needExecuteCount := !needExecuteCount + 1
               }
             ]
