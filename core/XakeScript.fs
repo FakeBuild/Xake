@@ -83,7 +83,7 @@ module XakeScript =
         | Other of string
 
     /// Default options
-    [<System.Obsolete>]
+    [<System.Obsolete("Obsolete, use ExecOptions.Default")>]
     let XakeOptions = ExecOptions.Default
 
     module private Impl = begin

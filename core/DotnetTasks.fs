@@ -94,14 +94,14 @@ module DotNetTaskTypes =
         Resources: ResourceFileset list
         /// Defines conditional compilation symbols.
         Define: string list
-        /// Allows unsafe code.
-        Unsafe: bool
         /// Target .NET framework
         TargetFramework: string
         /// Custom command-line arguments
         CommandArgs: string list
         /// Build fails on compile error.
         FailOnError: bool
+        /// Do not reference the default CLI assemblies by default
+        NoFramework: bool
 
         Tailcalls: bool
     }
@@ -491,10 +491,10 @@ module DotnetTasks =
         RefGlobal = []
         Resources = []
         Define = []
-        Unsafe = false
         TargetFramework = null
         CommandArgs = []
         FailOnError = true
+        NoFramework = false
 
         Tailcalls = true
     }
@@ -530,12 +530,12 @@ module DotnetTasks =
                 | _, Some s when s <> "" -> s
                 | _ -> null
 
-            let (globalRefs,nostdlib,noconfig) =
+            let (globalRefs,noframework) =
                 match targetFramework with
                 | null ->
                     let mapfn = (+) "/r:"
                     // TODO provide an option for user to explicitly specify all grefs (currently csc.rsp is used)
-                    (settings.RefGlobal |> List.map mapfn), false, false
+                    (settings.RefGlobal |> List.map mapfn), false
                 | tgt ->
                     let fwk = Some tgt |> DotNetFwk.locateFramework in
                     let lookup = DotNetFwk.locateAssembly fwk
@@ -543,22 +543,17 @@ module DotnetTasks =
 
                     //do! writeLog Info "Using libraries from %A" fwk.AssemblyDirs
 
-                    ("mscorlib.dll" :: settings.RefGlobal |> List.map mapfn), true, true
+                    ("mscorlib.dll" :: settings.RefGlobal |> List.map mapfn), true
 
             let args =
                 seq {
-                    if noconfig then
-                        yield "/noconfig"
                     yield "/nologo"
 
                     yield "/target:" + Impl.targetStr outFile.Name settings.Target
                     //yield "/platform:" + Impl.platformStr settings.Platform
 
-                    if settings.Unsafe then
-                        yield "/unsafe"
-
-                    if nostdlib then
-                        yield "/nostdlib+"
+                    if settings.NoFramework || noframework then
+                        yield "--noframework"
 
                     if not outFile.IsUndefined then
                         yield sprintf "/out:%s" outFile.FullName

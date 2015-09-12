@@ -87,7 +87,7 @@ type ``File tasks module``() =
               "main" => action {
                   do! trace Error "Running inside 'main' rule"
                   do! need ["aaa"; "clean"]
-                  do! cp "aaa" "aaa-copy"
+                  do! copyFile "aaa" "aaa-copy"
               }
 
               "clean" => action {

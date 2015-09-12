@@ -1,18 +1,14 @@
-﻿namespace XakeLibTests
+﻿module ``action block allows``
 
 open NUnit.Framework
-
 open Xake
 
-[<TestFixture>]
-type ``action block allows``() =
 
-  let makeStringList() = new System.Collections.Generic.List<string>()
-  let DebugOptions =
-    {ExecOptions.Default with FailOnError = true; FileLog = ""}
+let makeStringList() = new System.Collections.Generic.List<string>()
+let DebugOptions = {ExecOptions.Default with FailOnError = true; FileLog = ""}
 
-  [<Test>]
-  member __.``executes the body``() =
+[<Test>]
+let ``executes the body``() =
 
     let wasExecuted = ref false
     
@@ -24,8 +20,8 @@ type ``action block allows``() =
 
     Assert.IsTrue(!wasExecuted)
 
-  [<Test>]
-  member __.``execution is ordered``() =
+[<Test>]
+let ``execution is ordered``() =
 
     let wasExecuted = ref false
 
@@ -45,8 +41,8 @@ type ``action block allows``() =
     Assert.IsTrue(!wasExecuted)
     Assert.That(errorlist, Is.EquivalentTo(["1"; "2"; "3"]))
 
-  [<Test>]
-  member __.``allows async operations``() =
+[<Test>]
+let ``allows async operations``() =
 
     let wasExecuted = ref false
 
@@ -67,8 +63,8 @@ type ``action block allows``() =
     Assert.IsTrue(!wasExecuted)
     Assert.That(errorlist, Is.EqualTo(["1"; "2"; "3"; "4"]))
 
-  [<Test>]
-  member __.``do! action``() =
+[<Test>]
+let ``do! action``() =
 
     let wasExecuted = ref false
 
@@ -92,8 +88,8 @@ type ``action block allows``() =
     Assert.That(errorlist, Is.EqualTo(["1"; "2"; "3"; "4"]))
 
 
-  [<Test>]
-  member __.``do! action with result ignored``() =
+[<Test>]
+let ``do! action with result ignored``() =
 
     let wasExecuted = ref false
 
@@ -121,8 +117,8 @@ type ``action block allows``() =
     Assert.That(errorlist, Is.EqualTo(["1"; "2"; "3"; "4"] |> List.toArray))
 
 
-  [<Test>]
-  member __.``let! returning value``() =
+[<Test>]
+let ``let! returning value``() =
 
     let errorlist = makeStringList()
     let note = errorlist.Add
@@ -144,8 +140,8 @@ type ``action block allows``() =
 
     Assert.That(errorlist, Is.EqualTo(["1"; "2+1"; "3"] |> List.toArray))
 
-  [<Test>]
-  member __.``if of various kinds``() =
+[<Test>]
+let ``if of various kinds``() =
 
     let errorlist = makeStringList()
     let note = errorlist.Add
@@ -176,8 +172,8 @@ type ``action block allows``() =
 
     Assert.That(errorlist, Is.EqualTo(["i1-t"; "i2-f"; "2"; "3"] |> List.toArray))
 
-  [<Test>]
-  member __.``if without else``() =
+[<Test>]
+let ``if without else``() =
 
     let errorlist = makeStringList()
     let note = errorlist.Add
@@ -206,8 +202,8 @@ type ``action block allows``() =
 
     Assert.That(errorlist, Is.EqualTo(["i1-t"; "3"; "4"] |> List.toArray))
 
-  [<Test>]
-  member __.``for and while``() =
+[<Test>]
+let ``for and while``() =
 
     let errorlist = makeStringList()
     let note = errorlist.Add
@@ -235,8 +231,8 @@ type ``action block allows``() =
 
     Assert.That(errorlist, Is.EqualTo(["1"; "i=1"; "i=2"; "i=3"; "j=3"; "j=4"; "4"] |> List.toArray))
 
-  [<Test; Explicit>]
-  member __.``try catch finally``() =
+[<Test; Explicit>]
+let ``try catch finally``() =
 
     let errorlist = makeStringList()
     let note = errorlist.Add

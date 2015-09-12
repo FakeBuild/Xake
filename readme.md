@@ -18,7 +18,7 @@ The simple script might look like:
 
 open Xake
 
-do xake XakeOptions {
+do xake ExecOptions.Default {
 
   rule ("main" ==> ["helloworld.exe"])
 

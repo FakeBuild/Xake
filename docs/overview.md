@@ -38,7 +38,7 @@ The most simple, but structured script looks as follows:
 
 open Xake                           // (2)
 
-do xake XakeOptions {               // (3)
+do xake ExecOptions.Default {               // (3)
 
   "main" <== ["hw.exe"]             // (4)
 
@@ -81,7 +81,7 @@ if not (System.IO.File.Exists file) then
 
 open Xake
 
-do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
+do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
 
   rule ("main" ==> ["helloworld.exe"])
 
@@ -176,7 +176,7 @@ let mainRule = "hw.exe" *> fun exe -> action {
       }
     }
 
-do xake {XakeOptions with Threads = 4} {
+do xake {ExecOptions.Default with Threads = 4} {
 
   phony "build" (action {
       do! need ["hw.exe"]
@@ -321,7 +321,7 @@ let! _ = system (if isWindows then "dir" else "ls")
 These tasks allows to perform various file operations. Using these tasks ensures the dependencies are properly resolved are recorded.
 > TBD
 
-* `cp <srcfile> <dest-file-name>` - copies the file
+* `copyFile <srcfile> <dest-file-name>` - copies single file (tracks dependency)
 * `rm <mask list>` - removes the files by mask
 
 #### Dotnet tasks
