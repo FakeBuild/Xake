@@ -10,12 +10,12 @@ open Xake.FileTasks
 open Xake.Storage
 
 [<TestFixture>]
-type FileTasksTests() = 
+type ``File tasks module``() = 
 
-    let TestOptions = {XakeOptions with Threads = 1; Targets = ["main"]; ConLogLevel = Chatty; FileLogLevel = Silent}
+    let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Chatty; FileLogLevel = Silent}
 
     [<Test>]
-    member this.DeleteSimple() =
+    member this.``allows delete file``() =
         "." </> ".xake" |> File.Delete
 
         let execCount = ref 0
@@ -38,7 +38,7 @@ type FileTasksTests() =
         Assert.IsFalse <| File.Exists ("samplefile")
 
     [<Test>]
-    member this.DeleteByMask() =
+    member this.``allows delete file by mask``() =
         "." </> ".xake" |> File.Delete
         let execCount = ref 0
     
@@ -61,7 +61,7 @@ type FileTasksTests() =
         ["$$1"; "$$2"] |> List.iter (Assert.IsFalse << File.Exists)
 
     [<Test>]
-    member this.DeleteMany() =
+    member this.``allows to delete by several masks``() =
         "." </> ".xake" |> File.Delete
         do xake TestOptions {
             rules [
@@ -80,14 +80,14 @@ type FileTasksTests() =
         ["$aa"; "$bb"] |> List.iter (Assert.IsFalse << File.Exists)
 
     [<Test>]
-    member this.CopySimple() =
+    member this.``supports simple file copy``() =
         "." </> ".xake" |> File.Delete
         do xake TestOptions {
             rules [
               "main" => action {
-                  do! writeLog Error "Running inside 'main' rule"
+                  do! trace Error "Running inside 'main' rule"
                   do! need ["aaa"; "clean"]
-                  do! cp "aaa" "aaa-copy"
+                  do! copyFile "aaa" "aaa-copy"
               }
 
               "clean" => action {

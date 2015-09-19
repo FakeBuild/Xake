@@ -6,6 +6,7 @@ build/
 testrunner/
 [Oo]bj/
 [Bb]in/
+[Bb]ackup/
 _ReSharper*/
 _UpgradeReport*
 

@@ -12,8 +12,8 @@ type Bookmark =
   | Bookmark of string * string
   | Folder of string * Bookmark list
 
-[<TestFixture (Description = "Various tests")>]
-type StorageTests() =
+[<TestFixture>]
+type ``Storage facility``() =
 
   let dbname = "." </> ".xake"
   let newStepInfo (name,duration) = {StepInfo.Empty with Name = name; OwnTime = duration * 1<ms>}
@@ -82,8 +82,8 @@ type StorageTests() =
 
     Assert.AreEqual (testee, replica)
 
-  [<Test (Description = "Verifies persisting simple data")>]
-  member test.WriteBuildData() =
+  [<Test>]
+  member test.``persists simple data``() =
     let testee = makeResult <| FileTarget (Artifact "abc.exe")
     let testee =
       {testee with
@@ -107,8 +107,8 @@ type StorageTests() =
     printfn "repl %A" repl
     Assert.AreEqual (testee, repl)
 
-  [<Test (Description = "Verifies persisting simple data")>]
-  member test.WriteReadDb() =
+  [<Test>]
+  member test.``persists build data in Xake db``() =
 
     let inline (<--) (agent: ^a) (msg: 'b) = (^a: (member Post: 'b -> unit) (agent, msg)); agent
 
@@ -135,8 +135,8 @@ type StorageTests() =
     printfn "%A" abc
     testee.PostAndReply CloseWait
 
-  [<Test (Description = "Verifies database self-compress")>]
-  member test.DatabaseClean() =
+  [<Test>]
+  member test.``compresses database when limit is reaches``() =
 
     let msgs = System.Collections.Generic.List<string>()
     let logger = createStrLogger msgs
@@ -163,8 +163,8 @@ type StorageTests() =
     Assert.Less((int newLen), (int oldLen)/3)
     Assert.That(msgs, IsAny().Contains("Compacting database"))
 
-  [<Test (Description = "Verifies database update")>]
-  member test.DatabaseUpdate() =
+  [<Test>]
+  member test.``updates data in file storage``() =
 
     let inline (<--) (agent: ^a) (msg: 'b) = (^a: (member Post: 'b -> unit) (agent, msg)); agent
 
@@ -184,8 +184,8 @@ type StorageTests() =
 
     Assert.AreEqual ([Var ("DEBUG", Some "true")], read.Depends)
 
-  [<Test (Description = "Verifies database restoration from backup")>]
-  member test.RestoreDb() =
+  [<Test>]
+  member test.``restores db in case write failed``() =
 
     let msgs = System.Collections.Generic.List<string>()
     let logger = createStrLogger msgs
@@ -207,8 +207,8 @@ type StorageTests() =
 
     Assert.That(msgs, IsAny().Contains("restoring db"))
 
-  [<Test (Description = "Verifies broken db will be repaired")>]
-  member test.CleanBrokenDb() =
+  [<Test>]
+  member test.``repairs (cleans) broken db``() =
 
     let msgs = System.Collections.Generic.List<string>()
     let logger = createStrLogger msgs

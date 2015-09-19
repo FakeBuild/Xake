@@ -37,11 +37,11 @@ Options:
             """
             exit(0)
         | "-t" | "/t" -> 
-            (optionsSoFar, Number ("thread count", fun o v -> {o with XakeOptionsType.Threads = v}))
+            (optionsSoFar, Number ("thread count", fun o v -> {o with ExecOptions.Threads = v}))
         | "-r" | "/r" -> 
-            (optionsSoFar, String ("root folder", fun o v -> {o with XakeOptionsType.ProjectRoot = v}))
+            (optionsSoFar, String ("root folder", fun o v -> {o with ExecOptions.ProjectRoot = v}))
         | "-fl" | "/fl" -> 
-            (optionsSoFar, String ("file log filename", fun o v -> {o with XakeOptionsType.FileLog = v}))
+            (optionsSoFar, String ("file log filename", fun o v -> {o with ExecOptions.FileLog = v}))
         | "-d" | "/d" -> 
             (optionsSoFar, KeyValue ("variable", fun o k v -> {o with Vars = o.Vars @ [(k,v)] }))
         | "-ll" | "/ll" -> 

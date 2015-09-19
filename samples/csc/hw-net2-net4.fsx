@@ -3,7 +3,7 @@
 
 open Xake
 
-do xake {XakeOptions with Vars = ["NETFX", "4.0"]; FileLogLevel = Verbosity.Diag} {
+do xake {ExecOptions.Default with Vars = ["NETFX", "4.0"]; FileLogLevel = Verbosity.Diag} {
 
   rules [
 

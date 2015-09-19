@@ -56,8 +56,8 @@ module internal impl =
         let! ctx = getCtx()
         let log = ctx.Logger.Log
 
-        do! writeLog Level.Debug "[system] envvars: '%A'" settings.EnvVars
-        do! writeLog Level.Debug "[system] args: '%A'" args
+        do! trace Level.Debug "[system] envvars: '%A'" settings.EnvVars
+        do! trace Level.Debug "[system] args: '%A'" args
 
         let handleErr = log settings.ErrOutLevel "%s %s" settings.LogPrefix
         let handleStd = log settings.StdOutLevel  "%s %s" settings.LogPrefix
@@ -78,19 +78,10 @@ open impl
 /// <param name="args">Command arguments.</param>
 let system cmd args =
   action {
-    do! writeLog Info "[system] starting '%s'" cmd
+    do! trace Info "[system] starting '%s'" cmd
     let! exitCode = _system SystemOptions cmd (args |> String.concat " ")
-    do! writeLog Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
+    do! trace Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
 
     return exitCode
   }
 
-/// <summary>
-/// Executes .NET application. Under unix put "mono" before command line.
-/// </summary>
-/// <param name="cmd">Command or executable name.</param>
-/// <param name="args">Command arguments.</param>
-
-// reads the file and returns all text
-//let readtext artifact =
-//  artifact |> getFullname |> System.IO.File.ReadAllText

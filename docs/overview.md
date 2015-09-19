@@ -38,7 +38,7 @@ The most simple, but structured script looks as follows:
 
 open Xake                           // (2)
 
-do xake XakeOptions {               // (3)
+do xake ExecOptions.Default {               // (3)
 
   "main" <== ["hw.exe"]             // (4)
 
@@ -72,7 +72,7 @@ System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
 if not (System.IO.File.Exists file) then
     printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.2.0/Xake.Core.dll"
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.3.5/Xake.Core.dll"
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
@@ -81,7 +81,7 @@ if not (System.IO.File.Exists file) then
 
 open Xake
 
-do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
+do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
 
   rule ("main" ==> ["helloworld.exe"])
 
@@ -176,7 +176,7 @@ let mainRule = "hw.exe" *> fun exe -> action {
       }
     }
 
-do xake {XakeOptions with Threads = 4} {
+do xake {ExecOptions.Default with Threads = 4} {
 
   phony "build" (action {
       do! need ["hw.exe"]
@@ -258,6 +258,22 @@ let cp (src: string) tgt =
   }
 ```
 
+In case the action returns a value you could consume it using let-bang:
+```fsharp
+  action {
+    let! error_code = system "ls" []
+    if error_code <> 0 then failwith...
+  }
+```
+
+If the task (action) returns a value which you do not need use Action.Ignore:
+```fsharp
+  action {
+    do! system "ls" [] |> Action.Ignore
+    if error_code <> 0 then failwith...
+  }
+```
+
 ### need
 
 `need` function is widely used internally and it is a key element for dependency tracking. Calling `need` ensures the requested files are built according to rules.
@@ -273,7 +289,7 @@ In the sample above `cp` function ensures the source file is build before it's c
 ### Internal functions
 
 * `need '['<targets...>']'`
-* `writeLog <level> <format> <args...>`
+* `trace <level> <format> <args...>`
 * `getCtxOptions`
 * `getVar <varname>` - gets the variable value (and records dependency!)
 * `getEnv <varname>` - gets environment variable (and records dependency!)
@@ -305,7 +321,7 @@ let! _ = system (if isWindows then "dir" else "ls")
 These tasks allows to perform various file operations. Using these tasks ensures the dependencies are properly resolved are recorded.
 > TBD
 
-* `cp <srcfile> <dest-file-name>` - copies the file
+* `copyFile <srcfile> <dest-file-name>` - copies single file (tracks dependency)
 * `rm <mask list>` - removes the files by mask
 
 #### Dotnet tasks

@@ -5,36 +5,97 @@ module Action =
 
   open BuildLog
 
-  // reset context for nested action
-  let private runAction (Action r) = r
-  let private returnF a = Action (fun (s,_) -> async {return (s,a)})
+  module private A =
+      let runAction (Action r) = r
+      let resultF a = Action (fun (s,_) -> async {return (s,a)})
 
-  // bind action in expression like do! action {...}
-  let private (>>=) m f = Action (fun (s,r) -> async {
-      let! (s',a) = runAction m (s,r) in
-      return! runAction (f a) (s',r)
-      })
+      let bindF m f = Action (fun (s,r) -> async {
+          let! (s',a) = runAction m (s,r) in
+          return! runAction (f a) (s',r)
+          })
 
-  let private bindAsync ac f = Action (fun (s,r) -> async {
-      let! a = ac in return! runAction (f a) (s,r)
-      })
-  
+      let resultFromF m = m
+
+      let callF f a = bindF (resultF a) f
+      let delayF f = callF f ()
+      let bindA ac f = Action (fun (s,r) -> async {
+          let! a = ac in return! runAction (f a) (s,r)
+          })
+
+      //let doneF = resultF()
+      let doneF = Action (fun (s,_) -> async {return (s,())})
+      let ignoreF p = bindF p (fun _ -> doneF)
+      let combineF f g = bindF f (fun _ -> g)
+
+      let rec whileF guard prog =
+        if not (guard()) then 
+            doneF
+        else 
+            bindF prog (fun () -> whileF guard prog) 
+
+      let tryF body handler =
+        try
+            resultFromF (body())
+        with
+            e -> handler e
+
+      let tryFinallyF body comp =
+        try
+            resultFromF (body())
+        finally
+            comp()
+
+      let usingF (r:'T :> System.IDisposable) body =
+        let body' = fun () -> body r
+        tryFinallyF body' (fun () -> r.Dispose())
+
+      let forF (e: seq<_>) prog =
+        usingF (e.GetEnumerator()) (fun ie ->
+            whileF
+                (fun () -> ie.MoveNext())
+                (delayF(fun () -> prog ie.Current))
+        )
+
+
+      // temporary defined overloads suitable for
+
+//      let tryFinallyF2 body comp =
+//        try
+//            printfn "TryWith Body"
+//            let m = body()
+//            printfn "TryWith Body/return"
+//            resultFromF m
+//            //resultFromF body
+//        finally
+//            printfn "TryWith Finally"
+//            delayF comp()
+//
+//      let tryF2 body handler =
+//        try
+//            resultFromF body
+//        with
+//            e -> handler e
+
+  open A
+  let private (>>=) = bindF
+
   type ActionBuilder() =
-    member this.Return(c) = returnF c
-    member this.Zero()    = returnF ()
-    member this.Delay(f)  = returnF() >>= f
+    member this.Return(c) = resultF c
+    member this.Zero()    = doneF
+    member this.Delay(f)  = delayF f
 
     // binds both monadic and for async computations
-    member this.Bind(m, f) = m >>= f
-    member this.Bind(m, f) = bindAsync m f
-    member this.Bind((), f) = this.Zero() >>= f
+    member this.Bind(m, f) = bindF m f
+    member this.Bind(m, f) = bindA m f
+    member this.Bind((), f) = resultF () >>= f
 
-    member this.Combine(r1, r2) = r1 >>= fun _ -> r2
-    member this.For(seq:seq<_>, f)  = Action (fun (s,x) -> async {
-      for i in seq do
-        runAction (f i) x |> ignore // TODO collect DepStatus
-      return s,()
-      })
+    member this.Combine(f, g) = combineF f g
+    member this.While(guard, body) = whileF guard body
+    member this.For(seq, f) = forF seq f
+
+//    member this.TryWith(body, handler) = tryF2 (delayF (fun () -> body)) handler
+//    member this.TryFinally(body, compensation) = tryFinallyF2 (fun () -> body) compensation
+//    member this.Using(disposable:#System.IDisposable, body) = usingF disposable body
 
 //    [<CustomOperation("step")>]
 //    member this.Step(m, name) =
@@ -46,9 +107,20 @@ module Action =
 
   // other (public) functions for Action
 
-  /// Gets action context
+  /// <summary>
+  /// Gets action context.
+  /// </summary>
   let getCtx()     = Action (fun (r,c) -> async {return (r,c)})
+
+  /// <summary>
+  /// Gets current task result.
+  /// </summary>
   let getResult()  = Action (fun (s,_) -> async {return (s,s)})
+
+  /// <summary>
+  /// Updates the build result
+  /// </summary>
+  /// <param name="s'"></param>
   let setResult s' = Action (fun (_,_) -> async {return (s',())})
 
   /// <summary>
@@ -63,5 +135,8 @@ module Action =
             return (r'',())
         })
   
-  /// Ignores action result
-  let ActIgnore act = act >>= (fun _ -> returnF ())
+  /// <summary>
+  /// Ignores action result in case task returns the value but you don't need it.
+  /// </summary>
+  /// <param name="act"></param>
+  let Ignore act = act |> ignoreF

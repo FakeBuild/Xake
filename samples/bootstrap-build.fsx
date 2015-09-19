@@ -13,7 +13,7 @@ if not (System.IO.File.Exists file) then
 
 open Xake
 
-do xake {XakeOptions with FileLog = "build.log"; Threads = 4 } {
+do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
 
   rule ("main" ==> ["helloworld.exe"])
 

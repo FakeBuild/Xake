@@ -4,7 +4,7 @@ module BuildLog =
     open Xake
     open System
     
-    let XakeVersion = "0.3"
+    let XakeDbVersion = "0.3"
     
     type Database = { Status : Map<Target, BuildResult> }
     
@@ -45,9 +45,8 @@ module Storage =
             alt (function 
                 | FileTarget _ -> 0
                 | PhonyAction _ -> 1) 
-                [| wrap (newArtifact >> FileTarget, fun (FileTarget f) -> f.Name) 
-                       str
-                   wrap (PhonyAction, (fun (PhonyAction a) -> a)) str |]
+                [|  wrap (newArtifact >> FileTarget, fun (FileTarget f) -> f.Name) str
+                    wrap (PhonyAction, (fun (PhonyAction a) -> a)) str |]
         
         let step = 
             wrap 
@@ -63,18 +62,12 @@ module Storage =
                 | Var _ -> 3
                 | AlwaysRerun _ -> 4
                 | GetFiles _ -> 5) 
-                [| wrap (ArtifactDep, fun (ArtifactDep f) -> f) target
-                   
-                   wrap (File, fun (File(f, ts)) -> (f, ts)) 
-                       (pair artifact date)
-                   
-                   wrap (EnvVar, fun (EnvVar(n, v)) -> n, v) 
-                       (pair str (option str))
-                   wrap (Var, fun (Var(n, v)) -> n, v) (pair str (option str))
-                   wrap0 AlwaysRerun
-                   
-                   wrap (GetFiles, fun (GetFiles(fs, fi)) -> fs, fi) 
-                       (pair filesetPickler filelistPickler) |]
+                [| wrap (ArtifactDep, fun (ArtifactDep f) -> f) target                   
+                   wrap (File, fun (File(f, ts)) -> (f, ts))  (pair artifact date)                   
+                   wrap (EnvVar, fun (EnvVar(n, v)) -> n, v)  (pair str (option str))
+                   wrap (Var, fun (Var(n, v)) -> n, v)        (pair str (option str))
+                   wrap0 AlwaysRerun                   
+                   wrap (GetFiles, fun (GetFiles(fs, fi)) -> fs, fi)  (pair filesetPickler filelistPickler) |]
         
         let result = 
             wrap 
@@ -102,7 +95,7 @@ module Storage =
         let writeHeader w = 
             let h = 
                 { DatabaseHeader.XakeSign = "XAKE"
-                  XakeVer = XakeVersion
+                  XakeVer = XakeDbVersion
                   ScriptDate = System.DateTime.Now }
             Persist.dbHeader.pickle h w
         
@@ -126,7 +119,7 @@ module Storage =
                     use reader = new BinaryReader(File.OpenRead(dbpath))
                     let stream = reader.BaseStream
                     let header = Persist.dbHeader.unpickle reader
-                    if header.XakeVer < XakeVersion then 
+                    if header.XakeVer < XakeDbVersion then 
                         failwith "Database version is old."
                     while stream.Position < stream.Length do
                         let result = resultPU.unpickle reader

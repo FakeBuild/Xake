@@ -3,10 +3,9 @@
 [<AutoOpen>]
 module XakeScript =
 
-    open BuildLog
     open System.Threading
 
-    type XakeOptionsType = {
+    type ExecOptions = {
         /// Defines project root folder
         ProjectRoot : string    // TODO DirectoryInfo?
         /// Maximum number of rules processed simultaneously.
@@ -35,40 +34,9 @@ module XakeScript =
 
         /// Disable logo message
         Nologo: bool
-    }
-
-    type private ExecStatus = | Succeed | Skipped | JustFile
-    type private TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
-
-    type ExecContext = {
-        TaskPool: TaskPool
-        Db: Agent<Storage.DatabaseApi>
-        Throttler: SemaphoreSlim
-        Options: XakeOptionsType
-        Rules: Rules<ExecContext>
-        Logger: ILogger
-        RootLogger: ILogger
-        Progress: Agent<Progress.ProgressReport>
-        Tgt: Target option
-        Ordinal: int
-        NeedRebuild: Target -> bool
-    }
-
-    /// Main type.
-    type XakeScript = XakeScript of XakeOptionsType * Rules<ExecContext>
-
-    /// <summary>
-    /// Dependency state.
-    /// </summary>
-    type DepState =
-        | NotChanged
-        | Depends of Target * DepState list
-        | Refs of string list
-        | FilesChanged of string list
-        | Other of string
-
-    /// Default options
-    let XakeOptions = {
+    } with
+    static member Default =
+        {
         ProjectRoot = System.IO.Directory.GetCurrentDirectory()
         Threads = System.Environment.ProcessorCount
         ConLogLevel = Normal
@@ -82,10 +50,44 @@ module XakeScript =
         IgnoreCommandLine = false
         Nologo = false
         }
+    end
+
+    type private ExecStatus = | Succeed | Skipped | JustFile
+    type private TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
+
+    type ExecContext = {
+        TaskPool: TaskPool
+        Db: Agent<Storage.DatabaseApi>
+        Throttler: SemaphoreSlim
+        Options: ExecOptions
+        Rules: Rules<ExecContext>
+        Logger: ILogger
+        RootLogger: ILogger
+        Progress: Agent<Progress.ProgressReport>
+        Tgt: Target option
+        Ordinal: int
+        NeedRebuild: Target -> bool
+    }
+
+    /// Main type.
+    type XakeScript = XakeScript of ExecOptions * Rules<ExecContext>
+
+    /// <summary>
+    /// Dependency state.
+    /// </summary>
+    type DepState =
+        | NotChanged
+        | Depends of Target * DepState list
+        | Refs of string list
+        | FilesChanged of string list
+        | Other of string
+
+    /// Default options
+    [<System.Obsolete("Obsolete, use ExecOptions.Default")>]
+    let XakeOptions = ExecOptions.Default
 
     module private Impl = begin
         open WorkerPool
-        open BuildLog
         open Storage
 
         let nullableToOption = function | null -> None | s -> Some s
@@ -94,7 +96,7 @@ module XakeScript =
         let TimeCompareToleranceMs = 100.0
 
         /// Writes the message with formatting to a log
-        let writeLog (level:Logging.Level) fmt =
+        let traceLog (level:Logging.Level) fmt =
             let write s = action {
                 let! ctx = getCtx()
                 return ctx.Logger.Log level "%s" s
@@ -254,14 +256,6 @@ module XakeScript =
 
             let stripDuplicates dep = visitTargets (dep, Map.empty) |>  fst
 
-            /// Collapses all instances of FileTarget to a single one
-            let mergeDeps depends =
-                depends
-                |> List.partition (function |DepState.Depends (FileTarget _,_) -> true | _ -> false)
-                |> fun (filesDep, rest) ->
-                    let allFiles = filesDep |> List.map (fun (DepState.Depends (FileTarget t,ls)) -> [t.FullName]) |> List.concat
-                    in
-                    DepState.Refs allFiles :: rest
             // TODO where're phony actions
             // can I make it more inductive? Consider initial graph but with stripped targets
 
@@ -510,43 +504,45 @@ module XakeScript =
         [<CustomOperation("want")>] member this.Want(script, targets)               = updTargets script (function |[] -> targets | _ as x -> x)    // Options override script!
         [<CustomOperation("wantOverride")>] member this.WantOverride(script,targets)= updTargets script (fun _ -> targets)
 
+    /// key functions implementation follows
 
+    /// <summary>
     /// Gets the script options.
-    let getCtxOptions() = action {
+    /// </summary>
+    let getCtxOptions () = action {
         let! (ctx: ExecContext) = getCtx()
         return ctx.Options
     }
 
-    /// key functions implementation
+    /// <summary>
+    /// Executes and awaits specified artifacts.
+    /// </summary>
+    /// <param name="targets"></param>
+    let need targets = 
+        action { 
+            let! ctx = getCtx()
+            let t' = targets |> (List.map (Impl.makeTarget ctx))
+            do! Impl.need t'
+        }
+    
+    let needFiles (Filelist files) = 
+        action { 
+            let targets = files |> List.map (fun f -> new Artifact(f.FullName) |> FileTarget)
+            do! Impl.need targets
+        }
+    
+    /// <summary>
+    /// Instructs Xake to rebuild the target even if dependencies are not changed.
+    /// </summary>
+    let alwaysRerun() = action { let! result = getResult()
+                                 do! setResult { result with Depends = Dependency.AlwaysRerun :: result.Depends } }
 
-    /// Executes and awaits specified artifacts
-    let need targets =
-            action {
-                let! ctx = getCtx()
-                let t' = targets |> (List.map (Impl.makeTarget ctx))
 
-                do! Impl.need t'
-            }
-
-    let needFiles (Filelist files) =
-            action {
-                let! ctx = getCtx()
-                let targets = files |> List.map (fun f -> new Artifact (f.FullName) |> FileTarget)
-
-                do! Impl.need targets
-         }
-
-    /// Instructs Xake to rebuild the target even if dependencies are not changed
-    let alwaysRerun () = action {
-        let! ctx = getCtx()
-        let! result = getResult()
-        do! setResult {result with Depends = Dependency.AlwaysRerun :: result.Depends}
-    }
-
-    /// Gets the environment variable
+    /// <summary>
+    /// Gets the environment variable.
+    /// </summary>
+    /// <param name="variableName"></param>
     let getEnv variableName = action {
-        let! ctx = getCtx()
-
         let value = Impl.getEnvVar variableName
 
         // record the dependency
@@ -556,7 +552,10 @@ module XakeScript =
         return value
     }
 
-    /// Gets the global variable
+    /// <summary>
+    /// Gets the global (options) variable.
+    /// </summary>
+    /// <param name="variableName"></param>
     let getVar variableName = action {
         let! ctx = getCtx()
         let value = ctx.Options.Vars |> List.tryPick (Impl.valueByName variableName)
@@ -568,7 +567,10 @@ module XakeScript =
         return value
     }
 
-    /// Executes and awaits specified artifacts
+    /// <summary>
+    /// Gets the list of files matching specified fileset.
+    /// </summary>
+    /// <param name="fileset"></param>
     let getFiles fileset = action {
         let! ctx = getCtx()
         let files = fileset |> toFileList ctx.Options.ProjectRoot
@@ -579,8 +581,13 @@ module XakeScript =
         return files
     }
 
-    /// Writes a message to a log
-    let writeLog = Impl.writeLog
+    /// <summary>
+    /// Writes a message to a log.
+    /// </summary>
+    let trace = Impl.traceLog
+
+    [<System.Obsolete>]
+    let writeLog = Impl.traceLog
 
     /// <summary>
     /// Gets state of particular target.
@@ -595,7 +602,7 @@ module XakeScript =
         Impl.getPlainDeps getDeps (Impl.getExecTime ctx)
 
     /// Defines a rule that demands specified targets
-    /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
+    /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]    
     let (<==) name targets = PhonyRule (name,action {
         do! need targets
         do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available

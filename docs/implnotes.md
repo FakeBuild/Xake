@@ -115,4 +115,8 @@ Command line arguments override the script options (XakeOptions type) unless you
     * explicit external map of deps: use both
 
 ### Build notes
-  * tagged commits starting with 'v' create a new release
+Release new version by tagging the commit:
+
+    git tag v0.3.6
+    git push --tags
+

@@ -3,9 +3,8 @@
 #r @"../../bin/Xake.Core.dll"
 
 open Xake
-open System
 
-do xake {XakeOptions with FileLog = "build.log"} {
+do xake {ExecOptions.Default with FileLog = "build.log"} {
 
   rule ("main" ==> ["hw.exe"])
 

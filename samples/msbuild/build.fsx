@@ -3,7 +3,7 @@
 
 open Xake
 
-do xake XakeOptions {
+do xake ExecOptions.Default {
 
   want ["build\\Hello.exe"]
 
