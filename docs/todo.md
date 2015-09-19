@@ -6,6 +6,12 @@
   * detect changes in build script (internal changes), e.g. new target added that was not in .xake database
   * dependencies tracking mode: automatically rebuild when dependency is changed, execute triggers allowing to start/stop the processes which lock/hold artifacts
 
+### Tasks
+
+  * complete new build script
+  * gracefully switch to new version (push new code but old build script, provide cp fallback)
+  * complete copyFiles method
+
 ### Refactorings
   * Artifact -> FileName of string, relative path
 

@@ -29,16 +29,23 @@ let rm (names : string list) =
 /// <param name="tgt">Target file location and name.</param>
 let copyFile (src: string) tgt =
     action {
-        // TODO fail on error, normalize names, accept array/mask
+        // TODO fail on error, normalize names
         do! need [src]
         do! trace Level.Info "[copyFile] '%A' -> '%s'" src tgt
 
         File.Copy(src, tgt, true)
-    } 
+    }
+
+/// <summary>
+/// Copies single file.
+/// </summary>
+[<System.Obsolete("Use copyFile instead. `cp` is reserved for future flexible and powerful solution.")>]
+let cp = copyFile
 
 /// <summary>
 /// Copies multiple files specified by a mask to another location.
 /// </summary>
+[<System.Obsolete("Use with caution, the implementation is incomplete")>]
 let copyFiles (src: string list) tgt_folder =
 
     // TODO check how should it process dependencies
