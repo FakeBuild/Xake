@@ -96,7 +96,7 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
                     Src = sources
                     Ref = !! "bin/FSharp.Core.dll"
                     TargetFramework = "4.0"
-                    RefGlobal = ["System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
+                    RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
                     Define = ["TRACE"]
                     CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"]
             }
@@ -126,7 +126,7 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
                     Src = sources
                     Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + "bin/Xake.Core.dll"
                     TargetFramework = "4.0"
-                    RefGlobal = ["System.dll"; "System.Core.dll"]
+                    RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
                     Define = ["TRACE"]
                     CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"]
             }
