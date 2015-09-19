@@ -48,14 +48,14 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
         }
 
         ("bin/FSharp.Core.dll") *> fun outfile -> action {
-            do! copyFile @"packages\FSharp.Core\lib\net40\FSharp.Core.dll" outfile.FullName
+            do! copyFile "packages/FSharp.Core/lib/net40/FSharp.Core.dll" outfile.FullName
 
             let targetPath = "bin"
-            do! copyFiles [@"packages\FSharp.Core\lib\net40\FSharp.Core.*data"] targetPath
+            do! copyFiles ["packages/FSharp.Core/lib/net40/FSharp.Core.*data"] targetPath
         }
 
         ("bin/nunit.framework.dll") *> fun outfile -> action {
-            do! copyFile @"packages\NUnit\lib\nunit.framework.dll" outfile.FullName
+            do! copyFile "packages/NUnit/lib/nunit.framework.dll" outfile.FullName
         }
 
         "bin/Xake.Core.dll" *> fun file -> action {
