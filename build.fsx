@@ -5,7 +5,7 @@ System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
 if not (System.IO.File.Exists file) then
     printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.3.9/Xake.Core.dll"
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.3.16/Xake.Core.dll"
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
@@ -20,7 +20,7 @@ let systemClr cmd args =
     let cmd',args' = if Xake.Env.isUnix then "mono", cmd::args else cmd,args
     in system cmd' args'
 
-do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "mono-45"]; FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
+do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
 
     rules [
         "all"  => action {
