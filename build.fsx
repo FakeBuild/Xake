@@ -20,7 +20,7 @@ let systemClr cmd args =
     let cmd',args' = if Xake.Env.isUnix then "mono", cmd::args else cmd,args
     in system cmd' args'
 
-do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
+do xake {ExecOptions.Default with Vars = ["NETFX", "mono-40"]; FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
 
     rules [
         "all"  => action {
@@ -65,7 +65,7 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
         "bin/Xake.Core.dll" *> fun file -> action {
 
             // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
-            
+
             let sources = fileset {
                 basedir "core"
                 includes "Logging.fs"
@@ -95,7 +95,6 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
                     Out = file
                     Src = sources
                     Ref = !! "bin/FSharp.Core.dll"
-                    TargetFramework = "4.0"
                     RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
                     Define = ["TRACE"]
                     CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"]
@@ -106,7 +105,7 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
         "bin/XakeLibTests.dll" *> fun file -> action {
 
             // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
-            
+
             let sources = fileset {
                 basedir "XakeLibTests"
                 includes "ActionTests.fs"
@@ -125,7 +124,6 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
                     Out = file
                     Src = sources
                     Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + "bin/Xake.Core.dll"
-                    TargetFramework = "4.0"
                     RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
                     Define = ["TRACE"]
                     CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"]
