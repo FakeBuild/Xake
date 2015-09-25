@@ -102,17 +102,19 @@ module DotNetFwk =
             match err with
             | null ->
                 let csc_tool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
+                let fw_lib_path = libdir </> "mono" </> libdir
                 let fwkinfo libpath ver = Some {
                         InstallPath = sdkroot
-                        AssemblyDirs = [libdir]
-                        ToolDir = libdir </> "mono" </> libpath
+                        AssemblyDirs = [fw_lib_path]
+                        ToolDir = fw_lib_path
                         Version = ver
                         CscTool = csc_tool
                         FscTool = Some "fsharpc"
                         MsbuildTool = "xbuild"
                         EnvVars =["PATH", sdkroot </> "bin" + ";" + (%"PATH")]
                     }
-                // TODO proper tool (xbuild) lookup
+                // ^^^^^^^ TODO proper tool (xbuild) lookup, this lib/mono/xxx contains only specific tools
+
                 match fwk with
                 | "mono-20" | "mono-2.0" | "2.0" -> fwkinfo "2.0" "2.0.50727", null
                 | "mono-35" | "mono-3.5" | "3.5" -> fwkinfo "3.5" "2.0.50727", null
