@@ -49,6 +49,7 @@
     <Compile Include="FileTasksTests.fs" />
     <Compile Include="ProgressTests.fs" />
     <Compile Include="CommandLineTests.fs" />
+    <Compile Include="ExplicitTests.fs" />
     <None Include="paket.references" />
   </ItemGroup>
   <ItemGroup>

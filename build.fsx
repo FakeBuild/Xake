@@ -94,6 +94,7 @@ do xake {ExecOptions.Default with Vars = ["NETFX", "mono-40"]; FileLog = "build.
                 FscSettings with
                     Out = file
                     Src = sources
+                    NoFramework = true
                     Ref = !! "bin/FSharp.Core.dll"
                     RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
                     Define = ["TRACE"]
@@ -123,6 +124,7 @@ do xake {ExecOptions.Default with Vars = ["NETFX", "mono-40"]; FileLog = "build.
                 FscSettings with
                     Out = file
                     Src = sources
+                    NoFramework = true
                     Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + "bin/Xake.Core.dll"
                     RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
                     Define = ["TRACE"]
