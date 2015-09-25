@@ -64,7 +64,8 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
 
         "bin/Xake.Core.dll" *> fun file -> action {
 
-            // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
+            // TODO multitarget rule!
+            let xml = "bin/Xake.Core.XML" // file.FullName .- "XML"
 
             let sources = fileset {
                 basedir "core"
@@ -97,7 +98,7 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
                     Ref = !! "bin/FSharp.Core.dll"
                     RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
                     Define = ["TRACE"]
-                    CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"]
+                    CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"; "--doc:" + xml]
             }
 
         }
