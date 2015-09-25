@@ -20,7 +20,7 @@ let systemClr cmd args =
     let cmd',args' = if Xake.Env.isUnix then "mono", cmd::args else cmd,args
     in system cmd' args'
 
-do xake {ExecOptions.Default with Vars = ["NETFX", "mono-40"]; FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
+do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "mono-45"]; FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
 
     rules [
         "all"  => action {
@@ -94,7 +94,6 @@ do xake {ExecOptions.Default with Vars = ["NETFX", "mono-40"]; FileLog = "build.
                 FscSettings with
                     Out = file
                     Src = sources
-                    NoFramework = true
                     Ref = !! "bin/FSharp.Core.dll"
                     RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
                     Define = ["TRACE"]
@@ -124,7 +123,6 @@ do xake {ExecOptions.Default with Vars = ["NETFX", "mono-40"]; FileLog = "build.
                 FscSettings with
                     Out = file
                     Src = sources
-                    NoFramework = true
                     Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + "bin/Xake.Core.dll"
                     RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
                     Define = ["TRACE"]
