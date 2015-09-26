@@ -5,7 +5,7 @@ System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
 if not (System.IO.File.Exists file) then
     printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.3.16/Xake.Core.dll"
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.3.19/Xake.Core.dll"
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
@@ -13,8 +13,6 @@ if not (System.IO.File.Exists file) then
 //#r @"bin/Debug/Xake.Core.dll"
 
 open Xake
-
-let mkdir = (System.IO.Directory.CreateDirectory:string->_) >> ignore
 
 let systemClr cmd args =
     let cmd',args' = if Xake.Env.isUnix then "mono", cmd::args else cmd,args
@@ -50,15 +48,11 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
         }
 
         ("bin/FSharp.Core.dll") *> fun outfile -> action {
-            let targetPath = "bin"
-            do mkdir(targetPath)
             do! copyFile "packages/FSharp.Core/lib/net40/FSharp.Core.dll" outfile.FullName
-
-            do! copyFiles ["packages/FSharp.Core/lib/net40/FSharp.Core.*data"] targetPath
+            do! copyFiles ["packages/FSharp.Core/lib/net40/FSharp.Core.*data"] "bin"
         }
 
         ("bin/nunit.framework.dll") *> fun outfile -> action {
-            do mkdir("bin")
             do! copyFile "packages/NUnit/lib/nunit.framework.dll" outfile.FullName
         }
 
