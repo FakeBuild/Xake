@@ -5,7 +5,7 @@ System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
 if not (System.IO.File.Exists file) then
     printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.3.9/Xake.Core.dll"
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.3.16/Xake.Core.dll"
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
@@ -14,11 +14,13 @@ if not (System.IO.File.Exists file) then
 
 open Xake
 
+let mkdir = (System.IO.Directory.CreateDirectory:string->_) >> ignore
+
 let systemClr cmd args =
     let cmd',args' = if Xake.Env.isUnix then "mono", cmd::args else cmd,args
     in system cmd' args'
 
-do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
+do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
 
     rules [
         "all"  => action {
@@ -48,20 +50,23 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
         }
 
         ("bin/FSharp.Core.dll") *> fun outfile -> action {
-            do! copyFile @"packages\FSharp.Core\lib\net40\FSharp.Core.dll" outfile.FullName
-
             let targetPath = "bin"
-            do! copyFiles [@"packages\FSharp.Core\lib\net40\FSharp.Core.*data"] targetPath
+            do mkdir(targetPath)
+            do! copyFile "packages/FSharp.Core/lib/net40/FSharp.Core.dll" outfile.FullName
+
+            do! copyFiles ["packages/FSharp.Core/lib/net40/FSharp.Core.*data"] targetPath
         }
 
         ("bin/nunit.framework.dll") *> fun outfile -> action {
-            do! copyFile @"packages\NUnit\lib\nunit.framework.dll" outfile.FullName
+            do mkdir("bin")
+            do! copyFile "packages/NUnit/lib/nunit.framework.dll" outfile.FullName
         }
 
         "bin/Xake.Core.dll" *> fun file -> action {
 
-            // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
-            
+            // TODO multitarget rule!
+            let xml = "bin/Xake.Core.XML" // file.FullName .- "XML"
+
             let sources = fileset {
                 basedir "core"
                 includes "Logging.fs"
@@ -91,10 +96,9 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
                     Out = file
                     Src = sources
                     Ref = !! "bin/FSharp.Core.dll"
-                    TargetFramework = "4.0"
-                    RefGlobal = ["System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
+                    RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
                     Define = ["TRACE"]
-                    CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"]
+                    CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"; "--doc:" + xml]
             }
 
         }
@@ -102,7 +106,7 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
         "bin/XakeLibTests.dll" *> fun file -> action {
 
             // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
-            
+
             let sources = fileset {
                 basedir "XakeLibTests"
                 includes "ActionTests.fs"
@@ -121,8 +125,7 @@ do xake {ExecOptions.Default with FileLog = "build.log"; ConLogLevel = Verbosity
                     Out = file
                     Src = sources
                     Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + "bin/Xake.Core.dll"
-                    TargetFramework = "4.0"
-                    RefGlobal = ["System.dll"; "System.Core.dll"]
+                    RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
                     Define = ["TRACE"]
                     CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"]
             }

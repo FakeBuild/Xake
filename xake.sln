@@ -1,4 +1,3 @@
-
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{C5FB2DCA-B737-43D0-92F3-4D2CE03CD022}"
@@ -47,6 +46,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project files", "Project files", "{CA08F45F-D8B4-46D4-B7EC-38C68C7AF0B2}"
 	ProjectSection(SolutionItems) = preProject
 		.travis.yml = .travis.yml
+		build-old.fsx = build-old.fsx
 		build.fsx = build.fsx
 		core\filesets.fsx = core\filesets.fsx
 	EndProjectSection

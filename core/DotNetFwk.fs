@@ -74,6 +74,7 @@ module DotNetFwk =
             let (monover,sdkroot,libdir,configdir,err) =
                 if pkg_config.exists "mono" then
                     let prefix = pkg_config.get_variable "mono" "prefix" in
+
                     let winpath (str:string) = str.Replace('/', Path.DirectorySeparatorChar)
                     (
                         pkg_config.get_mod_version "mono",
@@ -82,7 +83,7 @@ module DotNetFwk =
                         prefix |> winpath </> "etc",
                         null
                     )
-                else
+                else if Env.isWindows then
                     let key = MonoProbeKeys |> List.tryPick (open_subkey HKLM)
                     let monover = key |> Option.bind (registry.get_value_str "DefaultCLR")
                     let monokey = monover |> Option.bind (open_subkey (Option.get key))
@@ -99,25 +100,33 @@ module DotNetFwk =
                         )
                     | _ ->
                         ("", "", "", "", "Failed to obtain mono framework location from registry")
+                else
+                    ("", "", "", "", "Failed to obtain mono framework (check if mono and pkg_config are installed)")
             match err with
             | null ->
                 let csc_tool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
-                let fwkinfo libpath ver = Some {
+
+                let fwkinfo libpath ver =
+                    let fw_lib_path = libdir </> "mono" </> libpath
+                    let r = Some {
                         InstallPath = sdkroot
-                        AssemblyDirs = [libdir]
-                        ToolDir = libdir </> "mono" </> libpath
+                        AssemblyDirs = [fw_lib_path]
+                        ToolDir = fw_lib_path
                         Version = ver
                         CscTool = csc_tool
                         FscTool = Some "fsharpc"
                         MsbuildTool = "xbuild"
                         EnvVars =["PATH", sdkroot </> "bin" + ";" + (%"PATH")]
                     }
-                // TODO proper tool (xbuild) lookup
+
+                    r
+                // ^^^^^^^ TODO proper tool (xbuild) lookup, this lib/mono/xxx contains only specific tools
+
                 match fwk with
                 | "mono-20" | "mono-2.0" | "2.0" -> fwkinfo "2.0" "2.0.50727", null
                 | "mono-35" | "mono-3.5" | "3.5" -> fwkinfo "3.5" "2.0.50727", null
                 | "mono-40" | "mono-4.0" | "4.0" -> fwkinfo "4.0" "4.0.30319", null
-                | "mono-45" | "mono-4.5" | "4.5" -> fwkinfo "4.0" "4.5.50709", null
+                | "mono-45" | "mono-4.5" | "4.5" -> fwkinfo "4.5" "4.5.50709", null
                 | _ ->
                     None, sprintf "Unknown or unsupported profile '%s'" fwk
             | _ ->
@@ -208,7 +217,8 @@ module DotNetFwk =
     /// Attempts to locate either .NET or Mono framework.
     /// </summary>
     /// <param name="fwk"></param>
-    let locateFramework = CommonLib.memoize impl.locateFramework
+    let locateFramework =
+        CommonLib.memoize impl.locateFramework
 
     /// <summary>
     /// Locates "global" assembly for specific framework
@@ -217,9 +227,10 @@ module DotNetFwk =
     let locateAssembly fwkInfo =
         let lookupFile file =
             fwkInfo.AssemblyDirs
+            //["/Library/Frameworks/Mono.framework/Versions/Current/lib/pkgconfig/../../lib/mono/4.0"]
             |> List.tryPick (fun dir ->
                 let fullName = dir </> file
-                match File.Exists(dir </> file) with
+                match File.Exists(fullName) with
                 | true -> Some fullName | _ -> None
             )
             |> function | Some x -> x | None -> file

@@ -33,6 +33,11 @@ let copyFile (src: string) tgt =
         do! need [src]
         do! trace Level.Info "[copyFile] '%A' -> '%s'" src tgt
 
+        let tgtFolder = Path.GetDirectoryName(tgt)
+
+        if not <| System.String.IsNullOrEmpty(tgtFolder) then
+            Directory.CreateDirectory(tgtFolder) |> ignore
+
         File.Copy(src, tgt, true)
     }
 
