@@ -22,7 +22,7 @@
     <WarningLevel>3</WarningLevel>
     <StartAction>Program</StartAction>
     <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\Fsi.exe</StartProgram>
-    <StartWorkingDirectory>C:\projects\Xake</StartWorkingDirectory>
+    <StartWorkingDirectory>C:\!\pcomp\</StartWorkingDirectory>
     <StartArguments>build.fsx</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">

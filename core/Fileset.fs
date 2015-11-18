@@ -62,10 +62,42 @@ module Fileset =
         let isMask (a:string) = a.IndexOfAny([|'*';'?'|]) >= 0
         let iif fn b c a = match fn a with | true -> b a | _ -> c a
         let fullname (f:DirectoryInfo) = f.FullName
+        
+        let isRootPath (Pattern pat) =
+            match pat with
+            | FsRoot::_ | Disk _::_ -> true
+            | _ -> false
 
-        let joinPattern (Pattern p1) (Pattern p2) = Pattern (p1 @ p2)
+        /// <summary>
+        /// Normalizes the pattern by resolving parent references and removing \.\
+        /// </summary>
+        /// <param name="pattern"></param>
+        let normalize (Pattern pattern) =
 
+            let rec nr = function
+                | [] -> []
+                | x::[] -> [x]
+                | x::tail ->               
+                    match x::(nr tail) with
+                    | Directory _::Parent::t -> t
+                    | CurrentDir::t -> t
+                    | _ as rest -> rest
+
+            pattern |> nr |> Pattern
+
+        /// <summary>
+        /// Joins two patterns.
+        /// </summary>
+        /// <param name="p1"></param>
+        /// <param name="p2"></param>
+        let joinPattern (Pattern p1) (Pattern p2 as pp2) =
+            if isRootPath pp2 then pp2
+            else Pattern (p1 @ p2) |> normalize
+
+        /// <summary>
         /// Builds the regexp for testing file part
+        /// </summary>
+        /// <param name="pattern"></param>
         let fileMatchRegex (pattern:string) =
             let c2r = function
                 | '*' -> ".*"
@@ -76,6 +108,7 @@ module Fileset =
                 | ch -> System.String(ch,1)
             let pat = (pattern.ToCharArray() |> Array.map c2r |> System.String.Concat)
             Regex(@"^" + pat + "$", RegexOptions.Compiled + RegexOptions.IgnoreCase)    // TODO ignore case is optional (system-dependent)
+
 
         /// Converts Ant-style file pattern to a list of parts
         let parseDirFileMask (parseDir:bool) pattern =
@@ -95,23 +128,8 @@ module Fileset =
             let fsroot = if notNullOrEmpty dir && dir.[0] = dirSeparator then [FsRoot] else []
             let filepart = if parseDir then [] else [pattern |> Path.GetFileName |> (iif isMask FileMask FileName)]
 
-            let rec n = function
-            | Directory _::Parent::t -> t
-            | CurrentDir::t -> t
-            | [] -> []
-            | x::tail -> x::(n tail)
-
-            let rec nr = function
-                | [] -> []
-                | x::[] -> [x]
-                | x::tail ->               
-                    match x::(nr tail) with
-                    | Directory _::Parent::t -> t
-                    | CurrentDir::t -> t
-                    | _ as rest -> rest
-
-            let rawParts = fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
-            rawParts |> nr |> Pattern
+            fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
+                |> Pattern |> normalize
 
         /// Parses file mask
         let parseFileMask = parseDirFileMask false
