@@ -345,6 +345,7 @@ module DotnetTasks =
     (* csc options builder *)
     type CscSettingsBuilder() =
 
+        [<CustomOperation("platform")>]  member this.Platform(s:CscSettingsType, value) =    {s with Platform = value}
         [<CustomOperation("target")>]    member this.Target(s:CscSettingsType, value) =    {s with Target = value}
         [<CustomOperation("targetfwk")>] member this.TargetFwk(s:CscSettingsType, value) = {s with TargetFramework = value}
         [<CustomOperation("out")>]       member this.OutFile(s:CscSettingsType, value) =   {s with Out = value}

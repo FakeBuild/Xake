@@ -118,9 +118,12 @@ module XakeScript =
                 |FileConditionRule (f,_), FileTarget file when (f file.FullName) = true ->
                     //writeLog Level.Debug "Found conditional pattern '%s'" name
                     Some (rule)
-                |FileRule (pattern,_), FileTarget file when Fileset.matches pattern projectRoot file.FullName ->
-                    // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
-                    Some (rule)
+                |FileRule (pattern,_), FileTarget file ->
+                    if Fileset.matches pattern projectRoot file.FullName then
+                        // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
+                        Some (rule)
+                    else
+                        None
                 |PhonyRule (name,_), PhonyAction phony when phony = name ->
                     // writeLog Verbose "Found phony pattern '%s'" name
                     Some (rule)
