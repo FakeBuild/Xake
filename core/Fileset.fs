@@ -131,12 +131,7 @@ module Fileset =
             fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
                 |> Pattern |> normalize
 
-        /// Parses file mask
-        let parseFileMask = parseDirFileMask false
-
-        /// Parses file mask
-        let parseDir = parseDirFileMask true
-        
+       
         let FileSystem = {
             GetDisk = fun d -> d + Path.DirectorySeparatorChar.ToString()
             GetDirRoot = fun x -> Directory.GetDirectoryRoot x
@@ -213,7 +208,7 @@ module Fileset =
 
         /// Returns true if a file name (parsedto p) matches specific file mask.            
         let matchesPattern (Pattern mask) file =
-            let (Pattern fileParts) = parseFileMask file in
+            let (Pattern fileParts) = (parseDirFileMask false) file in
             matchPathsImpl mask fileParts
 
         let private ifNone v2 = function | None -> v2 | Some v -> v
@@ -222,7 +217,7 @@ module Fileset =
         /// "Materializes" fileset to a filelist
         let scan fileSystem root (Fileset (options,filesetItems)) =
 
-            let startDirPat = options.BaseDir |> ifNone root |> parseDir
+            let startDirPat = options.BaseDir |> ifNone root |> parseDirFileMask true
             let startDir = startDirPat |> cd fileSystem "."
 
             // TODO check performance, build function
@@ -317,7 +312,8 @@ module Fileset =
     /// </summary>
     /// <param name="filePattern"></param>
     let ls (filePattern:FilePattern) =
-        Fileset (DefaultOptions, [filePattern |> parseFileMask |> Includes])
+        let parse = (filePattern.EndsWith ("/") || filePattern.EndsWith ("\\")) |> Impl.parseDirFileMask
+        Fileset (DefaultOptions, [filePattern |> parse |> Includes])
 
     /// <summary>
     /// Create a file set for specific file mask. The same as "ls"
@@ -355,7 +351,7 @@ module Fileset =
         // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
 
         // TODO alternative implementation, convert pattern to a match function using combinators
-        Impl.matchesPattern <| joinPattern (parseDir rootPath) (parseFileMask filePattern)
+        Impl.matchesPattern <| joinPattern (parseDirMask rootPath) (parseFileMask filePattern)
     
     let FileSystem = Impl.FileSystem
             

@@ -286,11 +286,15 @@ In the sample above `cp` function ensures the source file is build before it's c
 
 ### Filesets
 
-### Internal functions
+* `getFiles` - (only allowed inside action) returns list of files specified by a fileset
+* `ls` - creates a fileset for specified file mask. In case mask ends with "/" or "\" it returns directory list
 
-* `need '['<targets...>']'`
+File masks follow Ant/Fake rules.
+
+### Other functions
+
 * `trace <level> <format> <args...>`
-* `getCtxOptions`
+* `getCtxOptions` - gets action context
 * `getVar <varname>` - gets the variable value (and records dependency!)
 * `getEnv <varname>` - gets environment variable (and records dependency!)
 * `alwaysRerun` - instructs Xake to rebuild the target even if dependencies are not changed
