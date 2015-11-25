@@ -27,6 +27,7 @@
   * rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}
 
 ## Done
+ * ls returns directory list in case it ends with "/" ("\")
  * MSBuild task
  * performance of rules lookup (takes 2s now)
  * FSC task (f# compiler), self bootstrap

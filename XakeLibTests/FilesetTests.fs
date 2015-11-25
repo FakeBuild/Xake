@@ -93,6 +93,12 @@ type FilesetTests() =
         fileNames |> List.iter System.Console.WriteLine
         Assert.That (fileNames, Is.All.EndsWith("rdl"))
 
+    [<Test (Description = "Verifies ls could search for directories")>]
+    member o.LsDirs() =
+
+        let files = ls "c:/*/" |> getFiles1 root1 @"c:\rpt"
+        Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["bak"; "rpt"; "jparsec"]))
+
     [<Test>]
     member o.Builder() =
         let fileset = fileset {
