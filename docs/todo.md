@@ -10,12 +10,10 @@
 
 ### Tasks
 
-  * complete new build script
-  * gracefully switch to new version (push new code but old build script, provide cp fallback)
   * complete copyFiles method
 
 ### Refactorings
-  * Artifact -> FileName of string, relative path
+  * Artifact -> FileName of string, relative path, functions but not methods
 
 ## Thoughts
  * idea: rule settings
@@ -25,6 +23,8 @@
  * folder as a target:
   * want ["Viewer", "Designer"]
   * rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}
+ * Filelist is not handy as it requires to cast all the time
+ * FileInfo is not good for the same reason: poorly composable and does not cover Directory well
 
 ## Done
  * ls returns directory list in case it ends with "/" ("\")

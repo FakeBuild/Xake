@@ -35,34 +35,6 @@
     <DocumentationFile>..\bin\Xake.Core.XML</DocumentationFile>
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Windows.Forms" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Logging.fs" />
-    <Compile Include="Pickler.fs" />
-    <Compile Include="Fileset.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="ArtifactUtil.fs" />
-    <Compile Include="CommonLib.fs" />
-    <Compile Include="Database.fs" />
-    <Compile Include="Action.fs" />
-    <Compile Include="WorkerPool.fs" />
-    <Compile Include="Progress.fs" />
-    <Compile Include="XakeScript.fs" />
-    <Compile Include="Env.fs" />
-    <Compile Include="CommonTasks.fs" />
-    <Compile Include="FileTasks.fs" />
-    <Compile Include="ResourceFileset.fs" />
-    <Compile Include="DotNetFwk.fs" />
-    <Compile Include="DotnetTasks.fs" />
-    <Compile Include="VersionInfo.fs" />
-    <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Program.fs" />
-  </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
   </PropertyGroup>
@@ -130,4 +102,34 @@
       </ItemGroup>
     </When>
   </Choose>
+  <ItemGroup>
+    <Compile Include="Logging.fs" />
+    <Compile Include="Pickler.fs" />
+    <Compile Include="Path.fs" />
+    <Compile Include="Fileset.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="ArtifactUtil.fs" />
+    <Compile Include="CommonLib.fs" />
+    <Compile Include="Database.fs" />
+    <Compile Include="Action.fs" />
+    <Compile Include="WorkerPool.fs" />
+    <Compile Include="Progress.fs" />
+    <Compile Include="XakeScript.fs" />
+    <Compile Include="Env.fs" />
+    <Compile Include="CommonTasks.fs" />
+    <Compile Include="FileTasks.fs" />
+    <Compile Include="ResourceFileset.fs" />
+    <Compile Include="DotNetFwk.fs" />
+    <Compile Include="DotnetTasks.fs" />
+    <Compile Include="VersionInfo.fs" />
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Program.fs" />
+    <None Include="todo.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
 </Project>
