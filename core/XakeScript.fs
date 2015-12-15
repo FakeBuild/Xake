@@ -119,7 +119,7 @@ module XakeScript =
                     //writeLog Level.Debug "Found conditional pattern '%s'" name
                     Some (rule)
                 |FileRule (pattern,_), FileTarget file ->
-                    if Fileset.matches pattern projectRoot file.FullName then
+                    if file.FullName |> Path.matches pattern projectRoot then
                         // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
                         Some (rule)
                     else

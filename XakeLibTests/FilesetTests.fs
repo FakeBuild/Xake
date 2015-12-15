@@ -173,42 +173,4 @@ type FilesetTests() =
 
         (fs1 + fs2) |> getFiles |> ignore
 
-    [<TestCase("c:\\**\\*.*", "c:\\", ExpectedResult = false)>]
-    [<TestCase("c:\\**\\*.*", "",         ExpectedException = typeof<System.ArgumentException> )>]
-    [<TestCase("", "aa",                            ExpectedException = typeof<System.ArgumentException> )>]
-    [<TestCase("c:\\**\\*.*", "c:\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:\\**\\", "c:\\a.c", ExpectedResult = false)>]
-    [<TestCase("c:\\*\\?.c", "c:\\!\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:\\*\\?.c*", "c:\\!\\a.c", ExpectedResult = true)>]
 
-    [<TestCase("c:\\a.c", "d:\\a.c", ExpectedResult = false)>]
-    [<TestCase("c:\\a.c", "C:\\A.c", ExpectedResult = true)>]
-    [<TestCase("c:\\*.c", "d:\\a.c", ExpectedResult = false)>]
-    [<TestCase("c:\\*.c", "c:\\a.c", ExpectedResult = true)>]
-
-    [<TestCase("c:\\abc\\*.c", "c:\\a.c", ExpectedResult = false)>]
-    [<TestCase("c:\\abc\\*.c", "c:\\def\\a.c", ExpectedResult = false)>]
-    [<TestCase("c:\\abc\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = false)>]
-    [<TestCase("c:\\abc\\*.c", "c:\\abc\\a.c", ExpectedResult = true)>]
-
-    [<TestCase("c:\\*\\*.c", "c:\\abc\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:\\*\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = false)>]
-    [<TestCase("c:\\**\\*.c", "c:\\abc\\def\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:/abc/../def\\a.c", "c:\\def\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:\\def\\a.c", "c:/abc/../def\\a.c", ExpectedResult = true)>]
-    member o.MaskTests(m,t) = matches m "" t
-
-    [<TestCase("../subd1/a.ss", @"C:\projects\Xake\bin\Debug\subd1", @"C:\projects\Xake\bin\Debug\subd1\../subd1/a.ss", ExpectedResult = true)>]
-    [<TestCase("subd2/a.ss", @"C:\projects\Xake\bin\Debug\subd1", @"C:\projects\Xake\bin\Debug\subd1\subd2/a.ss", ExpectedResult = true)>]
-    member o.MaskTests3(m,root,t) = matches m root t
-
-    [<TestCase("c:\\*\\*.c", "c:\\abc\\def\\..\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:\\*.c", "c:\\abc\\..\\a.c", ExpectedResult = true)>]
-
-    [<TestCase("c:\\abc\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:\\abc\\def\\..\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:\\abc\\..\\..\\*.c", "c:\\a.c", ExpectedResult = false)>]
-    [<TestCase("c:\\abc\\**\\..\\*.c", "c:\\a.c", ExpectedResult = true)>]
-    [<TestCase("c:\\abc\\..\\*.c", "c:\\abc\\..\\a.c", ExpectedResult = true)>]
-
-    member o.MaskWithParent(m,t) = matches m "" t

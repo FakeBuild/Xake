@@ -19,24 +19,8 @@ module Fileset =
 
     type FilePattern = string
 
-    /// <summary>
-    /// Part of filesystem pattern.
-    /// </summary>
-    type PatternPart =
-        | FsRoot
-        | Parent
-        | CurrentDir
-        | Disk of string
-        | DirectoryMask of string
-        | Directory of string
-        | Recurse
-        | FileMask of string
-        | FileName of string
-
-    /// Filesystem pattern
-    type Pattern = Pattern of PatternPart list
-
-    type FilesetElement = | Includes of Pattern | Excludes of Pattern
+    /// Filesystem pattern    
+    type FilesetElement = | Includes of Path.PathMask | Excludes of Path.PathMask
 
     type FilesetOptions = {FailOnEmpty:bool; BaseDir:string option}
 
@@ -53,85 +37,16 @@ module Fileset =
     /// Implementation module
     module private Impl =
 
-        open System.Text.RegularExpressions
+        open Path
 
+        // TODO revise the list
         let dirSeparator = Path.DirectorySeparatorChar
         let notNullOrEmpty = System.String.IsNullOrEmpty >> not
 
-        let driveRegex = Regex(@"^[A-Za-z]:$", RegexOptions.Compiled)
         let isMask (a:string) = a.IndexOfAny([|'*';'?'|]) >= 0
         let iif fn b c a = match fn a with | true -> b a | _ -> c a
         let fullname (f:DirectoryInfo) = f.FullName
         
-        let isRootPath (Pattern pat) =
-            match pat with
-            | FsRoot::_ | Disk _::_ -> true
-            | _ -> false
-
-        /// <summary>
-        /// Normalizes the pattern by resolving parent references and removing \.\
-        /// </summary>
-        /// <param name="pattern"></param>
-        let normalize (Pattern pattern) =
-
-            let rec nr = function
-                | [] -> []
-                | x::[] -> [x]
-                | x::tail ->               
-                    match x::(nr tail) with
-                    | Directory _::Parent::t -> t
-                    | CurrentDir::t -> t
-                    | _ as rest -> rest
-
-            pattern |> nr |> Pattern
-
-        /// <summary>
-        /// Joins two patterns.
-        /// </summary>
-        /// <param name="p1"></param>
-        /// <param name="p2"></param>
-        let joinPattern (Pattern p1) (Pattern p2 as pp2) =
-            if isRootPath pp2 then pp2
-            else Pattern (p1 @ p2) |> normalize
-
-        /// <summary>
-        /// Builds the regexp for testing file part
-        /// </summary>
-        /// <param name="pattern"></param>
-        let fileMatchRegex (pattern:string) =
-            let c2r = function
-                | '*' -> ".*"
-                | '.' -> "[.]"
-                | '?' -> "."
-                | '$' -> "\$"
-                | '^' -> "\^"
-                | ch -> System.String(ch,1)
-            let pat = (pattern.ToCharArray() |> Array.map c2r |> System.String.Concat)
-            Regex(@"^" + pat + "$", RegexOptions.Compiled + RegexOptions.IgnoreCase)    // TODO ignore case is optional (system-dependent)
-
-
-        /// Converts Ant-style file pattern to a list of parts
-        let parseDirFileMask (parseDir:bool) pattern =
-         
-            let pattern = pattern |> String.map (function |'\\' | '/' -> dirSeparator | ch -> ch)
-            let mapPart = function
-                | "**" -> Recurse
-                | "." -> CurrentDir
-                | ".." -> Parent (* works well now with Path.Combine() *)
-                | a when a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
-                | a -> a |> iif isMask DirectoryMask Directory
-
-            let dir = if parseDir then pattern else Path.GetDirectoryName(pattern)
-            let parts = if dir = null then [||] else dir.Split([|dirSeparator|], System.StringSplitOptions.RemoveEmptyEntries)
-
-            // parse root "\" to FsRoot
-            let fsroot = if notNullOrEmpty dir && dir.[0] = dirSeparator then [FsRoot] else []
-            let filepart = if parseDir then [] else [pattern |> Path.GetFileName |> (iif isMask FileMask FileName)]
-
-            fsroot @ (Array.map mapPart parts |> List.ofArray) @ filepart
-                |> Pattern |> normalize
-
-       
         let FileSystem = {
             GetDisk = fun d -> d + Path.DirectorySeparatorChar.ToString()
             GetDirRoot = fun x -> Directory.GetDirectoryRoot x
@@ -147,7 +62,7 @@ module Fileset =
         /// <param name="fs">File system implementation</param>
         /// <param name="startIn">Starting path</param>
         /// <param name="path">target path</param>
-        let cd (fs:FileSystemType) startIn (Pattern path) =
+        let cd (fs:FileSystemType) startIn (Path.PathMask path) =
             // TODO check path exists after each step
             let applyPart (path:string) = function
             | CurrentDir  -> path
@@ -160,7 +75,7 @@ module Fileset =
             path |> List.fold applyPart startIn
             
         /// Recursively applies the pattern rules to every item is start list
-        let listFiles (fs:FileSystemType) startIn (Pattern pat) =
+        let listFiles (fs:FileSystemType) startIn (Path.PathMask pat) =
 
             // The pattern without mask become "explicit" file reference which is always included in resulting file list, regardless file presence. See impl notes for details.
             let isExplicitRule = pat |> List.exists (function | DirectoryMask _ | FileMask _ | Recurse -> true | _ -> false) |> not
@@ -179,37 +94,6 @@ module Fileset =
             | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) |> filterFile
             in
             pat |> List.fold applyPart startIn
-        
-        let eq s1 s2 = System.StringComparer.OrdinalIgnoreCase.Equals(s1, s2)
-
-        let matchPart p1 p2 =
-            match p1,p2 with
-            | Disk d1, Disk d2 -> eq d1 d2
-            | Directory d1, Directory d2 -> eq d1 d2
-            | DirectoryMask mask, Directory d2 -> let rx = fileMatchRegex mask    in rx.IsMatch(d2)
-            | FileName f1, FileName f2 -> eq f1 f2
-            | FileMask mask, FileName f2 -> let rx = fileMatchRegex mask in rx.IsMatch(f2)
-            | FsRoot, FsRoot -> true
-            | _ -> false
-
-        let rec matchPathsImpl (mask:PatternPart list) (p:PatternPart list) =
-            match mask,p with
-            | [], [] -> true
-            | [], _ | _, [] -> false
-
-            | Directory _::Recurse::Parent::ms, _
-                -> (matchPathsImpl (Recurse::ms) p)
-
-            | Recurse::Parent::ms, _ -> (matchPathsImpl (Recurse::ms) p)    // ignore parent ref
-
-            | Recurse::ms, (FileName _)::_ -> (matchPathsImpl ms p)
-            | Recurse::ms, Directory _::xs -> (matchPathsImpl mask xs) || (matchPathsImpl ms p)
-            | m::ms, x::xs -> (matchPart m x) && (matchPathsImpl ms xs)
-
-        /// Returns true if a file name (parsedto p) matches specific file mask.            
-        let matchesPattern (Pattern mask) file =
-            let (Pattern fileParts) = (parseDirFileMask false) file in
-            matchPathsImpl mask fileParts
 
         let private ifNone v2 = function | None -> v2 | Some v -> v
 
@@ -217,13 +101,13 @@ module Fileset =
         /// "Materializes" fileset to a filelist
         let scan fileSystem root (Fileset (options,filesetItems)) =
 
-            let startDirPat = options.BaseDir |> ifNone root |> parseDirFileMask true
+            let startDirPat = options.BaseDir |> ifNone root |> Path.parseDir
             let startDir = startDirPat |> cd fileSystem "."
 
             // TODO check performance, build function
             let includes src = [startDir] |> (listFiles fileSystem) >> Seq.append src
             let excludes src pat =
-                let matchFile = pat |> joinPattern startDirPat |> matchesPattern in
+                let matchFile = pat |> Path.join startDirPat |> Path.matchesPattern in
                 src |> Seq.filter (matchFile >> not)
 
             let folditem i = function
@@ -265,35 +149,12 @@ module Fileset =
                 fun o -> (o.FailOnEmpty, o.BaseDir))
                 (pair bool (option str))
 
-        let patternpart=
-            alt(function
-                | FsRoot -> 0
-                | Parent -> 1
-                | Disk _ -> 2
-                | DirectoryMask _ -> 3
-                | Directory _ -> 4
-                | Recurse -> 5
-                | FileMask _ -> 6
-                | FileName _ -> 7)
-              [|
-                wrap0 FsRoot
-                wrap0 Parent
-                wrap (Disk, fun (Disk d) -> d) str
-                wrap (DirectoryMask, fun (DirectoryMask d) -> d) str
-                wrap (Directory, fun (Directory d) -> d) str
-                wrap0 Recurse
-                wrap (FileMask, fun (FileMask m) -> m) str
-                wrap (FileName, fun (FileName m) -> m) str
-              |]
-
-        let pattern = wrap(Pattern, fun(Pattern pp) -> pp) (list patternpart)
-
         let filesetElement =
           alt
             (function | Includes _ -> 0 | Excludes _ -> 1)
             [|
-              wrap (Includes, fun (Includes p) -> p) pattern
-              wrap (Excludes, fun (Excludes p) -> p) pattern
+              wrap (Includes, fun (Includes p) -> p) Path.pickler
+              wrap (Excludes, fun (Excludes p) -> p) Path.pickler
             |]
 
         let fileinfo = wrap((fun n -> System.IO.FileInfo n), fun fi -> fi.FullName) str
@@ -312,7 +173,8 @@ module Fileset =
     /// </summary>
     /// <param name="filePattern"></param>
     let ls (filePattern:FilePattern) =
-        let parse = (filePattern.EndsWith ("/") || filePattern.EndsWith ("\\")) |> Impl.parseDirFileMask
+        // TODO Path.parse is expected to handle trailing slash character
+        let parse = match filePattern.EndsWith ("/") || filePattern.EndsWith ("\\") with | true -> Path.parseDir | _-> Path.parse
         Fileset (DefaultOptions, [filePattern |> parse |> Includes])
 
     /// <summary>
@@ -342,16 +204,17 @@ module Fileset =
     /// </summary>
     let (<.>) path ext = if System.String.IsNullOrWhiteSpace(ext) then path else path + "." + ext
 
-    let parseFileMask = Impl.parseDirFileMask false
-    let parseDirMask = Impl.parseDirFileMask true
+    type private obsolete = System.ObsoleteAttribute
+
+    [<obsolete("Use Path.parse instead")>]
+    let parseFileMask = Path.parse
+
+    [<obsolete("Use Path.parseDir instead")>]
+    let parseDirMask = Path.parseDir
 
     // let matches filePattern projectRoot
-    let matches filePattern rootPath =
-        // IDEA: make relative path than match to pattern?
-        // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
-
-        // TODO alternative implementation, convert pattern to a match function using combinators
-        Impl.matchesPattern <| joinPattern (parseDirMask rootPath) (parseFileMask filePattern)
+    [<obsolete("Use Path.matches instead")>]
+    let matches = Path.matches
     
     let FileSystem = Impl.FileSystem
             
@@ -401,11 +264,11 @@ module Fileset =
 
         /// Adds includes pattern to a fileset.
         static member (++) ((Fileset (opts,pts)), includes) :Fileset =
-            Fileset (opts, pts @ [includes |> parseFileMask |> Includes])
+            Fileset (opts, pts @ [includes |> Path.parse |> Includes])
 
         /// Adds excludes pattern to a fileset.
         static member (--) (Fileset (opts,pts), excludes) =
-            Fileset (opts, pts @ [excludes |> parseFileMask |> Excludes])
+            Fileset (opts, pts @ [excludes |> Path.parse |> Excludes])
     end
 
     (******** builder ********)
@@ -433,10 +296,10 @@ module Fileset =
         member this.ExcludesIf(fs:Fileset, pattern) = fs -? pattern
 
         [<CustomOperation("includefile")>]
-        member this.IncludeFile(fs, file) = fs |> combineWithFile (parseFileMask >> Includes) file
+        member this.IncludeFile(fs, file)  = (fs,file) ||> combineWithFile (Path.parse >> Includes)
 
         [<CustomOperation("excludefile")>]
-        member this.ExcludeFile(fs,file)    = fs |> combineWithFile (parseFileMask >> Excludes) file
+        member this.ExcludeFile(fs,file)    = (fs,file) ||> combineWithFile (Path.parse >> Excludes)
 
         member this.Yield(())    = Empty
         member this.Return(pattern:FilePattern) = Empty ++ pattern

@@ -126,7 +126,7 @@ module Path =
 
         let pattern = wrap(PathMask, fun(PathMask pp) -> pp) (list patternpart)
 
-    module matchImpl =
+    module internal matchImpl =
 
         let eq s1 s2 = System.StringComparer.OrdinalIgnoreCase.Equals(s1, s2)
 
@@ -165,16 +165,10 @@ module Path =
             | Recurse::ms, Directory _::xs -> (matchPaths mask xs) || (matchPaths ms p)
             | m::ms, x::xs -> (matchPart m x) && (matchPaths ms xs)
 
-        /// Returns true if a file name (parsed to p) matches specific file mask.            
-        let matchesPattern (PathMask mask) file =
-            let (PathMask fileParts) = file |> impl.parse impl.isLastPartForFile in
-            matchPaths mask fileParts
-
     // API
     let pickler = PicklerImpl.pattern
 
-    let toFileSystem (PathMask pp) = ""
-    let matches path pathMask = false
+    let toFileSystem (PathMask pp) = "" // TODO implement
 
     /// <summary>
     /// Joins two patterns.
@@ -194,3 +188,22 @@ module Path =
     /// Converts Ant-style file pattern to a list of parts.
     /// </summary>
     let parse = impl.parse impl.isLastPartForFile
+
+    /// <summary>
+    /// Returns true if a file name (parsed to p) matches specific file mask.         
+    /// </summary>
+    /// <param name="mask"></param>
+    /// <param name="file"></param>
+    let matchesPattern (PathMask mask) file =
+
+        // TODO alternative implementation, convert pattern to a match function using combinators
+        // TODO refine signature
+        let (PathMask fileParts) = file |> impl.parse impl.isLastPartForFile in
+        matchImpl.matchPaths mask fileParts
+
+    // let matches filePattern projectRoot
+    let matches filePattern rootPath =
+        // IDEA: make relative path than match to pattern?
+        // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
+
+        matchesPattern <| join (parseDir rootPath) (parse filePattern)

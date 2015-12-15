@@ -106,6 +106,19 @@ The full list of parameters:
 ### Do not allow to override options
 Command line arguments override the script options (XakeOptions type) unless you define options.IgnoreCommandLine = true.
 
+## Propose: named file parts
+
+Allows to extract pattern parts from a file name matching mask. Handy for defining "parameterized" rules. According to product idea any
+artifact is unique and has its own file so any parameterized rule is resolved to a file.
+
+E.g. `"bin\(type:*)\Application.exe"` defines a mask with a named part referencing directory.
+The call to `match mask "bin\Debug\Application.exe"` will result in `MatchResult.Ok ["type", "Debug"]`.
+
+  * Question: whether to define a name for a set of pattern parts (e.g. `(type:bin\*)\app.exe`)
+  * Question: allow to define a named part of name: `bin\*\app.(ext:*)` - here file extension is assigned to "ext" entry.
+
+Both options are nice to see but are both a bit complicated.
+
 ## Other
 
   * file names are cases sensitive now. In the future it's planned to be system-dependent

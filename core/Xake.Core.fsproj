@@ -46,6 +46,36 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <ItemGroup>
+    <Compile Include="Logging.fs" />
+    <Compile Include="Pickler.fs" />
+    <Compile Include="Path.fs" />
+    <Compile Include="Fileset.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="ArtifactUtil.fs" />
+    <Compile Include="CommonLib.fs" />
+    <Compile Include="Database.fs" />
+    <Compile Include="Action.fs" />
+    <Compile Include="WorkerPool.fs" />
+    <Compile Include="Progress.fs" />
+    <Compile Include="XakeScript.fs" />
+    <Compile Include="Env.fs" />
+    <Compile Include="CommonTasks.fs" />
+    <Compile Include="FileTasks.fs" />
+    <Compile Include="ResourceFileset.fs" />
+    <Compile Include="DotNetFwk.fs" />
+    <Compile Include="DotnetTasks.fs" />
+    <Compile Include="VersionInfo.fs" />
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Program.fs" />
+    <None Include="todo.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
   <Choose>
     <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v2.0' Or $(TargetFrameworkVersion) == 'v3.0' Or $(TargetFrameworkVersion) == 'v3.5')">
       <ItemGroup>
@@ -56,7 +86,16 @@
         </Reference>
       </ItemGroup>
     </When>
-    <When Condition="($(TargetFrameworkIdentifier) == '.NETCore') Or ($(TargetFrameworkProfile) == 'Profile7') Or ($(TargetFrameworkProfile) == 'Profile44')">
+    <When Condition="$(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.0' Or $(TargetFrameworkVersion) == 'v4.5' Or $(TargetFrameworkVersion) == 'v4.5.1' Or $(TargetFrameworkVersion) == 'v4.5.2' Or $(TargetFrameworkVersion) == 'v4.5.3' Or $(TargetFrameworkVersion) == 'v4.6' Or $(TargetFrameworkVersion) == 'v4.6.1')">
+      <ItemGroup>
+        <Reference Include="FSharp.Core">
+          <HintPath>..\packages\FSharp.Core\lib\net40\FSharp.Core.dll</HintPath>
+          <Private>True</Private>
+          <Paket>True</Paket>
+        </Reference>
+      </ItemGroup>
+    </When>
+    <When Condition="($(TargetFrameworkIdentifier) == '.NETCore') Or ($(TargetFrameworkIdentifier) == 'Xamarin.Mac') Or ($(TargetFrameworkProfile) == 'Profile7') Or ($(TargetFrameworkProfile) == 'Profile44')">
       <ItemGroup>
         <Reference Include="FSharp.Core">
           <HintPath>..\packages\FSharp.Core\lib\portable-net45+netcore45\FSharp.Core.dll</HintPath>
@@ -65,10 +104,10 @@
         </Reference>
       </ItemGroup>
     </When>
-    <When Condition="($(TargetFrameworkIdentifier) == '.NETFramework' And ($(TargetFrameworkVersion) == 'v4.0' Or $(TargetFrameworkVersion) == 'v4.5' Or $(TargetFrameworkVersion) == 'v4.5.1' Or $(TargetFrameworkVersion) == 'v4.5.2' Or $(TargetFrameworkVersion) == 'v4.5.3' Or $(TargetFrameworkVersion) == 'v4.6')) Or ($(TargetFrameworkIdentifier) == 'MonoAndroid') Or ($(TargetFrameworkIdentifier) == 'MonoTouch')">
+    <When Condition="($(TargetFrameworkIdentifier) == 'MonoAndroid') Or ($(TargetFrameworkIdentifier) == 'MonoTouch') Or ($(TargetFrameworkIdentifier) == 'Xamarin.iOS')">
       <ItemGroup>
         <Reference Include="FSharp.Core">
-          <HintPath>..\packages\FSharp.Core\lib\net40\FSharp.Core.dll</HintPath>
+          <HintPath>..\packages\FSharp.Core\lib\portable-net45+monoandroid10+monotouch10+xamarinios10\FSharp.Core.dll</HintPath>
           <Private>True</Private>
           <Paket>True</Paket>
         </Reference>
@@ -102,34 +141,4 @@
       </ItemGroup>
     </When>
   </Choose>
-  <ItemGroup>
-    <Compile Include="Logging.fs" />
-    <Compile Include="Pickler.fs" />
-    <Compile Include="Path.fs" />
-    <Compile Include="Fileset.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="ArtifactUtil.fs" />
-    <Compile Include="CommonLib.fs" />
-    <Compile Include="Database.fs" />
-    <Compile Include="Action.fs" />
-    <Compile Include="WorkerPool.fs" />
-    <Compile Include="Progress.fs" />
-    <Compile Include="XakeScript.fs" />
-    <Compile Include="Env.fs" />
-    <Compile Include="CommonTasks.fs" />
-    <Compile Include="FileTasks.fs" />
-    <Compile Include="ResourceFileset.fs" />
-    <Compile Include="DotNetFwk.fs" />
-    <Compile Include="DotnetTasks.fs" />
-    <Compile Include="VersionInfo.fs" />
-    <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Program.fs" />
-    <None Include="todo.md" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Windows.Forms" />
-  </ItemGroup>
 </Project>

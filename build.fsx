@@ -33,8 +33,8 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
         }
 
         "get-deps" => action {
-            let! exit_code = system ".paket/paket.bootstrapper.exe" []
-            let! exit_code = system ".paket/paket.exe" ["install"]
+            let! exit_code = systemClr ".paket/paket.bootstrapper.exe" []
+            let! exit_code = systemClr ".paket/paket.exe" ["install"]
 
             if exit_code <> 0 then
                 failwith "Failed to install packages"
