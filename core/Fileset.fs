@@ -97,7 +97,7 @@ module Fileset =
 
         let private ifNone v2 = function | None -> v2 | Some v -> v
 
-        /// Draft implementation of fileset execute
+        /// Implementation of fileset execute
         /// "Materializes" fileset to a filelist
         let scan fileSystem root (Fileset (options,filesetItems)) =
 
@@ -107,7 +107,7 @@ module Fileset =
             // TODO check performance, build function
             let includes src = [startDir] |> (listFiles fileSystem) >> Seq.append src
             let excludes src pat =
-                let matchFile = pat |> Path.join startDirPat |> Path.matchesPattern in
+                let matchFile = Path.join startDirPat pat |> Path.matchesPattern >> Option.isSome in
                 src |> Seq.filter (matchFile >> not)
 
             let folditem i = function

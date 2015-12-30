@@ -48,7 +48,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project files", "Project fi
 		.travis.yml = .travis.yml
 		build-old.fsx = build-old.fsx
 		build.fsx = build.fsx
-		core\filesets.fsx = core\filesets.fsx
+		core\inner-examples.fsx = core\inner-examples.fsx
 	EndProjectSection
 EndProject
 Global

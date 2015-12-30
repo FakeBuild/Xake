@@ -59,6 +59,7 @@ Xake allows using both Mono and .NET frameworks explicitly by defining NETFX var
 Default behavior is to use the framework the script is running under. E.g. if running under Mono `fsharpi` recent mono toolset will be used.
 
 List of valid targets:
+
     | "net-20" | "net-2.0" | "2.0"
     | "net-30" | "net-3.0" | "3.0"
     | "net-35" | "net-3.5" | "3.5"
@@ -98,7 +99,7 @@ The full list of parameters:
  * -ll <log level> -- console log level (Silent | Quiet | Normal | Loud | Chatty | Diag)
  * -fl <file log path> -- specifies the name of the log file
  * -fll <log level> -- specifies the logging level to a log file
- * target1 .. targetN -- define the list of targets. Targets are executed in strict order, the second one starts only after the first one is complete.
+ * target1 .. targetN -- define the list of targets. Targets are executed in strict order, the second one starts only after the first one is completed.
  * target1;target2;..targetN -- execute the targets simultaneously
  * -d <name>=<value> -- defines a script variable value
  * -nologo -- remove logo string
@@ -106,18 +107,29 @@ The full list of parameters:
 ### Do not allow to override options
 Command line arguments override the script options (XakeOptions type) unless you define options.IgnoreCommandLine = true.
 
-## Propose: named file parts
+## Propose: named match groups in file or directory masks
 
-Allows to extract pattern parts from a file name matching mask. Handy for defining "parameterized" rules. According to product idea any
-artifact is unique and has its own file so any parameterized rule is resolved to a file.
+Allows to extract substring from a file or directory masks. Handy for defining
+"parameterized" rules. According to product idea any artifact is unique and has its
+own file so any parameterized rule is resolved to a file.
 
 E.g. `"bin\(type:*)\Application.exe"` defines a mask with a named part referencing directory.
 The call to `match mask "bin\Debug\Application.exe"` will result in `MatchResult.Ok ["type", "Debug"]`.
 
-  * Question: whether to define a name for a set of pattern parts (e.g. `(type:bin\*)\app.exe`)
-  * Question: allow to define a named part of name: `bin\*\app.(ext:*)` - here file extension is assigned to "ext" entry.
+Named groups Mask is defined either for DirectoryMask of FileMask.
+Nested groups are ok too, e.g. `"(filename:(arch:*)-(platform:*)-lld).(ext:*)"` matches the file
+`x86-win-lld.app` and returns map {"filename", "x86-win-lld"; "arch", "x86"; "platform", "win"; "ext", "app"}
 
-Both options are nice to see but are both a bit complicated.
+```
+var mask = "(arch:*)-(platform:*)-autoexec.(ext:*)";
+var mask2 = "(filename:(arch:*)-(platform:*)-lld).(ext:*)";
+
+var mm = Regex.Match ("x86-win-autoexec.bat", @"(?<filename>(?<arch>.*)-(?<platform>.*)-autoexec)\.(?<ext>.*)");
+mm.Groups["arch"].Dump();
+mm.Groups["platform"].Dump();
+mm.Groups["ext"].Dump();
+mm.Groups["filename"].Dump();
+```
 
 ## Other
 

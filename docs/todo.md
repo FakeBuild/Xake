@@ -17,12 +17,12 @@
 
 ## Thoughts
  * idea: rule settings
-  * "clean" {FailOnError = true} \*\*> file a -> action {}
-  * "clean" \!\*> file a -> action {}
-  * "clean" \*\*> file a -> action ({FailOnError = true}) {}
+  * `"clean" {FailOnError = true} \*\*> file a -> action {}`
+  * `"clean" \!\*> file a -> action {}`
+  * `"clean" \*\*> file a -> action ({FailOnError = true}) {}`
  * folder as a target:
-  * want ["Viewer", "Designer"]
-  * rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}
+  * `want ["Viewer", "Designer"]`
+  * `rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}`
  * Filelist is not handy as it requires to cast all the time
  * FileInfo is not good for the same reason: poorly composable and does not cover Directory well
 
