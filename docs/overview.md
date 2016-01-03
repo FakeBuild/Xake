@@ -11,6 +11,7 @@
   - [Script header](#script-header)
   - ["Main" function](#main-function)
     - [rule](#rule)
+    - [file patterns, named groups](#file-patterns-named-groups)
     - [phony](#phony)
     - [rules](#rules)
     - [want](#want)
@@ -19,8 +20,9 @@
     - [Tasks, `do!` notation](#tasks-do-notation)
     - [need](#need)
     - [Filesets](#filesets)
-    - [Internal functions](#internal-functions)
+    - [Other functions](#other-functions)
     - [Script variables](#script-variables)
+    - [Env module](#env-module)
     - [Tasks](#tasks)
       - [File tasks](#file-tasks)
       - [Dotnet tasks](#dotnet-tasks)
@@ -154,10 +156,11 @@ rule ("out\\Tools.dll" *> fun outname -> action {
 
 There're several forms of rules including:
 
-* `rule (<file pattern> *> fun outname -> <action>)` - rule for single file or group of files matching the specified wildcards pattern. The actual name (in case of wildcards pattern) will be passed to `outname` parameter
+* `rule (<file pattern> %> fun out -> <action>)` - rule for single file or group of files matching the specified wildcards pattern. The file and an optional matching groups will be passed to `out` argument of type RuleActionArgs
 * `rule (<condition> *?> fun outname -> <action>)` - allows to use function instead of file name or wildcards
 * `rule (<name> => <action>)` - creates a phony rule (the rule that does not create a file)
 * `rule (<name> <== [targets])` - creates a phony rule which demands specified targets
+* `rule (<file pattern> *> fun outname -> <action>)` - the same as `%>` but the file is passed to action. Outdated option.
 
 > Notice: you are not bound to `outname` name above, you could change it to any other name.
 
@@ -183,6 +186,23 @@ do xake {ExecOptions.Default with Threads = 4} {
       })
 
   rule mainRule
+}
+```
+
+### file patterns, named groups
+
+`file pattern` allows to define regular Ant-like patterns including name wildcards, recursion wildcard (`**`) and also **named groups**.
+
+E.g. the pattern `"(plat:*)-a.ss"` will match wildcard `"*-a.ss"` pattern and store '\*' part to a 'plat' group.
+``` fsharp
+do xake {XakeOptions with Targets = ["out/abc.ss"]} {
+    rule ("(dir:*)/(file:*).(ext:ss)" %> fun out -> action {
+            
+        Assert.AreEqual("out", out.group "dir")
+        Assert.AreEqual("abc", out.group "file")
+        Assert.AreEqual("ss", out.group "ext")
+        matchedAny := true
+    })
 }
 ```
 

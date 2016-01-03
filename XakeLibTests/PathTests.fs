@@ -17,6 +17,8 @@ type private test = TestCaseAttribute
 [<test("c:\\a.c", "C:\\A.c",  ExpectedResult = true)>]
 [<test("c:\\*.c", "d:\\a.c",  ExpectedResult = false)>]
 [<test("c:\\*.c", "c:\\a.c",  ExpectedResult = true)>]
+[<test("c:\\[(]*[)].c", "c:\\(a).c",  ExpectedResult = true, Description = "We are are not smart enough yet, so want brackets escated")>]
+[<test("c:\\[(]*.c", "c:\\(a.c",  ExpectedResult = true)>]
 
 [<test("c:\\abc\\*.c", "c:\\a.c",           ExpectedResult = false)>]
 [<test("c:\\abc\\*.c", "c:\\def\\a.c",      ExpectedResult = false)>]
@@ -47,6 +49,7 @@ let MaskTests3(m,root,t) = Path.matches m root t |> Option.isSome
 
 let MaskWithParent(m,t) = Path.matches m "" t |> Option.isSome
 
+[<test("(arch:*)/(platform:*)/autoexec.(ext:*)", "x86/win/autoexec.bat", ExpectedResult = "arch-x86 platform-win ext-bat")>]
 [<test("(arch:*)-(platform:*)-autoexec.(ext:*)", "x86-win-autoexec.bat", ExpectedResult = "arch-x86 platform-win ext-bat")>]
 [<test("(filename:(arch:*)-(platform:*)-autoexec).(ext:*)", "x86-win-autoexec.bat", ExpectedResult = "filename-x86-win-autoexec arch-x86 platform-win ext-bat")>]
 

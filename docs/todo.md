@@ -1,6 +1,6 @@
 ## TODOs and ideas
 
-  * akka.net build scripts
+  * switch development to mono under windows
   * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question. (we have got it out of the box, need more info)
   * accept filemasks in 'need' parameters (WHY I added it here?, the use case is very unclear)
   * detect changes in build script (internal changes), e.g. new target added that was not in .xake database
@@ -25,6 +25,7 @@
   * `rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}`
  * Filelist is not handy as it requires to cast all the time
  * FileInfo is not good for the same reason: poorly composable and does not cover Directory well
+ * wildcards phony actions
 
 ## Done
  * ls returns directory list in case it ends with "/" ("\")

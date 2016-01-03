@@ -115,18 +115,21 @@ module XakeScript =
         let private locateRule (Rules rules) projectRoot target =
             let matchRule rule = 
                 match rule, target with
-                |FileConditionRule (f,_), FileTarget file when (f file.FullName) = true ->
+
+                |FileConditionRule (predicate,_), FileTarget file when predicate file.FullName ->
                     //writeLog Level.Debug "Found conditional pattern '%s'" name
-                    Some (rule)
+                    // TODO let condition rule extracting named groups
+                    Some (rule,[])
+
                 |FileRule (pattern,_), FileTarget file ->
-                    if file.FullName |> Path.matches pattern projectRoot |> Option.isSome then
-                        // writeLog Verbose "Found pattern '%s' for %s" pattern (getShortname target)
-                        Some (rule)
-                    else
-                        None
+                    file.FullName
+                    |> Path.matches pattern projectRoot
+                    |> Option.map (fun groups -> rule,groups)
+
                 |PhonyRule (name,_), PhonyAction phony when phony = name ->
                     // writeLog Verbose "Found phony pattern '%s'" name
-                    Some (rule)
+                    Some (rule, [])
+
                 | _ -> None
                 
             rules |> List.tryPick matchRule
@@ -303,30 +306,29 @@ module XakeScript =
                         return ExecStatus.Skipped
                 }
 
-            let getAction = function
+            let getAction groups = function
                 | FileRule (_, action)
                 | FileConditionRule (_, action) ->
                     let (FileTarget artifact) = target in
-                    let (Action r) = action artifact in
-                    Some r
-                | PhonyRule (_, Action r) -> Some r
+                    let (Action r) = action (RuleActionArgs (artifact,groups)) in
+                    r
+                | PhonyRule (_, Action r) -> r
 
             // result expression is...
-            target
-            |> locateRule ctx.Rules ctx.Options.ProjectRoot
-            |> Option.bind getAction
-            |> function
-                | Some action ->
-                    async {
-                        let! waitTask = (fun channel -> Run(target, run action, channel)) |> ctx.TaskPool.PostAndAsyncReply
-                        let! status = waitTask
-                        return status, Dependency.ArtifactDep target
-                    }
-                | None ->
-                    target |> function
-                    | FileTarget file when file.Exists ->
-                        async {return ExecStatus.JustFile, Dependency.File (file, file.LastWriteTime)}
-                    | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
+            match target |> locateRule ctx.Rules ctx.Options.ProjectRoot with
+            | Some(rule,groups) ->
+                let groupsMap = groups |> Map.ofSeq
+                let action = rule |> getAction groupsMap
+                async {
+                    let! waitTask = (fun channel -> Run(target, run action, channel)) |> ctx.TaskPool.PostAndAsyncReply
+                    let! status = waitTask
+                    return status, Dependency.ArtifactDep target
+                }
+            | None ->
+                target |> function
+                | FileTarget file when file.Exists ->
+                    async {return ExecStatus.JustFile, Dependency.File (file, file.LastWriteTime)}
+                | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
 
         /// <summary>
         /// Executes several artifacts in parallel.
@@ -481,7 +483,8 @@ module XakeScript =
     end
 
     /// Creates the rule for specified file pattern.    
-    let ( *> ) pattern fnRule = FileRule (pattern, fnRule)
+    let ( %> ) pattern fnRule = FileRule (pattern, fun targetArgs -> fnRule targetArgs)
+    let ( *> ) pattern fnRule = FileRule (pattern, fun (RuleActionArgs (t,_)) -> fnRule t)
     let ( *?> ) fn fnRule = FileConditionRule (fn, fnRule)
 
     /// Creates phony action (check if I can unify the operator name)
