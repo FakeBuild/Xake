@@ -1,11 +1,11 @@
 ﻿namespace Xake
 
 [<AutoOpen>]
-module internal ArtifactUtil = 
+module internal FileUtil = 
     /// <summary>
     /// Creates a new artifact
     /// </summary>
-    let newArtifact name = Artifact name
+    let newArtifact name = File name
     
     // TODO move Artifact stuff out of here
     

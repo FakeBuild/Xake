@@ -381,7 +381,7 @@ let ``writes dependencies to a build database``() =
                     BuildResult.Depends
                         = [
                         ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
-                        Dependency.File (fileDep, depDate)
+                        FileDep (fileDep, depDate)
                         ]
                 }
                 when System.IO.Path.GetFileName(fileDep.Name) = "bbb.c" && depDate = cdate

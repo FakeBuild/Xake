@@ -68,7 +68,7 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
                 includes "Path.fs"
                 includes "Fileset.fs"
                 includes "Types.fs"
-                includes "ArtifactUtil.fs"
+                includes "FileUtil.fs"
                 includes "CommonLib.fs"
                 includes "Database.fs"
                 includes "Action.fs"

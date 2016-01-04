@@ -2,6 +2,7 @@
 
 open System.IO
 
+open Xake
 open Xake.DomainTypes
 open Xake.Fileset
 

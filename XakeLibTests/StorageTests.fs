@@ -31,8 +31,8 @@ type ``Storage facility``() =
   let logger = ConsoleLogger Verbosity.Diag
 
   let createResult name =
-    {(makeResult <| FileTarget (Artifact name)) with
-      Depends = [ArtifactDep <| FileTarget (Artifact "abc.c"); Var ("DEBUG", Some "false")]
+    {(File name|>FileTarget|>makeResult) with
+      Depends = [ArtifactDep <| FileTarget (File "abc.c"); Var ("DEBUG", Some "false")]
       Steps = [newStepInfo ("compile", 217)]
     }
 
@@ -84,12 +84,12 @@ type ``Storage facility``() =
 
   [<Test>]
   member test.``persists simple data``() =
-    let testee = makeResult <| FileTarget (Artifact "abc.exe")
+    let testee = makeResult <| FileTarget (File "abc.exe")
     let testee =
       {testee with
         Depends = [
-                    ArtifactDep <| FileTarget (Artifact "abc.c")
-                    File (Artifact "common.c", System.DateTime(1971, 11, 21))
+                    ArtifactDep <| FileTarget (File "abc.c")
+                    FileDep (File "common.c", System.DateTime(1971, 11, 21))
                     EnvVar ("SDK", Some "4.5")
                     Var ("DEBUG", Some "false")
                   ]
@@ -123,13 +123,13 @@ type ``Storage facility``() =
 
     use testee = Storage.openDb "." logger
 
-    let abc = testee <-* (FileTarget <| Artifact "abc.exe")
+    let abc = testee <-* (FileTarget <| File "abc.exe")
     Assert.IsTrue(Option.isSome abc)
 
-    let def = testee <-* (FileTarget <| Artifact "def.exe")
+    let def = testee <-* (FileTarget <| File "def.exe")
     Assert.IsTrue(Option.isSome def)
 
-    let fgh = testee <-* (FileTarget <| Artifact "fgh.exe")
+    let fgh = testee <-* (FileTarget <| File "fgh.exe")
     Assert.IsTrue(Option.isSome fgh)
 
     printfn "%A" abc
@@ -179,7 +179,7 @@ type ``Storage facility``() =
     testee.PostAndReply CloseWait
     
     use testee = Storage.openDb "." logger
-    let (Some read) = testee <-* (FileTarget <| Artifact "abc")
+    let (Some read) = testee <-* (FileTarget <| File "abc")
     testee.PostAndReply CloseWait
 
     Assert.AreEqual ([Var ("DEBUG", Some "true")], read.Depends)
@@ -201,7 +201,7 @@ type ``Storage facility``() =
     File.WriteAllText (dbname, "dummy text")
     
     use testee = Storage.openDb "." logger
-    let read = testee <-* (FileTarget <| Artifact "abc")
+    let read = testee <-* (FileTarget <| File "abc")
     Assert.IsTrue(Option.isSome read)
     testee.PostAndReply CloseWait
 
@@ -218,7 +218,7 @@ type ``Storage facility``() =
 
     use testee = Storage.openDb "." logger
     testee <-- Store (createResult "abc") |> ignore
-    let read = testee <-* (FileTarget <| Artifact "abc")
+    let read = testee <-* (FileTarget <| File "abc")
     Assert.IsTrue(Option.isSome read)
     testee.PostAndReply CloseWait
 

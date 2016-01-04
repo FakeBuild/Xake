@@ -52,7 +52,7 @@
     <Compile Include="Path.fs" />
     <Compile Include="Fileset.fs" />
     <Compile Include="Types.fs" />
-    <Compile Include="ArtifactUtil.fs" />
+    <Compile Include="FileUtil.fs" />
     <Compile Include="CommonLib.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Action.fs" />

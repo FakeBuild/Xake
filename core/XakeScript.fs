@@ -163,7 +163,7 @@ module XakeScript =
 
         /// Gets single dependency state
         let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
-            | File (a:Artifact, wrtime) when not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
+            | FileDep (a:File, wrtime) when not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
                 let afile = a in
                 DepState.FilesChanged [afile.Name]
 
@@ -322,12 +322,12 @@ module XakeScript =
                 async {
                     let! waitTask = (fun channel -> Run(target, run action, channel)) |> ctx.TaskPool.PostAndAsyncReply
                     let! status = waitTask
-                    return status, Dependency.ArtifactDep target
+                    return status, ArtifactDep target
                 }
             | None ->
                 target |> function
                 | FileTarget file when file.Exists ->
-                    async {return ExecStatus.JustFile, Dependency.File (file, file.LastWriteTime)}
+                    async {return ExecStatus.JustFile, FileDep (file, file.LastWriteTime)}
                 | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
 
         /// <summary>
@@ -370,7 +370,7 @@ module XakeScript =
             if rr |> List.exists (function |PhonyRule (n,_) when n = name -> true | _ -> false) then
                 PhonyAction name
             else
-                FileTarget (Artifact (ctx.Options.ProjectRoot </> name))        
+                FileTarget (File (ctx.Options.ProjectRoot </> name))        
 
         /// Executes the build script
         let run script =
@@ -533,7 +533,7 @@ module XakeScript =
     
     let needFiles (Filelist files) = 
         action { 
-            let targets = files |> List.map (fun f -> new Artifact(f.FullName) |> FileTarget)
+            let targets = files |> List.map (fun f -> new File(f.FullName) |> FileTarget)
             do! Impl.need targets
         }
     

@@ -4,7 +4,7 @@
 module DomainTypes = 
     let private compareNames a b = System.String.Compare(a, b, true)
     
-    type Artifact(name : string) = 
+    type File(name : string) = 
         let fi = lazy (System.IO.FileInfo name)
     
         // TODO refine our own type, keep paths relative
@@ -12,7 +12,7 @@ module DomainTypes =
         interface System.IComparable with
             member me.CompareTo other = 
                 match other with
-                | :? Artifact as a -> compareNames me.Name a.Name
+                | :? File as a -> compareNames me.Name a.Name
                 | _ -> 1
         
         member this.Name = name
@@ -27,11 +27,11 @@ module DomainTypes =
             fi.Value.LastWriteTime
         
         member this.IsUndefined = System.String.IsNullOrWhiteSpace(name)
-        static member Undefined = Artifact(null)
+        static member Undefined = File(null)
         
         override this.Equals(other) = 
             match other with
-            | :? Artifact as a -> 0 = compareNames this.Name a.Name
+            | :? File as a -> 0 = compareNames this.Name a.Name
             | _ -> false
         
         override me.GetHashCode() = 
@@ -41,7 +41,7 @@ module DomainTypes =
         override me.ToString() = name   
 
     type Target = 
-        | FileTarget of Artifact
+        | FileTarget of File
         | PhonyAction of string
     
     // structures, database processor and store
@@ -51,7 +51,7 @@ module DomainTypes =
     type ms
     
     type Dependency = 
-        | File of Artifact * Timestamp // regular file (such as source code file), triggers when file date/time is changed
+        | FileDep of File * Timestamp // regular file (such as source code file), triggers when file date/time is changed
         | ArtifactDep of Target // other target (triggers when target is rebuilt)
         | EnvVar of string * string option // environment variable
         | Var of string * string option // any other data such as compiler version (not used yet)
@@ -74,7 +74,7 @@ module DomainTypes =
     type Action<'a,'b> = Action of (BuildResult * 'a -> Async<BuildResult * 'b>)
 
     /// Data type for action's out parameter. Defined target file and named groups in pattern
-    type RuleActionArgs = RuleActionArgs of Artifact * Map<string,string>
+    type RuleActionArgs = RuleActionArgs of File * Map<string,string>
 
     type 'ctx Rule = 
         | FileRule of string * (RuleActionArgs -> Action<'ctx,unit>)

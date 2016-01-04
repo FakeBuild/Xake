@@ -18,7 +18,7 @@ module DotNetTaskTypes =
             /// Specifies the format of the output file.
             Target: TargetType
             /// Specifies the output file name (default: base name of file with main class or first file).
-            Out: Artifact
+            Out: DomainTypes.File
             /// Source files.
             Src: Fileset
             /// References metadata from the specified assembly files.
@@ -83,7 +83,7 @@ module DotNetTaskTypes =
         /// Specifies the format of the output file.
         Target: TargetType
         /// Specifies the output file name (default: base name of file with main class or first file).
-        Out: Artifact
+        Out: DomainTypes.File
         /// Source files.
         Src: Fileset
         /// References metadata from the specified assembly files.
@@ -115,7 +115,7 @@ module DotnetTasks =
     let CscSettings = {
         CscSettingsType.Platform = AnyCpu
         Target = Auto    // try to resolve the type from name etc
-        Out = Artifact.Undefined
+        Out = File.Undefined
         Src = Fileset.Empty
         Ref = Fileset.Empty
         RefGlobal = []
@@ -486,7 +486,7 @@ module DotnetTasks =
     let FscSettings = {
         FscSettingsType.Platform = AnyCpu
         FscSettingsType.Target = Auto
-        Out = Artifact.Undefined
+        Out = File.Undefined
         Src = Fileset.Empty
         Ref = Fileset.Empty
         RefGlobal = []
