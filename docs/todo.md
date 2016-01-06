@@ -28,6 +28,10 @@
  * wildcards phony actions
 
 ## Done
+
+ * changed Artifact type to a File.T
+ * files case sensitivity is now platform dependent
+ * match groups in rule masks
  * ls returns directory list in case it ends with "/" ("\")
  * MSBuild task
  * performance of rules lookup (takes 2s now)

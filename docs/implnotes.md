@@ -139,9 +139,39 @@ mm.Groups["filename"].Dump();
     * manually copy (need tracking which are really needed)
     * explicit external map of deps: use both
 
+## File/Target and other types
+Made File a module with T type which details are hidden. API is exposed as functions within a File module and
+also some widely used properties are available as File.T members.
+
+The reason for 'Name' property is a user-friendly output and I'm going to change it to a relative names.
+Expected the following issues:
+
+  * File functions operate on File.T type which is not usable in user scripts
+  > Resolution: script will not use this type, instead we will expose FileTasks and tell to use System.IO.File
+  * `Csc` and other tasks has an `Out` parameter which got `File.T` type. This is not going to be user friendly. And I should consider changing it to string. However in most cases this value is passed from action parameters
+  so the types should be coherent
+
+The motivations are:
+
+  * to be more statically typed internally. This is the reason for not using strings.
+  * FileInfo is a poorly collected garbage. I'd use both internally and externally more accurate abstraction
+  * FileInfo is unlikely Unix-friendly and allows comparison and such things
+  * provide more nice operators for end-user, let combine the paths, change extensions and so on
+  * more coupled integration with Path type (WHAT?)
+  * attempt to make abstract `Artifact` entity which would allow to define not only files but say in-memory data streams or byte arrays. In such terms phony actions could be regular rules producing no file.
+
+The decision points:
+
+  * should we expose the File module and its types and use in script API
+  * or should we stand with FileInfo or String type
+
+Next step:
+
+  * check FileInfo limitations (ensure it's bad)
+  * reconsider out parameter (change to string) - check the pros and cons
+
 ### Build notes
 Release new version by tagging the commit:
 
     git tag v0.3.6
     git push --tags
-

@@ -39,7 +39,7 @@ module Storage =
               XakeVer : string
               ScriptDate : Timestamp }
         
-        let artifact = wrap (File.make, fun a -> a.Name) str
+        let file = wrap (File.make, fun a -> a.FullName) str
         
         let target = 
             alt (function 
@@ -63,7 +63,7 @@ module Storage =
                 | AlwaysRerun _ -> 4
                 | GetFiles _ -> 5) 
                 [| wrap (ArtifactDep, fun (ArtifactDep f) -> f) target                   
-                   wrap (FileDep, fun (FileDep(f, ts)) -> (f, ts))  (pair artifact date)                   
+                   wrap (FileDep, fun (FileDep(f, ts)) -> (f, ts))  (pair file date)                   
                    wrap (EnvVar, fun (EnvVar(n, v)) -> n, v)  (pair str (option str))
                    wrap (Var, fun (Var(n, v)) -> n, v)        (pair str (option str))
                    wrap0 AlwaysRerun                   

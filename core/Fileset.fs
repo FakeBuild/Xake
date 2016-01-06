@@ -39,12 +39,6 @@ module Fileset =
 
         open Path
 
-        // TODO revise the list
-        let dirSeparator = Path.DirectorySeparatorChar
-        let notNullOrEmpty = System.String.IsNullOrEmpty >> not
-
-        let isMask (a:string) = a.IndexOfAny([|'*';'?'|]) >= 0
-        let iif fn b c a = match fn a with | true -> b a | _ -> c a
         let fullname (f:DirectoryInfo) = f.FullName
         
         let FileSystem = {
@@ -157,7 +151,7 @@ module Fileset =
               wrap (Excludes, fun (Excludes p) -> p) Path.pickler
             |]
 
-        let fileinfo = wrap((fun n -> System.IO.FileInfo n), fun fi -> fi.FullName) str
+        let fileinfo = wrap(System.IO.FileInfo, fun fi -> fi.FullName) str
 
         let fileset  = wrap(Fileset, fun (Fileset (o,l)) -> o,l) (pair filesetoptions (list filesetElement))
         let filelist = wrap(Filelist, fun (Filelist l) -> l) (list fileinfo)
