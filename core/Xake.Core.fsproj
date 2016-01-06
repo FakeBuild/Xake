@@ -38,7 +38,19 @@
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
   </PropertyGroup>
-  <Import Project="$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets" Condition=" Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')" />
+  <Choose>
+    <When Condition="'$(VisualStudioVersion)' == '11.0'">
+      <PropertyGroup>
+        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+  <Import Project="$(FSharpTargetsPath)" Condition="Exists('$(FSharpTargetsPath)')" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
@@ -49,17 +61,18 @@
   <ItemGroup>
     <Compile Include="Logging.fs" />
     <Compile Include="Pickler.fs" />
+    <Compile Include="Env.fs" />
     <Compile Include="Path.fs" />
+    <Compile Include="File.fsi" />
+    <Compile Include="File.fs" />
     <Compile Include="Fileset.fs" />
     <Compile Include="Types.fs" />
-    <Compile Include="FileUtil.fs" />
     <Compile Include="CommonLib.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Action.fs" />
     <Compile Include="WorkerPool.fs" />
     <Compile Include="Progress.fs" />
     <Compile Include="XakeScript.fs" />
-    <Compile Include="Env.fs" />
     <Compile Include="CommonTasks.fs" />
     <Compile Include="FileTasks.fs" />
     <Compile Include="ResourceFileset.fs" />

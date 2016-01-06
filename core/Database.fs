@@ -39,13 +39,13 @@ module Storage =
               XakeVer : string
               ScriptDate : Timestamp }
         
-        let artifact = wrap (newArtifact, fun (a:File) -> a.Name) str
+        let artifact = wrap (File.make, fun a -> a.Name) str
         
         let target = 
             alt (function 
                 | FileTarget _ -> 0
                 | PhonyAction _ -> 1) 
-                [|  wrap (newArtifact >> FileTarget, fun (FileTarget f) -> f.Name) str
+                [|  wrap (File.make >> FileTarget, fun (FileTarget f) -> f.Name) str
                     wrap (PhonyAction, (fun (PhonyAction a) -> a)) str |]
         
         let step = 
@@ -196,22 +196,24 @@ module Storage =
 /// Utility methods to manipulate build stats
 module internal Step =
 
-    let start name = {StepInfo.Empty with Name = name; Start = System.DateTime.Now}
+    type DateTime = System.DateTime
+
+    let start name = {StepInfo.Empty with Name = name; Start = DateTime.Now}
 
     /// <summary>
     /// Updated last (current) build step
     /// </summary>
     let updateLastStep fn = function
         | {Steps = current :: rest} as result -> {result with Steps = (fn current) :: rest}
-        | _ as result -> result
+        | result -> result
 
     /// <summary>
     /// Adds specific amount to a wait time
     /// </summary>
     let updateWaitTime delta = updateLastStep (fun c -> {c with WaitTime = c.WaitTime + delta})
     let updateTotalDuration =
-        let durationSince (startTime: System.DateTime) = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
+        let durationSince (startTime: DateTime) = int (DateTime.Now - startTime).TotalMilliseconds * 1<ms>
         updateLastStep (fun c -> {c with OwnTime = (durationSince c.Start) - c.WaitTime})
     let lastStep = function
-        | {Steps = current :: rest} -> current
+        | {Steps = current :: _} -> current
         | _ -> start "dummy"

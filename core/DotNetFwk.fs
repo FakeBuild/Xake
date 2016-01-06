@@ -1,10 +1,7 @@
 ﻿namespace Xake
 
-open System.Collections
-open System.Resources
 open Xake
-
-type private File = System.IO.File
+open System.IO
 
 module (* internal *) pkg_config =
 

@@ -49,7 +49,7 @@ module internal WindowsProgress =
             let handle = FindWindow (null, System.Console.Title)
             let title = System.Console.Title
 
-            let fmt_ts (ts:System.TimeSpan) =
+            let fmtTs (ts:System.TimeSpan) =
                 let format_string = function
                 | _ when ts.TotalHours >= 1.0 -> "h'h'\ mm'm'\ ss's'"
                 | _ when ts.TotalMinutes >= 1.0 -> "mm'm'\ ss's'"
@@ -62,11 +62,11 @@ module internal WindowsProgress =
 
             function
             | Begin ts ->
-                System.Console.Title <- sprintf "%s - %s" (fmt_ts ts) title
+                System.Console.Title <- sprintf "%s - %s" (fmtTs ts) title
                 ti.SetProgressState (handle, TaskbarStates.Normal)
                 ()
             | Progress (ts,pct) ->
-                System.Console.Title <- sprintf "%i%% %s - %s" pct (fmt_ts ts) title
+                System.Console.Title <- sprintf "%i%% %s - %s" pct (fmtTs ts) title
                 ti.SetProgressValue(handle, uint64 pct, 100UL)
                 ()
             | End ->
@@ -74,7 +74,7 @@ module internal WindowsProgress =
                 ti.SetProgressState (handle, TaskbarStates.NoProgress)
                 ()
         with _ ->
-            fun _ -> ()
+            ignore
 
 module internal Impl =
     /// <summary>
@@ -162,17 +162,11 @@ open Estimate
 let emptyProgress () = 
     MailboxProcessor.Start(fun mbox -> 
         let rec loop () = 
-            async { 
+            async {
                 let! msg = mbox.Receive()
                 match msg with
-                | TaskStart _
-                | TaskSuspend _
-                | TaskResume _
-                | Refresh _
-                | TaskComplete _ -> 
-                    return! loop()
-                | Finish -> 
-                    return ()
+                | Finish -> return ()
+                | _ ->      return! loop()
             }
         loop ())
 
@@ -195,11 +189,11 @@ let openProgress getDurationDeps threadCount goals =
     /// We track currently running tasks and subtract already passed time from task duration
     let getDuration2 running_tasks t =
         match running_tasks |> Map.tryFind t with
-        | Some(running_time,_) ->
+        | Some(runningTime,_) ->
             let originalDuration,deps = getDurationDeps t
             //do printf "\nestimate %A: %A\n" t timeToComplete
             in
-            originalDuration - running_time/1000 |> max 0, deps
+            originalDuration - runningTime/1000 |> max 0, deps
         | _ ->
             getDurationDeps t
 
@@ -217,9 +211,9 @@ let openProgress getDurationDeps threadCount goals =
         let increment = int (now - !updTime).TotalMilliseconds
         updTime := now
         rt |> Map.map (
-            fun t (cpu,is_running) ->
-                let ncpu = if is_running then cpu + increment else cpu in
-                (ncpu,is_running)
+            fun _ (cpu,isRunning) ->
+                let ncpu = if isRunning then cpu + increment else cpu in
+                (ncpu,isRunning)
                 )
 
     let suspend target t (cpu,is_running) = (cpu,is_running && t <> target)

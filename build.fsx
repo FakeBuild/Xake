@@ -33,10 +33,10 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
         }
 
         "get-deps" => action {
-            let! exit_code = systemClr ".paket/paket.bootstrapper.exe" []
-            let! exit_code = systemClr ".paket/paket.exe" ["install"]
+            let! exit_code1 = systemClr ".paket/paket.bootstrapper.exe" []
+            let! exit_code2 = systemClr ".paket/paket.exe" ["install"]
 
-            if exit_code <> 0 then
+            if exit_code1 <> 0 || exit_code2 <> 0 then
                 failwith "Failed to install packages"
         }
 
@@ -67,9 +67,10 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
                 includes "Pickler.fs"
                 includes "Env.fs"
                 includes "Path.fs"
+                includes "File.fsi"
+                includes "File.fs"
                 includes "Fileset.fs"
                 includes "Types.fs"
-                includes "FileUtil.fs"
                 includes "CommonLib.fs"
                 includes "Database.fs"
                 includes "Action.fs"

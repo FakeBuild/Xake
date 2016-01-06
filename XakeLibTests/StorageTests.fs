@@ -2,6 +2,7 @@
 
 open System.IO
 open NUnit.Framework
+
 open Xake
 open Xake.BuildLog
 open Xake.Storage
@@ -29,19 +30,21 @@ module private impl =
     let logger = ConsoleLogger Verbosity.Diag
     
     let createResult name = 
-        { (File name
+        { (name
+           |> File.make
            |> FileTarget
            |> makeResult) with Depends = 
-                                   [ ArtifactDep <| FileTarget(File "abc.c")
+                                   [ ArtifactDep <| FileTarget(File.make "abc.c")
                                      Var("DEBUG", Some "false") ]
                                Steps = [ newStepInfo ("compile", 217) ] }
     
     let (<-*) (a : Agent<DatabaseApi>) t = a.PostAndReply(fun ch -> GetResult(t, ch))
     // Is.Any predicate for assertions
     let IsAny() = Is.Not.All.Not
+
+    let mkFileTarget = File.make >> FileTarget
     
 open impl
-type File = DomainTypes.File
 
 [<SetUp>]
 let Setup() = 
@@ -86,13 +89,13 @@ let RecursiveType() =
 [<Test>]
 let ``persists simple data``() =
 
-    let testee = makeResult <| FileTarget(File "abc.exe")
+    let testee = makeResult <| (mkFileTarget "abc.exe")
         
     let testee = 
         { testee with
             Depends = [
-                ArtifactDep <| FileTarget(File "abc.c")
-                FileDep (File "common.c", System.DateTime(1971, 11, 21))
+                ArtifactDep <| (mkFileTarget "abc.c")
+                FileDep (File.make "common.c", System.DateTime(1971, 11, 21))
                 EnvVar("SDK", Some "4.5")
                 Var("DEBUG", Some "false") ]
             Steps = [
@@ -117,11 +120,11 @@ let ``persists build data in Xake db``() =
     |> ignore
     testee.PostAndReply CloseWait
     use testee = Storage.openDb "." logger
-    let abc = testee <-* (FileTarget <| File "abc.exe")
+    let abc = testee <-* (mkFileTarget "abc.exe")
     Assert.IsTrue(Option.isSome abc)
-    let def = testee <-* (FileTarget <| File "def.exe")
+    let def = testee <-* (mkFileTarget "def.exe")
     Assert.IsTrue(Option.isSome def)
-    let fgh = testee <-* (FileTarget <| File "fgh.exe")
+    let fgh = testee <-* (mkFileTarget "fgh.exe")
     Assert.IsTrue(Option.isSome fgh)
     printfn "%A" abc
     testee.PostAndReply CloseWait
@@ -162,7 +165,7 @@ let ``updates data in file storage``() =
     testee <-- Store updatedResult |> ignore
     testee.PostAndReply CloseWait
     use testee = Storage.openDb "." logger
-    let (Some read) = testee <-* (FileTarget <| File "abc")
+    let (Some read) = testee <-* (mkFileTarget "abc")
     testee.PostAndReply CloseWait
     Assert.AreEqual([ Var("DEBUG", Some "true") ], read.Depends)
     
@@ -182,7 +185,7 @@ let ``restores db in case write failed``() =
     File.Move(dbname, bkdb)
     File.WriteAllText(dbname, "dummy text")
     use testee = Storage.openDb "." logger
-    let read = testee <-* (FileTarget <| File "abc")
+    let read = testee <-* (mkFileTarget "abc")
     Assert.IsTrue(Option.isSome read)
     testee.PostAndReply CloseWait
     Assert.That(msgs, IsAny().Contains("restoring db"))
@@ -198,7 +201,7 @@ let ``repairs (cleans) broken db``() =
     File.WriteAllText(dbname, "dummy text")
     use testee = Storage.openDb "." logger
     testee <-- Store(createResult "abc") |> ignore
-    let read = testee <-* (FileTarget <| File "abc")
+    let read = testee <-* mkFileTarget "abc"
     Assert.IsTrue(Option.isSome read)
     testee.PostAndReply CloseWait
     Assert.That(msgs, IsAny().Contains("Failed to read database"))

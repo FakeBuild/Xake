@@ -1,9 +1,10 @@
 ﻿namespace Xake
 
+open Xake
+    open System.Threading
+
 [<AutoOpen>]
 module XakeScript =
-
-    open System.Threading
 
     type ExecOptions = {
         /// Defines project root folder
@@ -116,13 +117,14 @@ module XakeScript =
             let matchRule rule = 
                 match rule, target with
 
-                |FileConditionRule (predicate,_), FileTarget file when predicate file.FullName ->
+                |FileConditionRule (predicate,_), FileTarget file when file |> File.getFullName |> predicate ->
                     //writeLog Level.Debug "Found conditional pattern '%s'" name
                     // TODO let condition rule extracting named groups
                     Some (rule,[])
 
                 |FileRule (pattern,_), FileTarget file ->
-                    file.FullName
+                    file
+                    |> File.getFullName
                     |> Path.matches pattern projectRoot
                     |> Option.map (fun groups -> rule,groups)
 
@@ -163,11 +165,11 @@ module XakeScript =
 
         /// Gets single dependency state
         let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
-            | FileDep (a:File, wrtime) when not(a.Exists && abs((a.LastWriteTime - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
+            | FileDep (a:File.T, wrtime) when not((File.exists a) && abs((File.getLastWriteTime a - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
                 let afile = a in
                 DepState.FilesChanged [afile.Name]
 
-            | ArtifactDep (FileTarget file) when not file.Exists ->
+            | ArtifactDep (FileTarget file) when not (File.exists file) ->
                 DepState.Other <| sprintf "target doesn't exist '%s'" file.Name
 
             | ArtifactDep dependeeTarget ->
@@ -211,7 +213,7 @@ module XakeScript =
             | Some {BuildResult.Depends = []} ->
                 [DepState.Other "No dependencies"]
 
-            | Some {BuildResult.Result = FileTarget file} when not file.Exists ->
+            | Some {BuildResult.Result = FileTarget file} when not (File.exists file) ->
                 [DepState.Other "target not found"]
 
             | Some {BuildResult.Depends = depends} ->
@@ -238,9 +240,9 @@ module XakeScript =
            
             // strips the filelists to only 5 items
             let rec stripReasons = function
-                | DepState.FilesChanged file_list -> file_list |> take 5 |> DepState.FilesChanged
+                | DepState.FilesChanged fileList -> fileList |> take 5 |> DepState.FilesChanged
                 | DepState.Depends (t,deps) -> DepState.Depends (t, deps |> List.map stripReasons)
-                | _ as state -> state
+                | state -> state
             
             // make plain dependent targets list for specified target
 
@@ -288,7 +290,7 @@ module XakeScript =
                     match ctx.NeedRebuild target with
                     | true ->
                         let taskContext = newTaskContext target ctx
-                        do ctx.Logger.Log Command "Started %s as task %i" (getShortname target) taskContext.Ordinal
+                        do ctx.Logger.Log Command "Started %s as task %i" target.ShortName taskContext.Ordinal
 
                         do Progress.TaskStart target |> ctx.Progress.Post
 
@@ -299,10 +301,10 @@ module XakeScript =
                         Store result |> ctx.Db.Post
 
                         do Progress.TaskComplete target |> ctx.Progress.Post
-                        do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (getShortname target) (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
+                        do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" target.ShortName (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
                         return ExecStatus.Succeed
                     | false ->
-                        do ctx.Logger.Log Command "Skipped %s (up to date)" (getShortname target)
+                        do ctx.Logger.Log Command "Skipped %s (up to date)" target.ShortName
                         return ExecStatus.Skipped
                 }
 
@@ -326,9 +328,9 @@ module XakeScript =
                 }
             | None ->
                 target |> function
-                | FileTarget file when file.Exists ->
-                    async {return ExecStatus.JustFile, FileDep (file, file.LastWriteTime)}
-                | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" (getFullname target)) ""
+                | FileTarget file when File.exists file ->
+                    async {return ExecStatus.JustFile, FileDep (file, File.getLastWriteTime file)}
+                | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" target.FullName) ""
 
         /// <summary>
         /// Executes several artifacts in parallel.
@@ -370,7 +372,7 @@ module XakeScript =
             if rr |> List.exists (function |PhonyRule (n,_) when n = name -> true | _ -> false) then
                 PhonyAction name
             else
-                FileTarget (File (ctx.Options.ProjectRoot </> name))        
+                ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
 
         /// Executes the build script
         let run script =
@@ -403,19 +405,19 @@ module XakeScript =
                 // TODO wrap more elegantly
                 let rec get_changed_deps = CommonLib.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
 
-                let check_rebuild target =
+                let check_rebuild (target:Target) =
                     get_changed_deps >>
                     function
                     | [] -> false, ""
                     | DepState.Other reason::_            -> true, reason
-                    | DepState.Depends (t,_) ::_          -> true, "Depends on target " + (getFullName t)
+                    | DepState.Depends (t,_) ::_          -> true, "Depends on target " + t.ShortName
                     | DepState.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
                     | reasons -> true, sprintf "Some reason %A" reasons
                     >>
                     function
                     | false, _ -> false
                     | true, reason ->
-                        do ctx.Logger.Log Info "Rebuild %A: %s" (getShortname target) reason
+                        do ctx.Logger.Log Info "Rebuild %A: %s" target.ShortName reason
                         true
                     <| target
 
@@ -533,7 +535,7 @@ module XakeScript =
     
     let needFiles (Filelist files) = 
         action { 
-            let targets = files |> List.map (fun f -> new File(f.FullName) |> FileTarget)
+            let targets = files |> List.map (fun f -> File.make f.FullName |> FileTarget)
             do! Impl.need targets
         }
     

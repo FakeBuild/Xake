@@ -17,6 +17,7 @@ module Path =
         | FileName of string
         // IDEA | Named of string * PatternPart
 
+    // TODO NoComparison, NoEquality
     type PathMask = PathMask of Part list
 
     type MatchResult =
@@ -132,7 +133,6 @@ module Path =
     module internal matchImpl =
 
         let eq s1 s2 = System.StringComparer.OrdinalIgnoreCase.Equals(s1, s2)
-        let is_empty = System.String.IsNullOrWhiteSpace
 
         let wilcard2regex_map = ["*", ".*";  ".", "\\.";  "?", ".";  "$", "\\$"; "^", "\\^"] |> dict
         let wildcardToRegex (m:Match) =

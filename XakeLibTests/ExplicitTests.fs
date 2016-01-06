@@ -24,7 +24,7 @@ let ``various frameworks``(fwk:string) =
             "main" => action {
                 do! (csc {
                     //targetfwk fwk
-                    out (File ("hw" + fwk + ".exe"))
+                    out (File.make ("hw" + fwk + ".exe"))
                     src (!! "a.cs")
                     grefs ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
                   })

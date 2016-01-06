@@ -1,6 +1,5 @@
 ﻿namespace Xake
 
-open System.Collections
 open System.IO
 open System.Resources
 open Xake
@@ -18,7 +17,7 @@ module DotNetTaskTypes =
             /// Specifies the format of the output file.
             Target: TargetType
             /// Specifies the output file name (default: base name of file with main class or first file).
-            Out: DomainTypes.File
+            Out: File.T
             /// Source files.
             Src: Fileset
             /// References metadata from the specified assembly files.
@@ -83,7 +82,7 @@ module DotNetTaskTypes =
         /// Specifies the format of the output file.
         Target: TargetType
         /// Specifies the output file name (default: base name of file with main class or first file).
-        Out: DomainTypes.File
+        Out: File.T
         /// Source files.
         Src: Fileset
         /// References metadata from the specified assembly files.
@@ -115,7 +114,7 @@ module DotnetTasks =
     let CscSettings = {
         CscSettingsType.Platform = AnyCpu
         Target = Auto    // try to resolve the type from name etc
-        Out = File.Undefined
+        Out = File.undefined
         Src = Fileset.Empty
         Ref = Fileset.Empty
         RefGlobal = []
@@ -285,8 +284,8 @@ module DotnetTasks =
                     if nostdlib then
                         yield "/nostdlib+"
 
-                    if not outFile.IsUndefined then
-                        yield sprintf "/out:%s" outFile.FullName
+                    if outFile <> File.undefined then
+                        yield sprintf "/out:%s" (File.getFullName outFile)
 
                     if not (List.isEmpty settings.Define) then
                         yield "/define:" + (settings.Define |> String.concat ";")
@@ -486,7 +485,7 @@ module DotnetTasks =
     let FscSettings = {
         FscSettingsType.Platform = AnyCpu
         FscSettingsType.Target = Auto
-        Out = File.Undefined
+        Out = File.undefined
         Src = Fileset.Empty
         Ref = Fileset.Empty
         RefGlobal = []
@@ -527,7 +526,7 @@ module DotnetTasks =
             let! globalTargetFwk = getVar "NETFX-TARGET"
             let targetFramework =
                 match settings.TargetFramework, globalTargetFwk with
-                | s, _ when s <> null && s <> "" -> s
+                | s, _ when not (System.String.IsNullOrEmpty s) -> s
                 | _, Some s when s <> "" -> s
                 | _ -> null
 
@@ -556,8 +555,8 @@ module DotnetTasks =
                     if settings.NoFramework || noframework then
                         yield "--noframework"
 
-                    if not outFile.IsUndefined then
-                        yield sprintf "/out:%s" outFile.FullName
+                    if outFile <> File.undefined then
+                        yield sprintf "/out:%s" (File.getFullName outFile)
 
                     if not (List.isEmpty settings.Define) then
                         yield "/define:" + (settings.Define |> String.concat ";")
