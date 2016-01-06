@@ -5,7 +5,6 @@ open NUnit.Framework
 
 open Xake
 open Storage
-open BuildLog
 
 // one thread to avoid simultaneous access to 'wasExecuted'
 let XakeOptions = {ExecOptions.Default with FileLog = ""; Threads = 1}

@@ -1,16 +1,13 @@
-﻿namespace XakeLibTests
+﻿module ``Fileset type``
 
 open System.IO
 
 open Xake
-open Xake.DomainTypes
 open Xake.Fileset
 
 open NUnit.Framework
 
-[<TestFixture (Description = "Unit tests for Fileset module")>]
-type FilesetTests() =
-
+module private impl =
     let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "..")
 
     let name (file:FileInfo) = file.Name
@@ -18,15 +15,7 @@ type FilesetTests() =
 
     let tolower (s:string) = s.ToLower()
 
-    let IsAny() = Is.Not.All.Not
-
-    let dirfullname (f:DirectoryInfo) = f.FullName
-    let MockFileSystem root =
-        {
-        FileSystem with
-            GetDisk = fun d -> root </> d.Substring(0,1) + "_drive"
-            GetDirRoot = fun _ -> root
-        }
+    let isAny() = Is.Not.All.Not
 
     let getFilesAt start f =
         let (Filelist files) = f |> toFileList start
@@ -46,132 +35,130 @@ type FilesetTests() =
 
     let root1 = currentDir </> "testdata" </> "withdrive"
 
-    [<Test (Description = "Verifies ls function")>]
-    member o.LsSimple() =
+open impl
 
-        let files = ls "a*" |> getFiles1 root1 @"c:\rpt"
-        Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"]))
+[<Test>]
+let ``could list a files in folder by wildcard``() =
 
-    [<Test (Description = "Verifies strange DOS (on Windows) behavior when looking for files by '*.txt' mask")>]
-    [<Platform("Win")>]
-    member o.LsThreeLetterExtension() =
+    let files = ls "a*" |> getFiles1 root1 @"c:\rpt"
+    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"]))
 
-        let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
-        Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"; "c.rdlx"; "c1.rdlx"]))
+[<Test>] [<Platform("Win")>]
+let ``follows weird DOS (on Windows platform) behavior when looking for files by '*.txt' mask``() =
 
-    [<Test (Description = "Verifies strange DOS (on Windows) behavior when looking for files by '*.txt' mask")>]
-    [<Platform("Unix")>]
-    member o.LsThreeLetterExtensionUnix() =
+    let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
+    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"; "c.rdlx"; "c1.rdlx"]))
 
-        let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
-        Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"]))
+[<Test>] [<Platform("Unix")>]
+let ``does NOT follow weird DOS (on Windows platform) behavior when looking for files by '*.txt' mask``() =
 
-    [<Test (Description = "Verifies fileset exec function removes duplicates from result")>]
-    member o.ExecDoesntRemovesDuplicates() =
+    let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
+    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"]))
 
-        Assert.That (
-            fileset {includes "*.rdl"; includes "*.rdl*"}
-            |> getFiles1 root1 @"c:\rpt"
-            |> List.map (name >> tolower) |> List.filter ((=) "a.rdl") |> List.length,
-            Is.EqualTo (2))
+[<Test>]
+let ``exec function removes duplicates from result``() =
 
-    [<Test>]
-    member o.LsRecursive() =
-        Assert.That(
-            ls "c:/rpt/**/e.rdl" |> getFiles1 root1 "" |> List.map fullname |> List.toArray,
-            Is.All.EndsWith("rpt" </> "nested" </> "nested2" </> "e.rdl").IgnoreCase)
+    Assert.That (
+        fileset {includes "*.rdl"; includes "*.rdl*"}
+        |> getFiles1 root1 @"c:\rpt"
+        |> List.map (name >> tolower) |> List.filter ((=) "a.rdl") |> List.length,
+        Is.EqualTo (2))
 
-    [<Test (Description = "Verifies 'explicit' rules, which match file regardless actual file presense")>]
-    member o.LsExplicit() =
-        Assert.That(
-            ls "c:/rpt/aaa.rdl" |> getFiles1 root1 "" |> List.map fullname |> List.toArray,
-            Is.All.EndsWith("rpt" </> "aaa.rdl").IgnoreCase)
+[<Test>]
+let ``could search recursively ('**' mask) ``() =
+    Assert.That(
+        ls "c:/rpt/**/e.rdl" |> getFiles1 root1 "" |> List.map fullname |> List.toArray,
+        Is.All.EndsWith("rpt" </> "nested" </> "nested2" </> "e.rdl").IgnoreCase)
 
-    [<Test>]
-    member o.LsExcludes() =
+[<Test>]
+let ``allows excluding files by mask``() =
 
-        let fileNames = (!! "*.rdl*" -- "*.rdlx") |> getFilesAt (root1 </> "c_drive" </> "rpt") |> List.map name
-        fileNames |> List.iter System.Console.WriteLine
-        Assert.That (fileNames, Is.All.EndsWith("rdl"))
+    let fileNames = (!! "*.rdl*" -- "*.rdlx") |> getFilesAt (root1 </> "c_drive" </> "rpt") |> List.map name
+    fileNames |> List.iter System.Console.WriteLine
+    Assert.That (fileNames, Is.All.EndsWith("rdl"))
 
-    [<Test (Description = "Verifies ls could search for directories")>]
-    member o.LsDirs() =
+[<Test>]
+let ``could search and return directories``() =
 
-        let files = ls "c:/*/" |> getFiles1 root1 @"c:\rpt"
-        Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["bak"; "rpt"; "jparsec"]))
+    let files = ls "c:/*/" |> getFiles1 root1 @"c:\rpt"
+    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["bak"; "rpt"; "jparsec"]))
 
-    [<Test>]
-    member o.Builder() =
-        let fileset = fileset {
-            basedir @"c:\rpt"
+[<Test>]
+let ``privides builder computation``() =
+    let fileset = fileset {
+        basedir @"c:\rpt"
 
-            includes "*.rdl"
-            includes "*.rdlx"
+        includes "*.rdl"
+        includes "*.rdlx"
             
-            includes @"..\jparsec\src\main/**/*.java"
+        includes @"..\jparsec\src\main/**/*.java"
 
-            do! fileset {
-                includes @"c:\bak\*.css"
-            }
+        do! fileset {
+            includes @"c:\bak\*.css"
         }
+    }
 
-        let files = fileset |> getFiles1 root1 "" |> List.map name
-        in
-        do files |> List.iter System.Console.WriteLine
-        do Assert.That(
-            files,
-            Constraints.Constraint.op_BitwiseOr( IsAny().EndsWith(".java"), IsAny().EndsWith(".css"))
-            )        
+    let files = fileset |> getFiles1 root1 "" |> List.map name
+    in
+    do files |> List.iter System.Console.WriteLine
+    do Assert.That(
+        files,
+        Constraints.Constraint.op_BitwiseOr( isAny().EndsWith(".java"), isAny().EndsWith(".css"))
+        )        
 
-    [<Test>]
-    member o.ExplicitFileYieldsFile() =
+[<Test>]
+let ``handles 'explicit' rules, which match file regardless actual file presense``() =
+    Assert.That(
+        ls "c:/rpt/aaa.rdl" |> getFiles1 root1 "" |> List.map fullname |> List.toArray,
+        Is.All.EndsWith("rpt" </> "aaa.rdl").IgnoreCase)
 
-        let sampleFileName = "NonExistingFile.rdl"
+[<Test>]
+let ``explicitly specified file yields non-existing file``() =
 
-        let fileset = fileset {
-            basedir @"c:\rpt"
+    let sampleFileName = "NonExistingFile.rdl"
 
-            includes "*.rdl"
-            includes sampleFileName
-        }
+    let fileset = fileset {
+        basedir @"c:\rpt"
 
-        Assert.That(
-            fileset |> getFiles1 root1 "" |> List.map name,
-            IsAny().EndsWith(sampleFileName)
-            )
+        includes "*.rdl"
+        includes sampleFileName
+    }
 
-    [<Test>]
-    member o.ShortForm() =
+    Assert.That(
+        fileset |> getFiles1 root1 "" |> List.map name,
+        isAny().EndsWith(sampleFileName)
+        )
 
-        let fileset =
-                ls "*.rdl" + "*.rdlx" + "../jparsec/src/main/**/*.java" @@ """c:\rpt"""
-        Assert.That(
-            fileset |> getFiles1 root1 "" |> List.map name,
-            Constraints.Constraint.op_BitwiseOr( IsAny().EndsWith(".java"), IsAny().EndsWith(".rdlx"))
-            )
+[<Test>]
+let ``providers operators for short definition``() =
 
-    [<Test>]
-    [<ExpectedException>]
-    member o.CombineFilesetsWithBasedirs() =
-        let fs1 = fileset {
-            basedir @"c:\!"
-            includes @"bak\*.css"
-            includesif false @"debug\*.css"
-        }
+    let fileset =
+            ls "*.rdl" + "*.rdlx" + "../jparsec/src/main/**/*.java" @@ """c:\rpt"""
+    Assert.That(
+        fileset |> getFiles1 root1 "" |> List.map name,
+        Constraints.Constraint.op_BitwiseOr( isAny().EndsWith(".java"), isAny().EndsWith(".rdlx"))
+        )
 
-        let fs2 = fileset {
-            basedir @"c:\!\bak"
-            includes @"*.rdl"
+[<Test>]
+let ``could combine filesets into new one``() =
+    let fs1 = fileset {includes @"c:\!\bak\*.css"}
+    let fs2 = fileset {includes @"c:\!\bak\*.rdl"}
 
-            join fs1
-        }
-        fs2 |> getFiles |> ignore
+    (fs1 + fs2) |> getFiles |> ignore
 
-    [<Test>]
-    member o.CombineFilesets() =
-        let fs1 = fileset {includes @"c:\!\bak\*.css"}
-        let fs2 = fileset {includes @"c:\!\bak\*.rdl"}
+[<Test>]
+[<ExpectedException>]
+let ``combine filesets with different base dirs are not implemented yet``() =
+    let fs1 = fileset {
+        basedir @"c:\!"
+        includes @"bak\*.css"
+        includesif false @"debug\*.css"
+    }
 
-        (fs1 + fs2) |> getFiles |> ignore
+    let fs2 = fileset {
+        basedir @"c:\!\bak"
+        includes @"*.rdl"
 
-
+        join fs1
+    }
+    fs2 |> getFiles |> ignore

@@ -1,61 +1,66 @@
-﻿namespace XakeLibTests
+﻿module ``Various tests``
 
 open System.IO
 open NUnit.Framework
 
 open Xake
-open Storage
-open BuildLog
 
-[<TestFixture (Description = "Various tests")>]
-type MiscTests() =
+let xakeOptions = ExecOptions.Default
 
-    let XakeOptions = ExecOptions.Default
+[<SetUp>]
+let Setup() =
+    try File.Delete("." </> ".xake") with _ -> ()
 
-    [<SetUp>]
-    member test.Setup() =
-      try File.Delete("." </> ".xake") with _ -> ()
+[<Test>]
+let ``runs csc task (full test)``() =
 
-    [<Test>]
-    member test.``runs csc task (full test)``() =
-
-        let needExecuteCount = ref 0
+    let needExecuteCount = ref 0
     
-        do xake {XakeOptions with Threads = 1; FileLog="skipbuild.log"} {  // one thread to avoid simultaneous access to 'wasExecuted'
-            want (["hello"])
+    do xake {xakeOptions with Threads = 1; FileLog="skipbuild.log"} {  // one thread to avoid simultaneous access to 'wasExecuted'
+        want (["hello"])
 
-            rules [
-              "hello" *> fun file -> action {
-                  do! trace Error "Running inside 'hello' rule"
-                  do! need ["hello.cs"]
+        rules [
+            "hello" *> fun file -> action {
+                do! trace Error "Running inside 'hello' rule"
+                do! need ["hello.cs"]
 
-                  do! trace Error "Rebuilding..."
-                  do! Csc {
-                    CscSettings with
-                      Out = file
-                      Src = !!"hello.cs"
-                  }
-              }
-              "hello.cs" *> fun src -> action {
-                  do File.WriteAllText (src.FullName, """class Program
-                    {
-	                    public static void Main()
-	                    {
-		                    System.Console.WriteLine("Hello world!");
-	                    }
-                    }""")
-                  do! trace Error "Done building 'hello.cs' rule in %A" src
-                  needExecuteCount := !needExecuteCount + 1
-              }
-            ]
-        }
+                do! trace Error "Rebuilding..."
+                do! Csc {
+                CscSettings with
+                    Out = file
+                    Src = !!"hello.cs"
+                }
+            }
+            "hello.cs" *> fun src -> action {
+                do File.WriteAllText (src.FullName, """class Program
+                {
+	                public static void Main()
+	                {
+		                System.Console.WriteLine("Hello world!");
+	                }
+                }""")
+                do! trace Error "Done building 'hello.cs' rule in %A" src
+                needExecuteCount := !needExecuteCount + 1
+            }
+        ]
+    }
 
-        Assert.AreEqual(1, !needExecuteCount)
+    Assert.AreEqual(1, !needExecuteCount)
 
-    [<Test (Description = "Verifies resource set instantiation")>]
-    member this.NewResourceSet() =
+[<Test>]
+let ``resource set instantiation``() =
 
-        let resset = resourceset {
+    let resset = resourceset {
+        prefix "Sample.Application"
+        dynamic true
+
+        files (fileset {
+            includes "*.resx"
+        })
+    }
+
+    let resourceSetCollection = [
+        resourceset {
             prefix "Sample.Application"
             dynamic true
 
@@ -63,26 +68,16 @@ type MiscTests() =
                 includes "*.resx"
             })
         }
+        resourceset {
+            prefix "Sample.Application1"
+            dynamic true
 
-        let resourceSetCollection = [
-            resourceset {
-                prefix "Sample.Application"
-                dynamic true
+            files (fileset {
+                includes "*.res"
+            })
+        }
+    ]
 
-                files (fileset {
-                    includes "*.resx"
-                })
-            }
-            resourceset {
-                prefix "Sample.Application1"
-                dynamic true
-
-                files (fileset {
-                    includes "*.res"
-                })
-            }
-        ]
-
-        printfn "%A" resset
-        ()
+    printfn "%A" resset
+    ()
 

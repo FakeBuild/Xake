@@ -32,13 +32,12 @@ let ``various frameworks``(fwk:string) =
             "a.cs" *> fun src -> action {
                 do File.WriteAllText(src.FullName, """
                 class Program
-                    {
-	                    public static void Main()
-	                    {
-		                    System.Console.WriteLine("Hello world!");
-	                    }
-                    }
-                """)
+                {
+                  public static void Main()
+                  {
+                    System.Console.WriteLine("Hello world!");
+                  }
+                }""")
                 }
             ]
         }

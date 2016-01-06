@@ -1,11 +1,9 @@
 ﻿module ``File tasks module``
 
-open System
 open NUnit.Framework
 
 open Xake
 open Xake.FileTasks
-open Xake.Storage
 
 type private File = System.IO.File
 
