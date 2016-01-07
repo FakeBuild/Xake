@@ -13,6 +13,7 @@ module private impl =
           fun name -> name.ToLowerInvariant() |> hash
 
 open impl
+open System.IO
 
 [<CustomEquality; CustomComparison>]
 type File = T of string * System.IO.FileInfo with
@@ -59,6 +60,9 @@ module File =
         T (n, new System.IO.FileInfo(n))
 
     let getName (f:File) = f.Name
+    let getFileName (f:File) = f.Name |> Path.GetFileName
+    let getFileExt (f:File) = f.Name |> Path.GetExtension
+    let getDirName (f:File) = f.FullName |> Path.GetDirectoryName
     let getFullName (f:File) = f.FullName
     let exists (f:File) = BclFile.Exists f.FullName
     let getLastWriteTime (f:File) = BclFile.GetLastWriteTime f.FullName

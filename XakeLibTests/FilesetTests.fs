@@ -10,9 +10,6 @@ open NUnit.Framework
 module private impl =
     let currentDir = Path.Combine (__SOURCE_DIRECTORY__, "..")
 
-    let name (file:FileInfo) = file.Name
-    let fullname (file:FileInfo) = file.FullName
-
     let tolower (s:string) = s.ToLower()
 
     let isAny() = Is.Not.All.Not
@@ -41,19 +38,19 @@ open impl
 let ``could list a files in folder by wildcard``() =
 
     let files = ls "a*" |> getFiles1 root1 @"c:\rpt"
-    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"]))
+    Assert.That (files |> List.map File.getFileName, Is.EquivalentTo (List.toSeq ["a.rdl"]))
 
 [<Test; Platform("Win")>]
 let ``follows weird DOS (on Windows platform) behavior when looking for files by '*.txt' mask``() =
 
     let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
-    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"; "c.rdlx"; "c1.rdlx"]))
+    Assert.That (files |> List.map File.getFileName, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"; "c.rdlx"; "c1.rdlx"]))
 
 [<Test; Platform("Unix")>]
 let ``does NOT follow weird DOS (on Windows platform) behavior when looking for files by '*.txt' mask``() =
 
     let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
-    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"]))
+    Assert.That (files |> List.map File.getFileName, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"]))
 
 [<Test>]
 let ``exec function removes duplicates from result``() =
@@ -61,19 +58,19 @@ let ``exec function removes duplicates from result``() =
     Assert.That (
         fileset {includes "*.rdl"; includes "*.rdl*"}
         |> getFiles1 root1 @"c:\rpt"
-        |> List.map (name >> tolower) |> List.filter ((=) "a.rdl") |> List.length,
+        |> List.map (File.getFileName >> tolower) |> List.filter ((=) "a.rdl") |> List.length,
         Is.EqualTo (2))
 
 [<Test>]
 let ``could search recursively ('**' mask) ``() =
     Assert.That(
-        ls "c:/rpt/**/e.rdl" |> getFiles1 root1 "" |> List.map fullname |> List.toArray,
+        ls "c:/rpt/**/e.rdl" |> getFiles1 root1 "" |> List.map File.getFullName |> List.toArray,
         Is.All.EndsWith("rpt" </> "nested" </> "nested2" </> "e.rdl").IgnoreCase)
 
 [<Test>]
 let ``allows excluding files by mask``() =
 
-    let fileNames = (!! "*.rdl*" -- "*.rdlx") |> getFilesAt (root1 </> "c_drive" </> "rpt") |> List.map name
+    let fileNames = (!! "*.rdl*" -- "*.rdlx") |> getFilesAt (root1 </> "c_drive" </> "rpt") |> List.map File.getFileName
     fileNames |> List.iter System.Console.WriteLine
     Assert.That (fileNames, Is.All.EndsWith("rdl"))
 
@@ -81,7 +78,7 @@ let ``allows excluding files by mask``() =
 let ``could search and return directories``() =
 
     let files = ls "c:/*/" |> getFiles1 root1 @"c:\rpt"
-    Assert.That (files |> List.map name, Is.EquivalentTo (List.toSeq ["bak"; "rpt"; "jparsec"]))
+    Assert.That (files |> List.map File.getFileName, Is.EquivalentTo (List.toSeq ["bak"; "rpt"; "jparsec"]))
 
 [<Test>]
 let ``privides builder computation``() =
@@ -98,7 +95,7 @@ let ``privides builder computation``() =
         }
     }
 
-    let files = fileset |> getFiles1 root1 "" |> List.map name
+    let files = fileset |> getFiles1 root1 "" |> List.map File.getFileName
     in
     do files |> List.iter System.Console.WriteLine
     do Assert.That(
@@ -109,7 +106,7 @@ let ``privides builder computation``() =
 [<Test>]
 let ``handles 'explicit' rules, which match file regardless actual file presense``() =
     Assert.That(
-        ls "c:/rpt/aaa.rdl" |> getFiles1 root1 "" |> List.map fullname |> List.toArray,
+        ls "c:/rpt/aaa.rdl" |> getFiles1 root1 "" |> List.map File.getFullName |> List.toArray,
         Is.All.EndsWith("rpt" </> "aaa.rdl").IgnoreCase)
 
 [<Test>]
@@ -125,7 +122,7 @@ let ``explicitly specified file yields non-existing file``() =
     }
 
     Assert.That(
-        fileset |> getFiles1 root1 "" |> List.map name,
+        fileset |> getFiles1 root1 "" |> List.map File.getFileName,
         isAny().EndsWith(sampleFileName)
         )
 
@@ -135,7 +132,7 @@ let ``providers operators for short definition``() =
     let fileset =
             ls "*.rdl" + "*.rdlx" + "../jparsec/src/main/**/*.java" @@ """c:\rpt"""
     Assert.That(
-        fileset |> getFiles1 root1 "" |> List.map name,
+        fileset |> getFiles1 root1 "" |> List.map File.getFileName,
         Constraints.Constraint.op_BitwiseOr( isAny().EndsWith(".java"), isAny().EndsWith(".rdlx"))
         )
 

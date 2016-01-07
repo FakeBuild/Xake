@@ -179,9 +179,9 @@ module DotnetTasks =
                 | Some prefix -> prefix + "." + baseName
                 | _ -> baseName
 
-        let compileResx (resxfile:FileInfo) (rcfile:FileInfo) =
+        let compileResx (resxfile:File) (rcfile:File) =
             use resxreader = new System.Resources.ResXResourceReader (resxfile.FullName)
-            resxreader.BasePath <- resxfile.DirectoryName
+            resxreader.BasePath <- File.getDirName resxfile
 
             use writer = new ResourceWriter (rcfile.FullName)
 
@@ -197,25 +197,29 @@ module DotnetTasks =
 
         let collectResInfo pathRoot = function
             |ResourceFileset (o,Fileset (fo,fs)) ->
-                let mapFile (file:FileInfo) =
-                    let resname = makeResourceName o fo.BaseDir file.FullName in
+                let mapFile file =
+                    let resname = makeResourceName o fo.BaseDir (File.getFullName file) in
                     (resname,file)
 
                 let (Filelist l) = Fileset (fo,fs) |> (toFileList pathRoot) in
                 l |> List.map mapFile
 
+        let endsWith e (str:string) = str.EndsWith (e, System.StringComparison.OrdinalIgnoreCase)
+        let (|EndsWith|_|) e str = if endsWith e str then Some () else None
+
         let compileResxFiles = function
-            | (res,(file:FileInfo)) when file.Extension.Equals(".resx", System.StringComparison.OrdinalIgnoreCase) ->
-                let tempfile = new System.IO.FileInfo (Path.GetTempFileName())
+            | (res,(file:File)) when file |> File.getFileName |> endsWith ".resx" ->
+                let tempfile = Path.GetTempFileName() |> File.make
                 do compileResx file tempfile
                 (Path.ChangeExtension(res,".resources"),tempfile,true)
             | (res,file) ->
                 (res,file,false)
 
-        let resolveTarget (name:string) =
-            if name.EndsWith (".dll", System.StringComparison.OrdinalIgnoreCase) then Library else
-            if name.EndsWith (".exe", System.StringComparison.OrdinalIgnoreCase) then Exe else
-            Library
+        let resolveTarget  =
+            function
+            | EndsWith ".dll" -> Library
+            | EndsWith ".exe" -> Exe
+            | _ -> Library
 
         let rec targetStr fileName = function
             |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"

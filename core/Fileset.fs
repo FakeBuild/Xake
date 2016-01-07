@@ -4,6 +4,7 @@
 module Fileset =
 
     open System.IO
+    open Xake
 
     /// <summary>
     /// Defines interface to a file system
@@ -26,7 +27,7 @@ module Fileset =
 
     // Fileset is either set of rules or list of files (materialized)
     type Fileset = Fileset of FilesetOptions * FilesetElement list
-    type Filelist = Filelist of FileInfo list
+    type Filelist = Filelist of File list
 
     /// Default fileset options
     let DefaultOptions = {FilesetOptions.BaseDir = None; FailOnEmpty = false}
@@ -108,7 +109,7 @@ module Fileset =
                 | Includes pat -> includes i pat
                 | Excludes pat -> excludes i pat
 
-            filesetItems |> Seq.ofList |> Seq.fold folditem Seq.empty<string> |> Seq.map (fun f -> FileInfo f) |> List.ofSeq |> Filelist
+            filesetItems |> Seq.ofList |> Seq.fold folditem Seq.empty<string> |> Seq.map File.make |> List.ofSeq |> Filelist
 
         // combines two fileset options
         let combineOptions (o1:FilesetOptions) (o2:FilesetOptions) =
@@ -151,7 +152,7 @@ module Fileset =
               wrap (Excludes, fun (Excludes p) -> p) Path.pickler
             |]
 
-        let fileinfo = wrap((fun f -> System.IO.FileInfo f), fun fi -> fi.FullName) str
+        let fileinfo = wrap(File.make, File.getFullName) str
 
         let fileset  = wrap(Fileset, fun (Fileset (o,l)) -> o,l) (pair filesetoptions (list filesetElement))
         let filelist = wrap(Filelist, fun (Filelist l) -> l) (list fileinfo)
@@ -216,8 +217,7 @@ module Fileset =
     /// <param name="list2"></param>
     let compareFileList (Filelist list1) (Filelist list2) =
 
-        let fname (f:System.IO.FileInfo) = f.FullName
-        let setOfNames = List.map fname >> Set.ofList
+        let setOfNames = List.map File.getFullName >> Set.ofList
 
         let set1, set2 = setOfNames list1, setOfNames list2
 
