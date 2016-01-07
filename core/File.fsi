@@ -1,30 +1,31 @@
 ﻿namespace Xake
 
-module File =
-    [<Sealed>]
-    type T =
-        interface System.IComparable
-        override Equals: obj -> bool
-        override GetHashCode: unit -> int
+[<Sealed>]
+type File =
+    interface System.IComparable
+    override Equals: obj -> bool
+    override GetHashCode: unit -> int
 
-        member Name : string
-        member FullName : string
+    member Name : string
+    member FullName : string
+
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module File =
 
     /// Makes a new File instance by a file pathname.
-    val make : string -> T
+    val make : string -> File
 
     /// Gets the file name. Short and user-friendly
-    val getName: T -> string
+    val getName: File -> string
 
     /// Gets fully qualified file name.
-    val getFullName: T -> string
+    val getFullName: File -> string
 
     /// Get true if file exists
-    val exists: T -> bool
+    val exists: File -> bool
 
     /// Get the file modification time
-    val getLastWriteTime: T -> System.DateTime
+    val getLastWriteTime: File -> System.DateTime
 
     /// Get the instance indicating the file is not specified.
-    val undefined: T
-
+    val undefined: File

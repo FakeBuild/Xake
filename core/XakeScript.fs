@@ -29,7 +29,7 @@ module XakeScript =
 
         /// Defines whether `run` should throw exception if script fails
         FailOnError: bool
-        
+
         /// Ignores command line swithes
         IgnoreCommandLine: bool
 
@@ -114,7 +114,7 @@ module XakeScript =
 
         // locates the rule
         let private locateRule (Rules rules) projectRoot target =
-            let matchRule rule = 
+            let matchRule rule =
                 match rule, target with
 
                 |FileConditionRule (predicate,_), FileTarget file when file |> File.getFullName |> predicate ->
@@ -133,7 +133,7 @@ module XakeScript =
                     Some (rule, [])
 
                 | _ -> None
-                
+
             rules |> List.tryPick matchRule
 
         let private reportError ctx error details =
@@ -158,14 +158,14 @@ module XakeScript =
         /// </summary>
         /// <param name="ctx"></param>
         /// <param name="target"></param>
-        let getExecTime ctx target = 
+        let getExecTime ctx target =
             (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
             |> Option.map (fun r -> r.Steps |> List.sumBy (fun s -> s.OwnTime))
             |> function | Some t -> t | _ -> 0<ms>
 
         /// Gets single dependency state
         let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
-            | FileDep (a:File.T, wrtime) when not((File.exists a) && abs((File.getLastWriteTime a - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
+            | FileDep (a:File, wrtime) when not((File.exists a) && abs((File.getLastWriteTime a - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
                 let afile = a in
                 DepState.FilesChanged [afile.Name]
 
@@ -178,7 +178,7 @@ module XakeScript =
                 match ls |> List.exists ((<>) DepState.NotChanged) with
                 | true -> DepState.Depends (dependeeTarget,ls)
                 | false -> NotChanged
-    
+
             | EnvVar (name,value) when value <> getEnvVar name ->
                 DepState.Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (getEnvVar name)
 
@@ -188,7 +188,7 @@ module XakeScript =
             | AlwaysRerun ->
                 DepState.Other <| "alwaysRerun rule"
 
-            | GetFiles (fileset,files) ->                
+            | GetFiles (fileset,files) ->
                 let newfiles = getFileList fileset
                 let diff = compareFileList files newfiles
 
@@ -225,25 +225,25 @@ module XakeScript =
                         )
                     >> function | ([],states) -> states | (files,states) -> DepState.FilesChanged files :: states
                     >> List.rev
-                    
+
                 depends |>
                     (List.map dep_state >> collapseFilesChanged >> List.filter ((<>) DepState.NotChanged))
 
             | _ ->
                 [DepState.Other "Unknown state"]
-        
+
         /// <summary>
         /// Gets dependencies for specific target in a human friendly form
         /// </summary>
         /// <param name="ctx"></param>
         let getPlainDeps getDepStates getExecTime ptgt =
-           
+
             // strips the filelists to only 5 items
             let rec stripReasons = function
                 | DepState.FilesChanged fileList -> fileList |> take 5 |> DepState.FilesChanged
                 | DepState.Depends (t,deps) -> DepState.Depends (t, deps |> List.map stripReasons)
                 | state -> state
-            
+
             // make plain dependent targets list for specified target
 
 
@@ -258,7 +258,7 @@ module XakeScript =
                             let d',v' = visitTargets (d,v) in
                             (d'::deps, v')
                         ) ([],visited |> Map.add t 1) deps
-                    
+
                     (DepState.Depends (t, deps' |> List.rev), visited')
                 | s -> (s, visited)
 
@@ -350,7 +350,7 @@ module XakeScript =
                 do ctx.Throttler.Release() |> ignore
                 let! statuses = targets |> execParallel ctx
                 do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
-                
+
                 ctx.Tgt |> Option.iter (Progress.TaskResume >> ctx.Progress.Post)
 
                 let dependencies = statuses |> Array.map snd |> List.ofArray in
@@ -457,7 +457,7 @@ module XakeScript =
                     for list in targetLists do
                         runStep list
                     logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
-                with 
+                with
                     | exn ->
                         let th = if options.FailOnError then raiseError else reportError
                         let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
@@ -484,7 +484,7 @@ module XakeScript =
             }
     end
 
-    /// Creates the rule for specified file pattern.    
+    /// Creates the rule for specified file pattern.
     let ( %> ) pattern fnRule = FileRule (pattern, fun targetArgs -> fnRule targetArgs)
     let ( *> ) pattern fnRule = FileRule (pattern, fun (RuleActionArgs (t,_)) -> fnRule t)
     let ( *?> ) fn fnRule = FileConditionRule (fn, fnRule)
@@ -503,7 +503,7 @@ module XakeScript =
         member o.Yield(())    = o.Zero()
 
         member this.Run(script) = Impl.run script
-            
+
         [<CustomOperation("rule")>] member this.Rule(script, rule)                  = updRules script (Impl.addRule rule)
         [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action) = updRules script (pattern *> action |> Impl.addRule)
         [<CustomOperation("phony")>] member this.Phony(script, name, action)        = updRules script (name => action |> Impl.addRule)
@@ -526,19 +526,19 @@ module XakeScript =
     /// Executes and awaits specified artifacts.
     /// </summary>
     /// <param name="targets"></param>
-    let need targets = 
-        action { 
+    let need targets =
+        action {
             let! ctx = getCtx()
             let t' = targets |> (List.map (Impl.makeTarget ctx))
             do! Impl.need t'
         }
-    
-    let needFiles (Filelist files) = 
-        action { 
+
+    let needFiles (Filelist files) =
+        action {
             let targets = files |> List.map (fun f -> File.make f.FullName |> FileTarget)
             do! Impl.need targets
         }
-    
+
     /// <summary>
     /// Instructs Xake to rebuild the target even if dependencies are not changed.
     /// </summary>
@@ -567,7 +567,7 @@ module XakeScript =
     let getVar variableName = action {
         let! ctx = getCtx()
         let value = ctx.Options.Vars |> List.tryPick (Impl.valueByName variableName)
-        
+
         // record the dependency
         let! result = getResult()
         do! setResult {result with Depends = Dependency.Var (variableName,value) :: result.Depends}
@@ -606,11 +606,11 @@ module XakeScript =
         let rec getDeps:Target -> DepState list =
             (Impl.getDepsImpl ctx (fun x -> getDeps x))
             |> memoize
-    
+
         Impl.getPlainDeps getDeps (Impl.getExecTime ctx)
 
     /// Defines a rule that demands specified targets
-    /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]    
+    /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
     let (<==) name targets = PhonyRule (name,action {
         do! need targets
         do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available

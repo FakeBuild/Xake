@@ -162,10 +162,10 @@ The motivations are:
 
 The decision points:
 
-  * should we expose the File module and its types and use in script API
-  * or should we stand with FileInfo or String type
+  * Expose the type but primarily for internal use
+  * Do use strings in compiler API
 
-Next step:
+Next steps:
 
   * check FileInfo limitations (ensure it's bad)
   * reconsider out parameter (change to string) - check the pros and cons

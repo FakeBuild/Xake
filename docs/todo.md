@@ -1,5 +1,7 @@
 ## TODOs and ideas
 
+  * allow to specify F# compiler version
+  * redirect compiler output to [Info] category, parse output and log warnings and errors respectively
   * switch development to mono under windows
   * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question. (we have got it out of the box, need more info)
   * accept filemasks in 'need' parameters (WHY I added it here?, the use case is very unclear)

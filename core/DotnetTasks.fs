@@ -17,7 +17,7 @@ module DotNetTaskTypes =
             /// Specifies the format of the output file.
             Target: TargetType
             /// Specifies the output file name (default: base name of file with main class or first file).
-            Out: File.T
+            Out: File
             /// Source files.
             Src: Fileset
             /// References metadata from the specified assembly files.
@@ -82,7 +82,7 @@ module DotNetTaskTypes =
         /// Specifies the format of the output file.
         Target: TargetType
         /// Specifies the output file name (default: base name of file with main class or first file).
-        Out: File.T
+        Out: File
         /// Source files.
         Src: Fileset
         /// References metadata from the specified assembly files.
@@ -176,7 +176,7 @@ module DotnetTasks =
                     baseName
 
             match options.Prefix with
-                | Some prefix -> prefix + "." + baseName                
+                | Some prefix -> prefix + "." + baseName
                 | _ -> baseName
 
         let compileResx (resxfile:FileInfo) (rcfile:FileInfo) =
@@ -223,7 +223,7 @@ module DotnetTasks =
 
         let platformStr = function
             |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
-    
+
         end // end of Impl module
 
     /// C# compiler task
@@ -290,7 +290,7 @@ module DotnetTasks =
                     if not (List.isEmpty settings.Define) then
                         yield "/define:" + (settings.Define |> String.concat ";")
 
-                    yield! src |> List.map (fun f -> f.FullName) 
+                    yield! src |> List.map (fun f -> f.FullName)
 
                     yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
                     yield! globalRefs
@@ -305,7 +305,7 @@ module DotnetTasks =
 // TODO for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
             let rspFile = Path.GetTempFileName()
             File.WriteAllLines(rspFile, args |> Seq.map Impl.escapeArgument |> List.ofSeq)
-            let commandLineArgs = 
+            let commandLineArgs =
                 seq {
                     if noconfig then
                         yield "/noconfig"
@@ -391,7 +391,7 @@ module DotnetTasks =
                 Path.Combine(
                     settings.TargetDir.FullName,
                     Path.ChangeExtension(resxfile, ".resource") |> Impl.makeResourceName options baseDir)
-            
+
             use writer = new ResourceWriter (rcfile)
 
             let reader = resxreader.GetEnumerator()
@@ -401,7 +401,7 @@ module DotnetTasks =
             rcfile
 
         action {
-            //TODO 
+            //TODO
             //for r in settings.Resources do
             let r = settings.Resources.[0] in
                 let (ResourceFileset (settings,fileset)) = r
@@ -561,7 +561,7 @@ module DotnetTasks =
                     if not (List.isEmpty settings.Define) then
                         yield "/define:" + (settings.Define |> String.concat ";")
 
-                    yield! src |> List.map (fun f -> f.FullName) 
+                    yield! src |> List.map (fun f -> f.FullName)
 
                     yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
                     yield! globalRefs
@@ -577,7 +577,7 @@ module DotnetTasks =
                 do! trace Error "('%s') failed: F# compiler not found" outFile.Name
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
 
-            let (Some fsc) = fwkInfo.FscTool                
+            let fsc = Option.get fwkInfo.FscTool
 
             do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
             do! trace Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")

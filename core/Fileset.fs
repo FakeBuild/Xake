@@ -19,7 +19,7 @@ module Fileset =
 
     type FilePattern = string
 
-    /// Filesystem pattern    
+    /// Filesystem pattern
     type FilesetElement = | Includes of Path.PathMask | Excludes of Path.PathMask
 
     type FilesetOptions = {FailOnEmpty:bool; BaseDir:string option}
@@ -30,7 +30,7 @@ module Fileset =
 
     /// Default fileset options
     let DefaultOptions = {FilesetOptions.BaseDir = None; FailOnEmpty = false}
-    
+
     let Empty = Fileset (DefaultOptions,[])
     let EmptyList = Filelist []
 
@@ -40,7 +40,7 @@ module Fileset =
         open Path
 
         let fullname (f:DirectoryInfo) = f.FullName
-        
+
         let FileSystem = {
             GetDisk = fun d -> d + Path.DirectorySeparatorChar.ToString()
             GetDirRoot = fun x -> Directory.GetDirectoryRoot x
@@ -67,7 +67,7 @@ module Fileset =
             | _ -> failwith "ChDir could only contain disk or directory names"
             in
             path |> List.fold applyPart startIn
-            
+
         /// Recursively applies the pattern rules to every item is start list
         let listFiles (fs:FileSystemType) startIn (Path.PathMask pat) =
 
@@ -151,7 +151,7 @@ module Fileset =
               wrap (Excludes, fun (Excludes p) -> p) Path.pickler
             |]
 
-        let fileinfo = wrap(System.IO.FileInfo, fun fi -> fi.FullName) str
+        let fileinfo = wrap((fun f -> System.IO.FileInfo f), fun fi -> fi.FullName) str
 
         let fileset  = wrap(Fileset, fun (Fileset (o,l)) -> o,l) (pair filesetoptions (list filesetElement))
         let filelist = wrap(Filelist, fun (Filelist l) -> l) (list fileinfo)
@@ -194,9 +194,9 @@ module Fileset =
     // let matches filePattern projectRoot
     [<obsolete("Use Path.matches instead")>]
     let matches = Path.matches
-    
+
     let FileSystem = Impl.FileSystem
-            
+
     /// <summary>
     /// "Materializes" fileset to a filelist
     /// </summary>
@@ -218,7 +218,7 @@ module Fileset =
 
         let fname (f:System.IO.FileInfo) = f.FullName
         let setOfNames = List.map fname >> Set.ofList
-        
+
         let set1, set2 = setOfNames list1, setOfNames list2
 
         let removed = Set.difference set1 set2 |> List.ofSeq |> List.map (Removed)
@@ -292,4 +292,3 @@ module Fileset =
         member x.Return(a) = x.Yield(a)
 
     let fileset = FilesetBuilder()
-

@@ -1,10 +1,10 @@
 ﻿namespace Xake
 
 [<AutoOpen>]
-module DomainTypes = 
+module DomainTypes =
 
-    type Target = 
-        | FileTarget of File.T
+    type Target =
+        | FileTarget of File
         | PhonyAction of string
 
         with
@@ -16,26 +16,26 @@ module DomainTypes =
                 match this with
                 | FileTarget file -> file.FullName
                 | PhonyAction name -> name
-    
+
     // structures, database processor and store
     type Timestamp = System.DateTime
-    
+
     [<Measure>]
     type ms
-    
-    type Dependency = 
-        | FileDep of File.T * Timestamp // regular file (such as source code file), triggers when file date/time is changed
+
+    type Dependency =
+        | FileDep of File * Timestamp // regular file (such as source code file), triggers when file date/time is changed
         | ArtifactDep of Target // other target (triggers when target is rebuilt)
         | EnvVar of string * string option // environment variable
         | Var of string * string option // any other data such as compiler version (not used yet)
         | AlwaysRerun // trigger always
         | GetFiles of Fileset * Filelist // depends on set of files. Triggers when resulting filelist is changed
 
-    type StepInfo = 
+    type StepInfo =
         {Name: string; Start: System.DateTime; OwnTime: int<ms>; WaitTime: int<ms>}
         with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); OwnTime = 0<ms>; WaitTime = 0<ms>}
-    
-    type BuildResult = 
+
+    type BuildResult =
         { Result : Target
           Built : Timestamp
           Depends : Dependency list
@@ -45,9 +45,9 @@ module DomainTypes =
     type Action<'a,'b> = Action of (BuildResult * 'a -> Async<BuildResult * 'b>)
 
     /// Data type for action's out parameter. Defined target file and named groups in pattern
-    type RuleActionArgs = RuleActionArgs of File.T * Map<string,string>
+    type RuleActionArgs = RuleActionArgs of File * Map<string,string>
 
-    type 'ctx Rule = 
+    type 'ctx Rule =
         | FileRule of string * (RuleActionArgs -> Action<'ctx,unit>)
         | PhonyRule of string * Action<'ctx,unit>
         | FileConditionRule of (string -> bool) * (RuleActionArgs -> Action<'ctx,unit>)
@@ -85,4 +85,3 @@ type ProgressMessage =
     | Begin of System.TimeSpan
     | Progress of System.TimeSpan * int
     | End
-
