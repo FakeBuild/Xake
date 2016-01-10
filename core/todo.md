@@ -1,40 +1,33 @@
 ## TODOs and ideas
 
-  * allow to specify F# compiler version
-  * redirect compiler output to [Info] category, parse output and log warnings and errors respectively
-  * switch development to mono under windows
+  * akka.net build scripts
   * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question. (we have got it out of the box, need more info)
-  * accept filemasks in 'need' parameters (WHY I added it here?, the use case is very unclear)
   * detect changes in build script (internal changes), e.g. new target added that was not in .xake database
   * dependencies tracking mode: automatically rebuild when dependency is changed, execute triggers allowing to start/stop the processes which lock/hold artifacts
   * in-memory artifact (string or stream). Say in Gulp file is processed in-memory
   * can the rules be abstract over artifacts
 
-### Tasks
-
-  * complete copyFiles method
-
 ### Refactorings
-  * Artifact -> FileName of string, relative path, functions but not methods
+  * Artifact -> FileName of string, relative path
+
+### Rejected
+
+  * accept filemasks in 'need' parameters *-- the use case is very unclear*
 
 ## Thoughts
  * idea: rule settings
-  * `"clean" {FailOnError = true} \*\*> file a -> action {}`
-  * `"clean" \!\*> file a -> action {}`
-  * `"clean" \*\*> file a -> action ({FailOnError = true}) {}`
+  * "clean" {FailOnError = true} \*\*> file a -> action {}
+  * "clean" \!\*> file a -> action {}
+  * "clean" \*\*> file a -> action ({FailOnError = true}) {}
  * folder as a target:
-  * `want ["Viewer", "Designer"]`
-  * `rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}`
- * Filelist is not handy as it requires to cast all the time
- * FileInfo is not good for the same reason: poorly composable and does not cover Directory well
- * wildcards phony actions
+  * want ["Viewer", "Designer"]
+  * rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}
+ * extract part of the rule name:
+   * example: `"bin/(type:*)/App.exe" *> fun exe -> ...`
+   * provides easy access to parts of the path w/o regexps. In this sample 'type' could be extracted as `let! type = getPart "type"`
+   * simple match (one part is one variable) vs full-blown (`"bin/(type:*)--(arch:*)--benchmark.exe" *>...` allows to extract part from name)
 
 ## Done
-
- * changed Artifact type to a File.T
- * files case sensitivity is now platform dependent
- * match groups in rule masks
- * ls returns directory list in case it ends with "/" ("\")
  * MSBuild task
  * performance of rules lookup (takes 2s now)
  * FSC task (f# compiler), self bootstrap

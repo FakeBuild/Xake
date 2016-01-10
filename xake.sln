@@ -1,5 +1,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{C5FB2DCA-B737-43D0-92F3-4D2CE03CD022}"
 	ProjectSection(SolutionItems) = preProject
 		paket.dependencies = paket.dependencies
@@ -39,17 +41,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Wiki", "Wiki", "{75E5F305-B
 		docs\todo.md = docs\todo.md
 	EndProjectSection
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Xake.Core", "core\Xake.Core.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project files", "Project files", "{CA08F45F-D8B4-46D4-B7EC-38C68C7AF0B2}"
 	ProjectSection(SolutionItems) = preProject
 		.travis.yml = .travis.yml
 		build-old.fsx = build-old.fsx
 		build.fsx = build.fsx
-		core\filesets.fsx = core\filesets.fsx
+		core\inner-examples.fsx = core\inner-examples.fsx
 	EndProjectSection
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Xake.Core", "core\Xake.Core.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -5,9 +5,9 @@ open NUnit.Framework
 
 open Xake
 open Storage
-open BuildLog
 
-let XakeOptions = {ExecOptions.Default with FileLog = ""}
+// one thread to avoid simultaneous access to 'wasExecuted'
+let XakeOptions = {ExecOptions.Default with FileLog = ""; Threads = 1}
 
 [<SetUp>]
 let Setup() =
@@ -19,7 +19,7 @@ let ``executes dependent rules (once)``() =
     let wasExecuted = ref []
     let needExecuteCount = ref 0
     
-    do xake {XakeOptions with Threads = 1} {  // one thread to avoid simultaneous access to 'wasExecuted'
+    do xake XakeOptions {
         want (["test"; "test1"])
 
         rules [
@@ -50,7 +50,7 @@ let ``executes need only once``() =
     let needExecuteCount = ref 0
     File.WriteAllText("hlo.cs", "empty file")
     
-    let build () = xake {XakeOptions with Threads = 1; FileLog=""} {
+    let build () = xake XakeOptions {
         want (["hlo"])
 
         rules [
@@ -81,7 +81,7 @@ let ``allows defining conditional rule``() =
 
     let needExecuteCount = ref 0
     
-    let build () = xake {XakeOptions with Threads = 1; FileLog=""} {
+    let build () = xake XakeOptions {
         want (["hlo"])
 
         rules [
@@ -106,7 +106,7 @@ let ``rebuilds when fileset is changed``() =
 
     File.WriteAllText("hello.cs", "empty file")
     
-    let build () = xake {XakeOptions with Threads = 1; FileLog=""} {
+    let build () = xake XakeOptions {
         want (["hello"])
 
         rules [
@@ -137,7 +137,7 @@ let ``rebuilds when env variable is changed``() =
 
     System.Environment.SetEnvironmentVariable("TTT", "1")
     
-    let build () = xake {XakeOptions with Threads = 1; FileLog=""} {
+    let build () = xake XakeOptions {
         want (["hlo"])
 
         rules [
@@ -172,7 +172,7 @@ let ``defaults target to `main` ``() =
 
     let count = ref 0
     
-    do xake {XakeOptions with Threads = 1; FileLog=""} {  // one thread to avoid simultaneous access to 'wasExecuted'
+    do xake XakeOptions {
         rules [
             "main" => action {
                 count := !count + 1
@@ -188,7 +188,7 @@ let ``allows to define target in parameters``() =
     let mainCount = ref 0
     let xxxCount = ref 0
     
-    do xake {XakeOptions with Targets = ["xxx"]; Threads = 1; FileLog=""} {  // one thread to avoid simultaneous access to 'wasExecuted'
+    do xake {XakeOptions with Targets = ["xxx"]} {
         rules [
             "main" => action {
                 mainCount := !mainCount + 1
@@ -216,13 +216,13 @@ let ``target could be a relative``() =
 
         File.WriteAllText("hello.cs", "empty file")
     
-        do xake {XakeOptions with Threads = 1; FileLog=""} {
+        do xake XakeOptions {
             rules [
                 "main" <== ["../subd1/a.ss"]
-                "../subd1/a.ss" *> fun file -> action {
+                "../subd1/a.ss" %> fun out -> action {
                     do! trace Error "Running inside 'a.ss' rule"
                     needExecuteCount := !needExecuteCount + 1
-                    File.WriteAllText(file.FullName, "ss")
+                    File.WriteAllText(out.FullName, "ss")
                 }
             ]
         }
@@ -231,6 +231,47 @@ let ``target could be a relative``() =
 
     finally
         System.Environment.CurrentDirectory <- preserve_dir
+
+[<Test()>]
+let ``groups in rule pattern``() =
+
+    let matchedAny = ref false
+
+    do xake {XakeOptions with Targets = ["out/abc.ss"]} {
+        rule ("(dir:*)/(file:*).(ext:ss)" %> fun out -> action {
+            
+            Assert.AreEqual("out", out.GetGroup "dir")
+            Assert.AreEqual("abc", out.GetGroup "file")
+            Assert.AreEqual("ss", out.GetGroup "ext")
+            matchedAny := true
+        })
+    }
+
+    Assert.IsTrue(!matchedAny)
+
+
+[<TestCase("x86-a.ss", "(plat:*)-a.ss", "plat:x86", TestName="Simple case")>]
+[<TestCase("subd1/x86-a.ss", "(dir:*)/(plat:*)-a.ss", "dir:subd1;plat:x86", TestName="groups in various parts")>]
+[<TestCase("x86-a.ss", "(name:(plat:*)-a.ss)", "plat:x86;name:x86-a.ss", TestName="Nested groups")>]
+[<TestCase("(abc.ss", @"[(]*.ss", "", TestName="Escaped brackets")>]
+let ``matching groups in rule name``(tgt,mask,expect:string) =
+
+    let map = ref Map.empty
+    let matchedAny = ref false
+
+    do xake {XakeOptions with Targets = [tgt]} {
+        rule (mask %> fun out -> action {
+            map := RuleArgs.getGroups out; matchedAny := true
+        })
+    }
+
+    Assert.IsTrue(!matchedAny)
+
+    if System.String.IsNullOrEmpty expect then
+        Assert.IsTrue(!map |> Map.isEmpty)
+    else
+        let expected = expect.Split(';') |> Array.map (fun s -> let pp = s.Split(':') in pp.[0],pp.[1])
+        Assert.That(!map |> Map.toArray, Is.EquivalentTo(expected))
 
 type Runtime = {Ver: string; Folder: string}
 
@@ -279,7 +320,7 @@ let ``executes several dependent rules``() =
 
     let count = ref 0
     
-    do xake {XakeOptions with Threads = 1; FileLog=""} {  // one thread to avoid simultaneous access to 'wasExecuted'
+    do xake XakeOptions {
         rules [
             "main" <== ["rule1"; "rule2"]
             "rule1" => action {
@@ -302,7 +343,7 @@ let ``writes dependencies to a build database``() =
     File.WriteAllText ("bbb.c", "// empty file")
     FileInfo("bbb.c").LastWriteTime <- cdate
     
-    do xake {XakeOptions with Threads = 1} {  // one thread to avoid simultaneous access to 'wasExecuted'
+    do xake XakeOptions {
         want (["test"; "test1"])
 
         rules [
@@ -339,7 +380,7 @@ let ``writes dependencies to a build database``() =
                     BuildResult.Depends
                         = [
                         ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
-                        Dependency.File (fileDep, depDate)
+                        FileDep (fileDep, depDate)
                         ]
                 }
                 when System.IO.Path.GetFileName(fileDep.Name) = "bbb.c" && depDate = cdate

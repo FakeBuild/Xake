@@ -59,6 +59,7 @@ Xake allows using both Mono and .NET frameworks explicitly by defining NETFX var
 Default behavior is to use the framework the script is running under. E.g. if running under Mono `fsharpi` recent mono toolset will be used.
 
 List of valid targets:
+
     | "net-20" | "net-2.0" | "2.0"
     | "net-30" | "net-3.0" | "3.0"
     | "net-35" | "net-3.5" | "3.5"
@@ -98,13 +99,37 @@ The full list of parameters:
  * -ll <log level> -- console log level (Silent | Quiet | Normal | Loud | Chatty | Diag)
  * -fl <file log path> -- specifies the name of the log file
  * -fll <log level> -- specifies the logging level to a log file
- * target1 .. targetN -- define the list of targets. Targets are executed in strict order, the second one starts only after the first one is complete.
+ * target1 .. targetN -- define the list of targets. Targets are executed in strict order, the second one starts only after the first one is completed.
  * target1;target2;..targetN -- execute the targets simultaneously
  * -d <name>=<value> -- defines a script variable value
  * -nologo -- remove logo string
 
 ### Do not allow to override options
 Command line arguments override the script options (XakeOptions type) unless you define options.IgnoreCommandLine = true.
+
+## Propose: named match groups in file or directory masks
+
+Allows to extract substring from a file or directory masks. Handy for defining
+"parameterized" rules. According to product idea any artifact is unique and has its
+own file so any parameterized rule is resolved to a file.
+
+E.g. `"bin\(type:*)\Application.exe"` defines a mask with a named part referencing directory.
+The call to `match mask "bin\Debug\Application.exe"` will result in `MatchResult.Ok ["type", "Debug"]`.
+
+Named groups Mask is defined either for DirectoryMask of FileMask.
+Nested groups are ok too, e.g. `"(filename:(arch:*)-(platform:*)-lld).(ext:*)"` matches the file
+`x86-win-lld.app` and returns map {"filename", "x86-win-lld"; "arch", "x86"; "platform", "win"; "ext", "app"}
+
+```
+var mask = "(arch:*)-(platform:*)-autoexec.(ext:*)";
+var mask2 = "(filename:(arch:*)-(platform:*)-lld).(ext:*)";
+
+var mm = Regex.Match ("x86-win-autoexec.bat", @"(?<filename>(?<arch>.*)-(?<platform>.*)-autoexec)\.(?<ext>.*)");
+mm.Groups["arch"].Dump();
+mm.Groups["platform"].Dump();
+mm.Groups["ext"].Dump();
+mm.Groups["filename"].Dump();
+```
 
 ## Other
 
@@ -114,9 +139,35 @@ Command line arguments override the script options (XakeOptions type) unless you
     * manually copy (need tracking which are really needed)
     * explicit external map of deps: use both
 
+## File/Target and other types
+Made File a module with T type which details are hidden. API is exposed as functions within a File module and
+also some widely used properties are available as File.T members.
+
+The reason for 'Name' property is a user-friendly output and I'm going to change it to a relative names.
+Expected the following issues:
+
+  * File functions operate on File.T type which is not usable in user scripts
+  > Resolution: script will not use this type, instead we will expose FileTasks and tell to use System.IO.File
+  * `Csc` and other tasks has an `Out` parameter which got `File.T` type. This is not going to be user friendly. And I should consider changing it to string. However in most cases this value is passed from action parameters
+  so the types should be coherent
+
+The motivations are:
+
+  * to be more statically typed internally. This is the reason for not using strings.
+  * FileInfo is a poorly collected garbage. I'd use both internally and externally more accurate abstraction
+  * FileInfo is unlikely Unix-friendly and allows comparison and such things
+  * provide more nice operators for end-user, let combine the paths, change extensions and so on
+  * more coupled integration with Path type (WHAT?)
+  * attempt to make abstract `Artifact` entity which would allow to define not only files but say in-memory data streams or byte arrays. In such terms phony actions could be regular rules producing no file.
+
+The decision points:
+
+  * use File everywhere
+  * Expose the type but primarily for internal use
+  * reconsider out parameter (change to string) - check the pros and cons
+
 ### Build notes
 Release new version by tagging the commit:
 
     git tag v0.3.6
     git push --tags
-

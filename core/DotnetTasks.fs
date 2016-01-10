@@ -1,6 +1,5 @@
 ﻿namespace Xake
 
-open System.Collections
 open System.IO
 open System.Resources
 open Xake
@@ -18,7 +17,7 @@ module DotNetTaskTypes =
             /// Specifies the format of the output file.
             Target: TargetType
             /// Specifies the output file name (default: base name of file with main class or first file).
-            Out: Artifact
+            Out: File
             /// Source files.
             Src: Fileset
             /// References metadata from the specified assembly files.
@@ -83,7 +82,7 @@ module DotNetTaskTypes =
         /// Specifies the format of the output file.
         Target: TargetType
         /// Specifies the output file name (default: base name of file with main class or first file).
-        Out: Artifact
+        Out: File
         /// Source files.
         Src: Fileset
         /// References metadata from the specified assembly files.
@@ -115,7 +114,7 @@ module DotnetTasks =
     let CscSettings = {
         CscSettingsType.Platform = AnyCpu
         Target = Auto    // try to resolve the type from name etc
-        Out = Artifact.Undefined
+        Out = File.undefined
         Src = Fileset.Empty
         Ref = Fileset.Empty
         RefGlobal = []
@@ -177,12 +176,12 @@ module DotnetTasks =
                     baseName
 
             match options.Prefix with
-                | Some prefix -> prefix + "." + baseName                
+                | Some prefix -> prefix + "." + baseName
                 | _ -> baseName
 
-        let compileResx (resxfile:FileInfo) (rcfile:FileInfo) =
+        let compileResx (resxfile:File) (rcfile:File) =
             use resxreader = new System.Resources.ResXResourceReader (resxfile.FullName)
-            resxreader.BasePath <- resxfile.DirectoryName
+            resxreader.BasePath <- File.getDirName resxfile
 
             use writer = new ResourceWriter (rcfile.FullName)
 
@@ -198,25 +197,29 @@ module DotnetTasks =
 
         let collectResInfo pathRoot = function
             |ResourceFileset (o,Fileset (fo,fs)) ->
-                let mapFile (file:FileInfo) =
-                    let resname = makeResourceName o fo.BaseDir file.FullName in
+                let mapFile file =
+                    let resname = makeResourceName o fo.BaseDir (File.getFullName file) in
                     (resname,file)
 
                 let (Filelist l) = Fileset (fo,fs) |> (toFileList pathRoot) in
                 l |> List.map mapFile
 
+        let endsWith e (str:string) = str.EndsWith (e, System.StringComparison.OrdinalIgnoreCase)
+        let (|EndsWith|_|) e str = if endsWith e str then Some () else None
+
         let compileResxFiles = function
-            | (res,(file:FileInfo)) when file.Extension.Equals(".resx", System.StringComparison.OrdinalIgnoreCase) ->
-                let tempfile = new System.IO.FileInfo (Path.GetTempFileName())
+            | (res,(file:File)) when file |> File.getFileName |> endsWith ".resx" ->
+                let tempfile = Path.GetTempFileName() |> File.make
                 do compileResx file tempfile
                 (Path.ChangeExtension(res,".resources"),tempfile,true)
             | (res,file) ->
                 (res,file,false)
 
-        let resolveTarget (name:string) =
-            if name.EndsWith (".dll", System.StringComparison.OrdinalIgnoreCase) then Library else
-            if name.EndsWith (".exe", System.StringComparison.OrdinalIgnoreCase) then Exe else
-            Library
+        let resolveTarget  =
+            function
+            | EndsWith ".dll" -> Library
+            | EndsWith ".exe" -> Exe
+            | _ -> Library
 
         let rec targetStr fileName = function
             |AppContainerExe -> "appcontainerexe" |Exe -> "exe" |Library -> "library" |Module -> "module" |WinExe -> "winexe" |WinmdObj -> "winmdobj"
@@ -224,7 +227,7 @@ module DotnetTasks =
 
         let platformStr = function
             |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
-    
+
         end // end of Impl module
 
     /// C# compiler task
@@ -285,13 +288,13 @@ module DotnetTasks =
                     if nostdlib then
                         yield "/nostdlib+"
 
-                    if not outFile.IsUndefined then
-                        yield sprintf "/out:%s" outFile.FullName
+                    if outFile <> File.undefined then
+                        yield sprintf "/out:%s" (File.getFullName outFile)
 
                     if not (List.isEmpty settings.Define) then
                         yield "/define:" + (settings.Define |> String.concat ";")
 
-                    yield! src |> List.map (fun f -> f.FullName) 
+                    yield! src |> List.map (fun f -> f.FullName)
 
                     yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
                     yield! globalRefs
@@ -306,7 +309,7 @@ module DotnetTasks =
 // TODO for short args this is ok, otherwise use rsp file --    let commandLine = args |> escapeAndJoinArgs
             let rspFile = Path.GetTempFileName()
             File.WriteAllLines(rspFile, args |> Seq.map Impl.escapeArgument |> List.ofSeq)
-            let commandLineArgs = 
+            let commandLineArgs =
                 seq {
                     if noconfig then
                         yield "/noconfig"
@@ -392,7 +395,7 @@ module DotnetTasks =
                 Path.Combine(
                     settings.TargetDir.FullName,
                     Path.ChangeExtension(resxfile, ".resource") |> Impl.makeResourceName options baseDir)
-            
+
             use writer = new ResourceWriter (rcfile)
 
             let reader = resxreader.GetEnumerator()
@@ -402,7 +405,7 @@ module DotnetTasks =
             rcfile
 
         action {
-            //TODO 
+            //TODO
             //for r in settings.Resources do
             let r = settings.Resources.[0] in
                 let (ResourceFileset (settings,fileset)) = r
@@ -486,7 +489,7 @@ module DotnetTasks =
     let FscSettings = {
         FscSettingsType.Platform = AnyCpu
         FscSettingsType.Target = Auto
-        Out = Artifact.Undefined
+        Out = File.undefined
         Src = Fileset.Empty
         Ref = Fileset.Empty
         RefGlobal = []
@@ -527,7 +530,7 @@ module DotnetTasks =
             let! globalTargetFwk = getVar "NETFX-TARGET"
             let targetFramework =
                 match settings.TargetFramework, globalTargetFwk with
-                | s, _ when s <> null && s <> "" -> s
+                | s, _ when not (System.String.IsNullOrEmpty s) -> s
                 | _, Some s when s <> "" -> s
                 | _ -> null
 
@@ -556,13 +559,13 @@ module DotnetTasks =
                     if settings.NoFramework || noframework then
                         yield "--noframework"
 
-                    if not outFile.IsUndefined then
-                        yield sprintf "/out:%s" outFile.FullName
+                    if outFile <> File.undefined then
+                        yield sprintf "/out:%s" (File.getFullName outFile)
 
                     if not (List.isEmpty settings.Define) then
                         yield "/define:" + (settings.Define |> String.concat ";")
 
-                    yield! src |> List.map (fun f -> f.FullName) 
+                    yield! src |> List.map (fun f -> f.FullName)
 
                     yield! refs |> List.map ((fun f -> f.FullName) >> (+) "/r:")
                     yield! globalRefs
@@ -578,7 +581,7 @@ module DotnetTasks =
                 do! trace Error "('%s') failed: F# compiler not found" outFile.Name
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
 
-            let (Some fsc) = fwkInfo.FscTool                
+            let fsc = Option.get fwkInfo.FscTool
 
             do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
             do! trace Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")

@@ -1,9 +1,7 @@
 ﻿namespace Xake
 
-open System.Collections
-open System.IO
-open System.Resources
 open Xake
+open System.IO
 
 module (* internal *) pkg_config =
 
@@ -75,7 +73,7 @@ module DotNetFwk =
                 if pkg_config.exists "mono" then
                     let prefix = pkg_config.get_variable "mono" "prefix" in
 
-                    let winpath (str:string) = str.Replace('/', Path.DirectorySeparatorChar)
+                    let winpath (str:string) = str.Replace('/', System.IO.Path.DirectorySeparatorChar)
                     (
                         pkg_config.get_mod_version "mono",
                         prefix |> winpath,
@@ -141,7 +139,7 @@ module DotNetFwk =
             let fscTool =
                 registry.open_subkey registry.HKLM @"SOFTWARE\Wow6432Node\Microsoft\FSharp\3.0\Runtime\v4.0"
                 |> Option.bind (registry.get_value_str "")
-                |> Option.bind (fun p -> System.IO.Path.Combine (p, "fsc.exe") |> Some)
+                |> Option.map (fun p -> p </> "fsc.exe")
 
             let fwkKey = open_subkey HKLM @"SOFTWARE\Microsoft\.NETFramework"
             let installRoot_ = fwkKey |> Option.bind (get_value_str "InstallRoot")
