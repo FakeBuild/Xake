@@ -222,7 +222,7 @@ let ``target could be a relative``() =
                 "../subd1/a.ss" %> fun out -> action {
                     do! trace Error "Running inside 'a.ss' rule"
                     needExecuteCount := !needExecuteCount + 1
-                    File.WriteAllText(out.fullname, "ss")
+                    File.WriteAllText(out.FullName, "ss")
                 }
             ]
         }
@@ -240,9 +240,9 @@ let ``groups in rule pattern``() =
     do xake {XakeOptions with Targets = ["out/abc.ss"]} {
         rule ("(dir:*)/(file:*).(ext:ss)" %> fun out -> action {
             
-            Assert.AreEqual("out", out.group "dir")
-            Assert.AreEqual("abc", out.group "file")
-            Assert.AreEqual("ss", out.group "ext")
+            Assert.AreEqual("out", out.GetGroup "dir")
+            Assert.AreEqual("abc", out.GetGroup "file")
+            Assert.AreEqual("ss", out.GetGroup "ext")
             matchedAny := true
         })
     }
@@ -261,7 +261,7 @@ let ``matching groups in rule name``(tgt,mask,expect:string) =
 
     do xake {XakeOptions with Targets = [tgt]} {
         rule (mask %> fun out -> action {
-            map := out.allGroups; matchedAny := true
+            map := RuleArgs.getGroups out; matchedAny := true
         })
     }
 

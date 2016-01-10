@@ -8,7 +8,7 @@ module XakeScript =
 
     type ExecOptions = {
         /// Defines project root folder
-        ProjectRoot : string    // TODO DirectoryInfo?
+        ProjectRoot : string
         /// Maximum number of rules processed simultaneously.
         Threads: int
 

@@ -162,12 +162,8 @@ The motivations are:
 
 The decision points:
 
+  * use File everywhere
   * Expose the type but primarily for internal use
-  * Do use strings in compiler API
-
-Next steps:
-
-  * check FileInfo limitations (ensure it's bad)
   * reconsider out parameter (change to string) - check the pros and cons
 
 ### Build notes

@@ -60,23 +60,26 @@ module DomainTypes =
 
     type RuleActionArgs with
         /// Gets the resulting file.
-        member this.file = let (RuleActionArgs (file,_)) = this in file
+        member this.File = let (RuleActionArgs (file,_)) = this in file
         /// Gets the full name of resulting file.
-        member this.fullname = let (RuleActionArgs (file,_)) = this in File.getFullName file
-        /// Gets all matched groups.
-        member this.allGroups = let (RuleActionArgs (_,groups)) = this in groups
-        member this.group(key) =
+        member this.FullName = let (RuleActionArgs (file,_)) = this in File.getFullName file
+
+        /// Gets group (part of the name) by its name.
+        member this.GetGroup(key) =
             let (RuleActionArgs (_,groups)) = this in
             groups |> Map.tryFind key |> function |Some v -> v | None -> ""
 
 /// Contains a methods for accessing RuleActionArgs members.
 module RuleArgs =
 
-    let file (args:RuleActionArgs) = args.file
-    let group key (args:RuleActionArgs) = args.group key
-    let fullname (args:RuleActionArgs) = args.fullname
+    let getFile (args:RuleActionArgs) = args.File
+    let getFullName (RuleActionArgs (file,_)) = File.getFullName file
 
-    let allGroups (RuleActionArgs (_,groups)) = groups
+    /// Gets all matched groups.
+    let getGroups (RuleActionArgs (_,groups)) = groups
+
+    /// Gets group (part of the name) by its name.
+    let getGroup key (args:RuleActionArgs) = args.GetGroup key
 
 /// <summary>
 /// A message to a progress reporter.
