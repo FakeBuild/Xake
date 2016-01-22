@@ -12,8 +12,8 @@ do xake {ExecOptions.Default with Vars = ["NETFX", "4.0"]; FileLogLevel = Verbos
 
     "check_deps" => action {
         let! ctx = getCtx()
-        let tgt = FileTarget (Artifact (ctx.Options.ProjectRoot </> "hw2.exe"))
-        let reasons = getDirtyState ctx tgt
+        let tgt = FileTarget (File.make (ctx.Options.ProjectRoot </> "hw2.exe"))
+        let reasons = getPlainDeps ctx tgt
 
         printfn "need: %A" reasons
     }

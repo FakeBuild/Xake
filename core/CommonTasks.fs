@@ -42,8 +42,8 @@ module internal impl =
                 return proc.ExitCode
         }
 
-    type SystemOptionsType = {LogPrefix:string; StdOutLevel: Level; ErrOutLevel: Level; EnvVars: (string * string) list}
-    let SystemOptions = {LogPrefix = ""; StdOutLevel = Level.Info; ErrOutLevel = Level.Error; EnvVars = []}
+    type SystemOptions = {LogPrefix:string; StdOutLevel: string -> Level; ErrOutLevel: string -> Level; EnvVars: (string * string) list}
+    with static member Default = {LogPrefix = ""; StdOutLevel = (fun _ -> Level.Info); ErrOutLevel = (fun _ -> Level.Error); EnvVars = []}
 
     /// <summary>
     /// Executes system command. E.g. '_system SystemOptions "dir" []'
@@ -59,8 +59,8 @@ module internal impl =
         do! trace Level.Debug "[system] envvars: '%A'" settings.EnvVars
         do! trace Level.Debug "[system] args: '%A'" args
 
-        let handleErr = log settings.ErrOutLevel "%s %s" settings.LogPrefix
-        let handleStd = log settings.StdOutLevel  "%s %s" settings.LogPrefix
+        let handleErr s = log (settings.ErrOutLevel s) "%s %s" settings.LogPrefix s
+        let handleStd s = log (settings.StdOutLevel s) "%s %s" settings.LogPrefix s
 
         return
             if isWindows && not <| isExt cmd ".exe" then
@@ -79,7 +79,7 @@ open impl
 let system cmd args =
   action {
     do! trace Info "[system] starting '%s'" cmd
-    let! exitCode = _system SystemOptions cmd (args |> String.concat " ")
+    let! exitCode = _system SystemOptions.Default cmd (args |> String.concat " ")
     do! trace Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
 
     return exitCode

@@ -228,6 +228,12 @@ module DotnetTasks =
         let platformStr = function
             |AnyCpu -> "anycpu" |AnyCpu32Preferred -> "anycpu32preferred" |ARM -> "arm" | X64 -> "x64" | X86 -> "x86" |Itanium -> "itanium"
 
+        /// Parses the compiler output and returns messageLevel
+        let levelFromString defaultLevel (text:string) :Level =
+            if text.IndexOf "): warning " > 0 then Level.Warning
+            else if text.IndexOf "): error " > 0 then Level.Error
+            else defaultLevel
+
         end // end of Impl module
 
     /// C# compiler task
@@ -321,9 +327,10 @@ module DotnetTasks =
             do! trace Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
-                SystemOptions with
+                SystemOptions.Default with
                     LogPrefix = "[CSC] "
-                    StdOutLevel = Level.Verbose     // consider standard compiler output too noisy
+                    StdOutLevel = fun _ -> Level.Verbose
+                    ErrOutLevel = Impl.levelFromString Level.Verbose
                     EnvVars = fwkInfo.EnvVars
                 }
             let! exitCode = _system options fwkInfo.CscTool commandLine
@@ -470,9 +477,10 @@ module DotnetTasks =
             do! trace Debug "Command line: '%s'" args
 
             let options = {
-                SystemOptions with
+                SystemOptions.Default with
                     LogPrefix = pfx
-                    StdOutLevel = Level.Info     // consider standard compiler output too noisy
+                    StdOutLevel = fun _ -> Level.Info
+                    ErrOutLevel = Impl.levelFromString Level.Verbose
                 }
             let! exitCode = args |> _system options fwkInfo.MsbuildTool
 
@@ -587,9 +595,10 @@ module DotnetTasks =
             do! trace Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
-                SystemOptions with
+                SystemOptions.Default with
                     LogPrefix = "[FSC] "
-                    StdOutLevel = Level.Verbose     // consider standard compiler output too noisy
+                    StdOutLevel = fun _ -> Level.Verbose
+                    ErrOutLevel = Impl.levelFromString Level.Verbose
                     EnvVars = fwkInfo.EnvVars
                 }
             let! exitCode = _system options fsc (args |> String.concat " ")

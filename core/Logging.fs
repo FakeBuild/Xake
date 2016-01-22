@@ -94,21 +94,69 @@ let FileLogger name maxLevel =
                   | false -> ignore
               Printf.kprintf write format }
 
+module private ConsoleSink =
+
+    open System
+
+    type Message = Message of Level * string
+
+    let defaultColor = Console.ForegroundColor
+
+    let levelToColor = function
+        | Level.Message -> ConsoleColor.White, ConsoleColor.White
+        | Error   -> ConsoleColor.Red, ConsoleColor.DarkRed
+        | Command -> ConsoleColor.Green, ConsoleColor.DarkGreen
+        | Warning -> ConsoleColor.Yellow, ConsoleColor.DarkYellow
+        | Info -> ConsoleColor.DarkGreen, defaultColor
+        | Debug -> ConsoleColor.DarkGray, ConsoleColor.DarkGray
+        | Verbose -> ConsoleColor.Gray, ConsoleColor.Gray
+        | _ -> defaultColor, defaultColor
+
+
+    let po = MailboxProcessor.Start(fun mbox -> 
+        let rec loop () = 
+            async { 
+                let! (Message(level, text)) = mbox.Receive()
+
+                let color, text_color = level |> levelToColor
+
+                Console.ForegroundColor <- defaultColor
+                Console.Write "["
+                Console.ForegroundColor <- color
+                Console.Write (LevelToString level)
+                Console.ForegroundColor <- defaultColor
+                Console.Write "] "
+
+                Console.ForegroundColor <- text_color
+                text |> System.Console.WriteLine
+                Console.ForegroundColor <- defaultColor
+
+                return! loop ()
+            }
+        loop ())
+
+
 /// <summary>
 /// Console logger.
 /// </summary>
 /// <param name="maxLevel"></param>
-let ConsoleLogger maxLevel = 
+let private ConsoleLoggerBase (write: Level -> string -> unit) maxLevel = 
     let filterLevels = logFilter maxLevel
     { new ILogger with
           member __.Log level format = 
               let write = 
-                  match Set.contains level filterLevels with
-                  | true -> 
-                      sprintf "[%s] %s" (LevelToString level) 
-                      >> System.Console.WriteLine
+                  match filterLevels |> Set.contains level with
+                  | true -> write level
                   | false -> ignore
               Printf.kprintf write format }
+
+let DumbConsoleLogger =
+    ConsoleLoggerBase (
+        fun level -> (LevelToString level) |> sprintf "[%s] %s" >> System.Console.WriteLine
+        )
+
+let ConsoleLogger =
+    ConsoleLoggerBase (fun level s -> ConsoleSink.Message(level,s) |>  ConsoleSink.po.Post)
 
 /// <summary>
 /// Creates a logger that is combination of two loggers.
