@@ -105,7 +105,7 @@ module private ConsoleSink =
     let levelToColor = function
         | Level.Message -> ConsoleColor.White, ConsoleColor.White
         | Error   -> ConsoleColor.Red, ConsoleColor.DarkRed
-        | Command -> ConsoleColor.Green, ConsoleColor.DarkGreen
+        | Command -> ConsoleColor.Green, ConsoleColor.Green
         | Warning -> ConsoleColor.Yellow, ConsoleColor.DarkYellow
         | Info -> ConsoleColor.DarkGreen, defaultColor
         | Debug -> ConsoleColor.DarkGray, ConsoleColor.DarkGray
