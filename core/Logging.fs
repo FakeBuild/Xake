@@ -27,13 +27,13 @@ type Verbosity =
 
 let LevelToString = 
     function 
-    | Message -> "Msg"
-    | Error -> "Err"
-    | Command -> "Cmd"
-    | Warning -> "Warn"
-    | Info -> "Info"
-    | Debug -> "Debug"
-    | Verbose -> "Verbose"
+    | Message -> "MSG"
+    | Error -> "ERROR"
+    | Command -> "CMD"
+    | Warning -> "WARN"
+    | Info -> "INF"
+    | Debug -> "DBG"
+    | Verbose -> "TRACE"
     | _ -> ""
 
 let private logFilter = 
@@ -100,16 +100,16 @@ module private ConsoleSink =
 
     type Message = Message of Level * string
 
-    let defaultColor = Console.ForegroundColor
+    let defaultColor, defaultBkColor = Console.ForegroundColor, Console.BackgroundColor
 
     let levelToColor = function
         | Level.Message -> ConsoleColor.White, ConsoleColor.White
+        | Command -> ConsoleColor.White, ConsoleColor.Gray
         | Error   -> ConsoleColor.Red, ConsoleColor.DarkRed
-        | Command -> ConsoleColor.Green, ConsoleColor.Green
+        | Debug -> ConsoleColor.Green, ConsoleColor.DarkGreen
         | Warning -> ConsoleColor.Yellow, ConsoleColor.DarkYellow
-        | Info -> ConsoleColor.DarkGreen, defaultColor
-        | Debug -> ConsoleColor.DarkGray, ConsoleColor.DarkGray
-        | Verbose -> ConsoleColor.Gray, ConsoleColor.Gray
+        | Info    -> ConsoleColor.Cyan, ConsoleColor.DarkCyan
+        | Verbose -> ConsoleColor.Magenta, ConsoleColor.DarkMagenta
         | _ -> defaultColor, defaultColor
 
 
@@ -120,11 +120,11 @@ module private ConsoleSink =
 
                 let color, text_color = level |> levelToColor
 
-                Console.ForegroundColor <- defaultColor
+                Console.ForegroundColor <- ConsoleColor.White
                 Console.Write "["
                 Console.ForegroundColor <- color
                 Console.Write (LevelToString level)
-                Console.ForegroundColor <- defaultColor
+                Console.ForegroundColor <- ConsoleColor.White
                 Console.Write "] "
 
                 Console.ForegroundColor <- text_color
