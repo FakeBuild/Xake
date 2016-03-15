@@ -61,9 +61,9 @@ Now compile the C# "Hello world" application:
 > The build steps for Microsoft's .NET are pretty much the same except:
 
 >  * open Developer Tools console (so that path points to .NET tool directory)
->  * use msbuild instead of xbuild
+>  * use `msbuild` instead of `xbuild`
 >  * change slashes to a backslashes
->  * use fsi instead of fsharpi to fun f# scripts
+>  * use `fsi` instead of fsharpi to fun f# scripts
 
 See [documentation](docs/overview.md) and [implementation notes](docs/implnotes.md) for more details.
 
