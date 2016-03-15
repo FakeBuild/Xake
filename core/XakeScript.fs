@@ -466,6 +466,7 @@ module XakeScript =
                         // TODO exit(1)
             finally
                 db.PostAndReply Storage.CloseWait
+                Logging.FlushLogs()
 
         /// <summary>
         /// "need" implementation

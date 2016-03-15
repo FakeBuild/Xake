@@ -80,7 +80,7 @@ let system cmd args =
   action {
     do! trace Info "[system] starting '%s'" cmd
     let! exitCode = _system SystemOptions.Default cmd (args |> String.concat " ")
-    do! trace Info "[system] сompleted '%s' exitcode: %d" cmd exitCode
+    do! trace Info "[system] completed '%s' exitcode: %d" cmd exitCode
 
     return exitCode
   }
