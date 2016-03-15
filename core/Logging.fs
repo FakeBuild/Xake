@@ -27,13 +27,13 @@ type Verbosity =
 
 let LevelToString = 
     function 
-    | Message -> "Msg"
-    | Error -> "Err"
-    | Command -> "Cmd"
-    | Warning -> "Warn"
-    | Info -> "Info"
-    | Debug -> "Debug"
-    | Verbose -> "Verbose"
+    | Message -> "MSG"
+    | Error -> "ERROR"
+    | Command -> "CMD"
+    | Warning -> "WARN"
+    | Info -> "INF"
+    | Debug -> "DBG"
+    | Verbose -> "TRACE"
     | _ -> ""
 
 let private logFilter = 
@@ -98,38 +98,41 @@ module private ConsoleSink =
 
     open System
 
-    type Message = Message of Level * string
+    type Message = | Message of Level * string | Flush of AsyncReplyChannel<unit>
 
-    let defaultColor = Console.ForegroundColor
+    let defaultColor, defaultBkColor = Console.ForegroundColor, Console.BackgroundColor
 
     let levelToColor = function
         | Level.Message -> ConsoleColor.White, ConsoleColor.White
+        | Command -> ConsoleColor.White, ConsoleColor.Gray
         | Error   -> ConsoleColor.Red, ConsoleColor.DarkRed
-        | Command -> ConsoleColor.Green, ConsoleColor.DarkGreen
+        | Debug -> ConsoleColor.Green, ConsoleColor.DarkGreen
         | Warning -> ConsoleColor.Yellow, ConsoleColor.DarkYellow
-        | Info -> ConsoleColor.DarkGreen, defaultColor
-        | Debug -> ConsoleColor.DarkGray, ConsoleColor.DarkGray
-        | Verbose -> ConsoleColor.Gray, ConsoleColor.Gray
+        | Info    -> ConsoleColor.Cyan, ConsoleColor.DarkCyan
+        | Verbose -> ConsoleColor.Magenta, ConsoleColor.DarkMagenta
         | _ -> defaultColor, defaultColor
 
 
     let po = MailboxProcessor.Start(fun mbox -> 
         let rec loop () = 
             async { 
-                let! (Message(level, text)) = mbox.Receive()
+                let! msg = mbox.Receive()
+                match msg with
+                | Message(level, text) ->
+                    let color, text_color = level |> levelToColor
 
-                let color, text_color = level |> levelToColor
+                    Console.ForegroundColor <- ConsoleColor.White
+                    Console.Write "["
+                    Console.ForegroundColor <- color
+                    Console.Write (LevelToString level)
+                    Console.ForegroundColor <- ConsoleColor.White
+                    Console.Write "] "
 
-                Console.ForegroundColor <- defaultColor
-                Console.Write "["
-                Console.ForegroundColor <- color
-                Console.Write (LevelToString level)
-                Console.ForegroundColor <- defaultColor
-                Console.Write "] "
-
-                Console.ForegroundColor <- text_color
-                text |> System.Console.WriteLine
-                Console.ForegroundColor <- defaultColor
+                    Console.ForegroundColor <- text_color
+                    text |> System.Console.WriteLine
+                    Console.ForegroundColor <- defaultColor
+                | Flush ch ->
+                    ch.Reply ()
 
                 return! loop ()
             }
@@ -137,7 +140,7 @@ module private ConsoleSink =
 
 
 /// <summary>
-/// Console logger.
+/// Base console logger.
 /// </summary>
 /// <param name="maxLevel"></param>
 let private ConsoleLoggerBase (write: Level -> string -> unit) maxLevel = 
@@ -150,13 +153,19 @@ let private ConsoleLoggerBase (write: Level -> string -> unit) maxLevel =
                   | false -> ignore
               Printf.kprintf write format }
 
+/// Simplistic console logger.
 let DumbConsoleLogger =
     ConsoleLoggerBase (
         fun level -> (LevelToString level) |> sprintf "[%s] %s" >> System.Console.WriteLine
         )
 
+/// Console logger with colors highlighting
 let ConsoleLogger =
     ConsoleLoggerBase (fun level s -> ConsoleSink.Message(level,s) |>  ConsoleSink.po.Post)
+
+/// Ensures all logs finished pending output.
+let FlushLogs () =
+    ConsoleSink.po.PostAndReply ((fun ch -> ConsoleSink.Flush ch), 100) |> ignore
 
 /// <summary>
 /// Creates a logger that is combination of two loggers.
