@@ -9,8 +9,8 @@ if not (System.IO.File.Exists file) then
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
-//#r @"packages/Xake.Core.dll"
-#r @"bin/Debug/Xake.Core.dll"
+#r @"packages/Xake.Core.dll"
+//#r @"bin/Debug/Xake.Core.dll"
 
 open Xake
 
