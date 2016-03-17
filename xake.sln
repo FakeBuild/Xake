@@ -12,6 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5DF9
 		samples\bootstrap-build.fsx = samples\bootstrap-build.fsx
 		samples\build-parms.fsx = samples\build-parms.fsx
 		samples\build.fsx = samples\build.fsx
+		samples\catch_errors.fsx = samples\catch_errors.fsx
 		samples\colors.fsx = samples\colors.fsx
 	EndProjectSection
 EndProject

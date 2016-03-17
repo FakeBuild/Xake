@@ -16,8 +16,9 @@
 
 ## Thoughts
  * idea: rule settings
-  * "clean" {FailOnError = true} \*\*> file a -> action {}
   * "clean" \!\*> file a -> action {}
+  * "clean" \*\*> file a -> FailOnError <| action {}
+  * "clean" {FailOnError = true} \*\*> file a -> action {}
   * "clean" \*\*> file a -> action ({FailOnError = true}) {}
  * folder as a target:
   * want ["Viewer", "Designer"]

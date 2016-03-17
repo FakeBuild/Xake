@@ -3,8 +3,6 @@
 [<AutoOpen>]
 module Action =
 
-  open BuildLog
-
   module private A =
       let runAction (Action r) = r
       let resultF a = Action (fun (s,_) -> async {return (s,a)})
@@ -22,7 +20,6 @@ module Action =
           let! a = ac in return! runAction (f a) (s,r)
           })
 
-      //let doneF = resultF()
       let doneF = Action (fun (s,_) -> async {return (s,())})
       let ignoreF p = bindF p (fun _ -> doneF)
       let combineF f g = bindF f (fun _ -> g)
@@ -31,17 +28,17 @@ module Action =
         if not (guard()) then 
             doneF
         else 
-            bindF prog (fun () -> whileF guard prog) 
+            (fun () -> whileF guard prog) |> bindF prog
 
       let tryF body handler =
         try
-            resultFromF (body())
+            body() |> resultFromF
         with
             e -> handler e
 
       let tryFinallyF body comp =
         try
-            resultFromF (body())
+            body() |> resultFromF
         finally
             comp()
 
@@ -53,22 +50,25 @@ module Action =
         usingF (e.GetEnumerator()) (fun ie ->
             whileF
                 (fun () -> ie.MoveNext())
-                (delayF(fun () -> prog ie.Current))
+                ((fun () -> prog ie.Current) |> delayF)
         )
 
 
       // temporary defined overloads suitable for
 
-//      let tryFinallyF2 body comp =
+//      let tryFinallyF2 (body:Action<'a,unit>) (comp: unit -> Action<'a,unit>) :Action<'a,unit> =
 //        try
 //            printfn "TryWith Body"
-//            let m = body()
+//            let m = delayF (fun() -> body)
 //            printfn "TryWith Body/return"
-//            resultFromF m
+//            let r = resultFromF m
 //            //resultFromF body
+//            printfn "TryWith Body/return2"
+//            r
 //        finally
 //            printfn "TryWith Finally"
-//            delayF comp()
+//            //delayF comp |> ignore
+//            delayF comp |> resultFromF |> ignore
 //
 //      let tryF2 body handler =
 //        try
@@ -93,8 +93,8 @@ module Action =
     member this.While(guard, body) = whileF guard body
     member this.For(seq, f) = forF seq f
 
-//    member this.TryWith(body, handler) = tryF2 (delayF (fun () -> body)) handler
-//    member this.TryFinally(body, compensation) = tryFinallyF2 (fun () -> body) compensation
+//    member this.TryWith(body, handler) = tryF (fun () -> body) handler
+//    member this.TryFinally(body, compensation) = tryFinallyF (fun () -> body) compensation
 //    member this.Using(disposable:#System.IDisposable, body) = usingF disposable body
 
 //    [<CustomOperation("step")>]
@@ -140,3 +140,16 @@ module Action =
   /// </summary>
   /// <param name="act"></param>
   let Ignore act = act |> ignoreF
+
+  /// Wraps action so that exceptions occured while executing action are ignored.
+  [<System.Obsolete("Proposed function. Name and signature might be changed")>]
+  let IgnoreErrors (act:Action<'a,unit>) = 
+      Action (fun (r,a) -> async {
+        try
+            let! (r',_) = A.runAction act (r,a)
+            return (r',())
+        with
+            // TODO log error
+            e -> return (r,())
+      })
+
