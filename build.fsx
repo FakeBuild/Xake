@@ -21,7 +21,7 @@ let systemClr cmd args =
 do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
 
     rules [
-        "all"  => action {
+        "main"  => action {
             do! need ["get-deps"]
             do! need ["build"]
             do! need ["test"]
@@ -128,5 +128,4 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
 
         }
     ]
-
 }
