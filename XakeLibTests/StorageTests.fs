@@ -114,11 +114,11 @@ let ``persists build data in Xake db``() =
         (^a : (member Post : 'b -> unit) (agent, msg))
         agent
 
-    use testee = Storage.openDb "." logger
+    use testee = Storage.openDb dbname logger
     testee <-- Store(createResult "abc.exe") <-- Store(createResult "def.exe") <-- Store(createResult "fgh.exe")
     |> ignore
     testee.PostAndReply CloseWait
-    use testee = Storage.openDb "." logger
+    use testee = Storage.openDb dbname logger
     let abc = testee <-* (mkFileTarget "abc.exe")
     Assert.IsTrue(Option.isSome abc)
     let def = testee <-* (mkFileTarget "def.exe")
@@ -137,14 +137,14 @@ let ``compresses database when limit is reached``() =
         (^a : (member Post : 'b -> unit) (agent, msg))
         agent
 
-    use testee = Storage.openDb "." logger
+    use testee = Storage.openDb dbname logger
     for j in seq { 1..20 } do
         for i in seq { 1..20 } do
             let name = sprintf "a%A.exe" i
             testee <-- Store(createResult name) |> ignore
     testee.PostAndReply CloseWait
     let oldLen = (FileInfo dbname).Length
-    use testee = Storage.openDb "." logger
+    use testee = Storage.openDb dbname logger
     testee.PostAndReply CloseWait
     let newLen = (FileInfo dbname).Length
     printfn "old size: %A, new size: %A" oldLen newLen
@@ -157,13 +157,13 @@ let ``updates data in file storage``() =
         (^a : (member Post : 'b -> unit) (agent, msg))
         agent
 
-    use testee = Storage.openDb "." logger
+    use testee = Storage.openDb dbname logger
     let result = createResult "abc"
     testee <-- Store result |> ignore
     let updatedResult = { result with Depends = [ Var("DEBUG", Some "true") ] }
     testee <-- Store updatedResult |> ignore
     testee.PostAndReply CloseWait
-    use testee = Storage.openDb "." logger
+    use testee = Storage.openDb dbname logger
     let (Some read) = testee <-* (mkFileTarget "abc")
     testee.PostAndReply CloseWait
     Assert.AreEqual([ Var("DEBUG", Some "true") ], read.Depends)
@@ -177,13 +177,13 @@ let ``restores db in case write failed``() =
         (^a : (member Post : 'b -> unit) (agent, msg))
         agent
 
-    use testee = Storage.openDb "." logger
+    use testee = Storage.openDb dbname logger
     testee <-- Store(createResult "abc") |> ignore
     testee.PostAndReply CloseWait
     let bkdb = "." </> ".xake" <.> "bak"
     File.Move(dbname, bkdb)
     File.WriteAllText(dbname, "dummy text")
-    use testee = Storage.openDb "." logger
+    use testee = Storage.openDb dbname logger
     let read = testee <-* (mkFileTarget "abc")
     Assert.IsTrue(Option.isSome read)
     testee.PostAndReply CloseWait
@@ -198,7 +198,7 @@ let ``repairs (cleans) broken db``() =
         (^a : (member Post : 'b -> unit) (agent, msg))
         agent
     File.WriteAllText(dbname, "dummy text")
-    use testee = Storage.openDb "." logger
+    use testee = Storage.openDb dbname logger
     testee <-- Store(createResult "abc") |> ignore
     let read = testee <-* mkFileTarget "abc"
     Assert.IsTrue(Option.isSome read)

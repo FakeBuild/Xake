@@ -28,6 +28,28 @@ Error handling assumes the following system behavior:
   * idea: "onfail" target, "onfail" rule setting
   * idea: dump the whole trace to the target
 
+### Ideas in progress
+Idea #1: IgnoreErrors function which intercepts any failures silently
+```
+  phony "main" (action {
+    do! trace Message "The exception thrown below will be silently ignored"
+    failwith "some error"
+    } |> IgnoreErrors)
+```
+
+Idea #2 (orthogonal): provide an option for _system function to fail in case non-zero errorcode.
+```
+do! _system [fail_on_error; shellcmd] "dir"
+// where shellcmd and fail_on_error are functions
+```
+
+Idea #3 (orthogonal): special directive to fail next command on non-zero result
+```
+fail_on_errorlevel _system [fail_on_error; shellcmd] "dir"
+// where shellcmd and fail_on_error are functions
+```
+
+
 ## Incremental build
 Xake attempts to reduce build time by analyzing results of last build. Build rule is executed if any of these conditions are met:
 
