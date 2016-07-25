@@ -42,8 +42,21 @@ module internal impl =
                 return proc.ExitCode
         }
 
-    type SystemOptions = {LogPrefix:string; StdOutLevel: string -> Level; ErrOutLevel: string -> Level; EnvVars: (string * string) list}
-    with static member Default = {LogPrefix = ""; StdOutLevel = (fun _ -> Level.Info); ErrOutLevel = (fun _ -> Level.Error); EnvVars = []}
+    type SystemOptions = {
+        LogPrefix:string;
+        StdOutLevel: string -> Level; ErrOutLevel: string -> Level;
+        EnvVars: (string * string) list
+
+        /// Indicates command has to be executed under mono/.net runtime
+        UseClr: bool
+        FailOnErrorLevel: bool
+        }
+    with static member Default = {
+        LogPrefix = ""; StdOutLevel = (fun _ -> Level.Info); ErrOutLevel = (fun _ -> Level.Error);
+        EnvVars = []
+        UseClr = false
+        FailOnErrorLevel = false
+        }
 
     /// <summary>
     /// Executes system command. E.g. '_system SystemOptions "dir" []'
@@ -62,13 +75,19 @@ module internal impl =
         let handleErr s = log (settings.ErrOutLevel s) "%s %s" settings.LogPrefix s
         let handleStd s = log (settings.StdOutLevel s) "%s %s" settings.LogPrefix s
 
-        return
+        let cmd, args =
             if isWindows && not <| isExt cmd ".exe" then
-                _pexec handleStd handleErr "cmd.exe" ("/c " + cmd + " " + args) settings.EnvVars
+                "cmd.exe", (sprintf "/c %s %s" cmd args)
+            else if settings.UseClr && not isWindows then
+                "mono", cmd + " " + args
             else
-                _pexec handleStd handleErr cmd args settings.EnvVars
+                cmd, args
+        let errorlevel = _pexec handleStd handleErr cmd args settings.EnvVars
+        if errorlevel <> 0 && settings.FailOnErrorLevel then failwith "System command resulted in non-zero errorlevel"
+        return errorlevel
     }
 
+// TODO expose settings
 open impl
 
 /// <summary>

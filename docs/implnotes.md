@@ -27,25 +27,37 @@ Error handling assumes the following system behavior:
   * failures and stack traces are written to log
   * idea: "onfail" target, "onfail" rule setting
   * idea: dump the whole trace to the target
+  * setting error-code for the fsi sessions
 
 ### Ideas in progress
-Idea #1: IgnoreErrors function which intercepts any failures silently
+Idea #1: WhenError function which intercepts any failures and lets define a custom handler
 ```
   phony "main" (action {
     do! trace Message "The exception thrown below will be silently ignored"
     failwith "some error"
-    } |> IgnoreErrors)
+    } |> WhenError ignore)
 ```
 
-Idea #2 (orthogonal): provide an option for _system function to fail in case non-zero errorcode.
+Idea #2 (orthogonal): special directive to fail next command on non-zero result
 ```
-do! _system [fail_on_error; shellcmd] "dir"
+fail_if ((<>) 0) _system [shellcmd] "dir"
+fail_on_errorlevel _system [shellcmd] "dir"
+// where shellcmd and fail_on_error are functions
+
+// or just function:
+do! _system [shellcmd] "dir" |> FailWhen ((<>) 0) "Failed to list files in folder"
+// or just
+do! _system [shellcmd] "dir" |> CheckErrorLevel
+
+
+// or even that:
+_system [fail_on_error; shellcmd] "dir"
 // where shellcmd and fail_on_error are functions
 ```
 
-Idea #3 (orthogonal): special directive to fail next command on non-zero result
+Idea #3 (orthogonal): provide an option for _system function to fail in case non-zero errorcode.
 ```
-fail_on_errorlevel _system [fail_on_error; shellcmd] "dir"
+do! _system [fail_on_error; shellcmd; startin "./bin"] "dir"
 // where shellcmd and fail_on_error are functions
 ```
 

@@ -141,15 +141,41 @@ module Action =
   /// <param name="act"></param>
   let Ignore act = act |> ignoreF
 
-  /// Wraps action so that exceptions occured while executing action are ignored.
+  /// <summary>
+  /// Consumes the task output and in case condition is met raises the error.
+  /// </summary>
+  /// <param name="cond"></param>
+  /// <param name="act"></param>
   [<System.Obsolete("Proposed function. Name and signature might be changed")>]
-  let IgnoreErrors (act:Action<'a,unit>) = 
+  let FailWhen cond err act = Action (fun (r,c) -> 
+    async {
+        let! (r',c') = A.runAction act (r,c)
+        if cond c' then failwith err
+        return (r',())
+    })
+
+  /// <summary>
+  /// Supplemental for FailIf to verify errorlevel set by system command.
+  /// </summary>
+  let Not0 = (<>) 0
+
+  /// <summary>
+  /// Error handler verifying result of system command.
+  /// </summary>
+  /// <param name="act"></param>
+  let CheckErrorLevel act = act |> FailWhen Not0 "system command returned a non-zero result"
+
+  /// <summary>
+  /// Wraps action so that exceptions occured while executing action are ignored.
+  /// </summary>
+  /// <param name="act"></param>
+  let WhenError h (act:Action<'a,unit>) = 
       Action (fun (r,a) -> async {
         try
             let! (r',_) = A.runAction act (r,a)
             return (r',())
         with
-            // TODO log error
-            e -> return (r,())
+            e ->
+                do h e 
+                return (r,())
       })
-
