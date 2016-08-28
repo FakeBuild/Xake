@@ -133,14 +133,22 @@ module DotNetFwk =
     module internal MsImpl =
         open registry
 
+        let ifNone f arg = function
+            | None -> f arg
+            | x -> x
+        let tryUntil (f: 't -> 'r option) (data: 't seq) : 'r option =
+            data |> Seq.fold (fun state value -> state |> ifNone f value) None
+
         let tryLocateFwk fwk =
 
-            // TODO drop Wow node lookup
+            // TODO drop Wow node lookup, lookup depending on fwk
             let fscTool =
-                registry.open_subkey registry.HKLM @"SOFTWARE\Wow6432Node\Microsoft\FSharp\3.0\Runtime\v4.0"
+                ["4.0"; "3.1"; "3.0"] |> tryUntil (
+                    sprintf @"SOFTWARE\Wow6432Node\Microsoft\FSharp\%s\Runtime\v4.0" >> registry.open_subkey registry.HKLM
+                )
                 |> Option.bind (registry.get_value_str "")
                 |> Option.map (fun p -> p </> "fsc.exe")
-
+ 
             let fwkKey = open_subkey HKLM @"SOFTWARE\Microsoft\.NETFramework"
             let installRoot_ = fwkKey |> Option.bind (get_value_str "InstallRoot")
             let installRoot = installRoot_ |> Option.get    // TODO gracefully fail
