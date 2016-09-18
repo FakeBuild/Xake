@@ -35,6 +35,9 @@ module XakeScript =
 
         /// Disable logo message
         Nologo: bool
+
+        /// Database file
+        DbFileName: string
     } with
     static member Default =
         {
@@ -50,6 +53,7 @@ module XakeScript =
         Vars = List<string*string>.Empty
         IgnoreCommandLine = false
         Nologo = false
+        DbFileName = ".xake"
         }
     end
 
@@ -389,7 +393,7 @@ module XakeScript =
             let (throttler, pool) = WorkerPool.create logger options.Threads
 
             let start = System.DateTime.Now
-            let db = Storage.openDb options.ProjectRoot logger
+            let db = Storage.openDb (options.ProjectRoot </> options.DbFileName) logger
 
             let ctx = {
                 Ordinal = 0
@@ -463,7 +467,7 @@ module XakeScript =
                         let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
                         th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
                         logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
-                        // TODO exit(1)
+                        exit 2
             finally
                 db.PostAndReply Storage.CloseWait
                 Logging.FlushLogs()
@@ -486,7 +490,7 @@ module XakeScript =
     end
 
     /// Creates the rule for specified file pattern.
-    let ( %> ) pattern fnRule = FileRule (pattern, fun targetArgs -> fnRule targetArgs)
+    let ( %> ) pattern fnRule = FileRule (pattern, fnRule)
     let ( *> ) pattern fnRule = FileRule (pattern, fun (RuleActionArgs (t,_)) -> fnRule t)
     let ( *?> ) fn fnRule = FileConditionRule (fn, fnRule)
 
@@ -510,7 +514,7 @@ module XakeScript =
         [<CustomOperation("phony")>] member this.Phony(script, name, action)        = updRules script (name => action |> Impl.addRule)
         [<CustomOperation("rules")>] member this.Rules(script, rules)               = (rules |> List.map Impl.addRule |> List.fold (>>) id) |> updRules script
 
-        [<CustomOperation("want")>] member this.Want(script, targets)               = updTargets script (function |[] -> targets | _ as x -> x)    // Options override script!
+        [<CustomOperation("want")>] member this.Want(script, targets)               = updTargets script (function |[] -> targets |x -> x)    // Options override script!
         [<CustomOperation("wantOverride")>] member this.WantOverride(script,targets)= updTargets script (fun _ -> targets)
 
     /// key functions implementation follows

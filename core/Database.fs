@@ -99,10 +99,10 @@ module Storage =
                   ScriptDate = System.DateTime.Now }
             Persist.dbHeader.pickle h w
         
-        let openDatabaseFile path (logger : ILogger) = 
+        let openDatabaseFile dbpath (logger : ILogger) = 
             let log = logger.Log
             let resultPU = Persist.result
-            let dbpath, bkpath = path </> ".xake", path </> ".xake" <.> "bak"
+            let bkpath = dbpath <.> "bak"
             // if exists backup restore
             if File.Exists(bkpath) then 
                 log Level.Message "Backup file found ('%s'), restoring db" 
@@ -164,10 +164,10 @@ module Storage =
     /// <summary>
     /// Opens database.
     /// </summary>
-    /// <param name="path"></param>
+    /// <param name="dbpath">Full xake database file name</param>
     /// <param name="logger"></param>
-    let openDb path (logger : ILogger) = 
-        let db, dbwriter = impl.openDatabaseFile path logger
+    let openDb dbpath (logger : ILogger) = 
+        let db, dbwriter = impl.openDatabaseFile dbpath logger
         MailboxProcessor.Start(fun mbox -> 
             let rec loop (db) = 
                 async { 

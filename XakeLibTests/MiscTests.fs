@@ -81,3 +81,68 @@ let ``resource set instantiation``() =
     printfn "%A" resset
     ()
 
+[<Test>]
+let ``script exits with errorlevel on script failure``() =
+
+    let errorCode = ref 0
+    System.IO.Directory.CreateDirectory("1")
+    
+    do xake {xakeOptions with Threads = 1; FileLog="exits-with-errorlevel.log"; FileLogLevel = Verbosity.Diag; Targets = ["one"] } {
+        rules [
+            "one" => action {
+                do! need ["1/script.fsx"]
+                let! ec = system "fsi" ["1/script.fsx"]
+                errorCode := ec
+            }
+            "1/script.fsx" *> fun src -> action {
+                do File.WriteAllText (src.FullName, """
+#r "..\Xake.Core.dll"
+open Xake
+
+do xake {ExecOptions.Default with DbFileName=".1err"; Threads = 4 } {
+
+  phony "main" (action {
+    do! trace Message "Hello world!"
+    failwith "error-text"
+    })
+
+}
+""")
+            }
+        ]
+    }
+
+    Assert.AreEqual(2, !errorCode)
+
+let taskReturn n = action {
+    return n
+}
+
+[<Test>]
+let ``failif is a short circuit for task result``() =
+
+    let excCount = ref 0
+    do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
+        rules [
+            "main" => WhenError (fun _ -> excCount := 1) (action {
+                do! taskReturn 3 |> FailWhen ((=) 3) "err"
+            })
+        ]
+    }
+
+    Assert.AreEqual(1, !excCount)
+
+[<Test>]
+let ``OnError handler intercepts the error``() =
+
+    let ex = ref 0
+    do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
+
+        rules [
+            "main" => action {
+                do! taskReturn 3 |> FailWhen ((=) 3) "fail" |> WhenError (fun _ -> ex := 1)
+            }
+        ]
+    }
+
+    Assert.AreEqual(1, !ex)

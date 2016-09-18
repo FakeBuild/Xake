@@ -8,6 +8,6 @@ do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
   phony "main" (action {
     do! trace Message "The exception thrown below will be silently ignored"
     failwith "some error"
-    } |> IgnoreErrors)
+    } |> WhenError ignore)
 
 }
