@@ -1,4 +1,4 @@
-﻿#r @"..\bin\Xake.Core.dll"
+﻿#r @"../bin/Xake.Core.dll"
 open Xake
 
 // Define your library scripting code here

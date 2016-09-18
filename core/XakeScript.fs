@@ -535,17 +535,15 @@ module XakeScript =
         }
 
     let needFiles (Filelist files) =
-        action {
-            let targets = files |> List.map (fun f -> File.make f.FullName |> FileTarget)
-            do! Impl.need targets
-        }
+        files |> List.map FileTarget |> Impl.need
 
     /// <summary>
     /// Instructs Xake to rebuild the target even if dependencies are not changed.
     /// </summary>
-    let alwaysRerun() = action { let! result = getResult()
-                                 do! setResult { result with Depends = Dependency.AlwaysRerun :: result.Depends } }
-
+    let alwaysRerun() = action {
+        let! result = getResult()
+        do! setResult { result with Depends = Dependency.AlwaysRerun :: result.Depends }
+    }
 
     /// <summary>
     /// Gets the environment variable.

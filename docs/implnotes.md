@@ -28,6 +28,13 @@ Error handling assumes the following system behavior:
   * idea: "onfail" target, "onfail" rule setting
   * idea: dump the whole trace to the target
 
+### Ideas
+Implemented IgnoreErrors.
+
+  * ExecContext option to ignore all errors
+  * fail on system with non zero exit code
+  * fail always try/catch  
+
 ## Incremental build
 Xake attempts to reduce build time by analyzing results of last build. Build rule is executed if any of these conditions are met:
 
