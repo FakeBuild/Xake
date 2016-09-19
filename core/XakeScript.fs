@@ -509,13 +509,19 @@ module XakeScript =
 
         member this.Run(script) = Impl.run script
 
-        [<CustomOperation("rule")>] member this.Rule(script, rule)                  = updRules script (Impl.addRule rule)
-        [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action) = updRules script (pattern *> action |> Impl.addRule)
-        [<CustomOperation("phony")>] member this.Phony(script, name, action)        = updRules script (name => action |> Impl.addRule)
-        [<CustomOperation("rules")>] member this.Rules(script, rules)               = (rules |> List.map Impl.addRule |> List.fold (>>) id) |> updRules script
+        [<CustomOperation("rule")>] member this.Rule(script, rule)
+            = updRules script (Impl.addRule rule)
+        [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action)
+            = updRules script (pattern *> action |> Impl.addRule)
+        [<CustomOperation("phony")>] member this.Phony(script, name, action)
+            = updRules script (name => action |> Impl.addRule)
+        [<CustomOperation("rules")>] member this.Rules(script, rules)
+            = (rules |> List.map Impl.addRule |> List.fold (>>) id) |> updRules script
 
-        [<CustomOperation("want")>] member this.Want(script, targets)               = updTargets script (function |[] -> targets |x -> x)    // Options override script!
-        [<CustomOperation("wantOverride")>] member this.WantOverride(script,targets)= updTargets script (fun _ -> targets)
+        [<CustomOperation("want")>] member this.Want(script, targets)
+            = updTargets script (function |[] -> targets |x -> x)    // Options override script!
+        [<CustomOperation("wantOverride")>] member this.WantOverride(script,targets)
+            = updTargets script (fun _ -> targets)
 
     /// key functions implementation follows
 
@@ -553,15 +559,13 @@ module XakeScript =
     /// Gets the environment variable.
     /// </summary>
     /// <param name="variableName"></param>
-    let getEnv variableName = action {
+    let getEnv variableName =
         let value = Impl.getEnvVar variableName
-
-        // record the dependency
-        let! result = getResult()
-        do! setResult {result with Depends = Dependency.EnvVar (variableName,value) :: result.Depends}
-
-        return value
-    }
+        action {
+            let! result = getResult()
+            do! setResult {result with Depends = Dependency.EnvVar (variableName,value) :: result.Depends}
+            return value
+        }
 
     /// <summary>
     /// Gets the global (options) variable.
@@ -597,7 +601,7 @@ module XakeScript =
     /// </summary>
     let trace = Impl.traceLog
 
-    [<System.Obsolete>]
+    [<System.Obsolete("Use trace instead")>]
     let writeLog = Impl.traceLog
 
     /// <summary>

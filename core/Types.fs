@@ -32,7 +32,7 @@ module DomainTypes =
         | GetFiles of Fileset * Filelist // depends on set of files. Triggers when resulting filelist is changed
 
     type StepInfo =
-        {Name: string; Start: System.DateTime; OwnTime: int<ms>; WaitTime: int<ms>}
+        { Name: string; Start: System.DateTime; OwnTime: int<ms>; WaitTime: int<ms> }
         with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); OwnTime = 0<ms>; WaitTime = 0<ms>}
 
     type BuildResult =
@@ -53,11 +53,6 @@ module DomainTypes =
         | FileConditionRule of (string -> bool) * (RuleActionArgs -> Action<'ctx,unit>)
     type 'ctx Rules = Rules of 'ctx Rule list
 
-    /// Defines common exception type
-    exception XakeException of string
-
-    // some more methods for streamlining learning curve
-
     type RuleActionArgs with
         /// Gets the resulting file.
         member this.File = let (RuleActionArgs (file,_)) = this in file
@@ -68,6 +63,9 @@ module DomainTypes =
         member this.GetGroup(key) =
             let (RuleActionArgs (_,groups)) = this in
             groups |> Map.tryFind key |> function |Some v -> v | None -> ""
+
+    /// Defines common exception type
+    exception XakeException of string
 
 /// Contains a methods for accessing RuleActionArgs members.
 module RuleArgs =

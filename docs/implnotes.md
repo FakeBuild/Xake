@@ -13,7 +13,7 @@ Fileset has two major subtypes - either **set of rules** or a **file list**, als
 
 ### Non-existing files
 Filesets are used to references both existing files (e.g. project source files) and **targets** which might not exists when fileset is "materialized". In case the file or directory name is treated as a mask, the non-existing file will be omitted from resulting file list and the build will likely fail.
-The rule to resolve such inconsistency the rule without mask is added to resulting file list explicitly.
+The rule to resolve such inconsistency the rule (part of pattern) without mask is added to resulting file list explicitly.
 
 NOTE: it should depend on the context: if fileset defines source files or references "explicit rule" is ok.
 
