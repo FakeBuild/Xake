@@ -63,7 +63,7 @@ let ``starting async operations``() =
     Assert.That(errorlist, Is.EqualTo(["1"; "2"; "3"; "4"]))
 
 [<Test>]
-let ``do! action within action``() =
+let ``invoke other actions within action (do!)``() =
 
     let wasExecuted = ref false
 
@@ -172,7 +172,7 @@ let ``ifs within actions``() =
     Assert.That(errorlist, Is.EqualTo(["i1-t"; "i2-f"; "2"; "3"] |> List.toArray))
 
 [<Test>]
-let ``if without else``() =
+let ``branching using if without else``() =
 
     let errorlist = makeStringList()
     let note = errorlist.Add
@@ -230,27 +230,23 @@ let ``for and while loops``() =
 
     Assert.That(errorlist, Is.EqualTo(["1"; "i=1"; "i=2"; "i=3"; "j=3"; "j=4"; "4"] |> List.toArray))
 
-[<Test; Explicit>]
-let ``try catch finally``() =
+[<Test>]
+let ``exception handling with 'try finally'``() =
 
     let errorlist = makeStringList()
     let note = errorlist.Add
+    let anote txt = action {
+        do note txt
+    }
 
     do xake DebugOptions {
 
       phony "main" (action {
-
-        let! s1 = action {return "122"}
-        do note s1
-        let anote txt = action {
-            do note txt
-        }
-
         note "before try"
 
         try
             printfn "Body executed"
-            do note "try"
+            do! anote "try"
         finally
             printfn "Finally executed"
             do note "finally"
@@ -264,9 +260,88 @@ let ``try catch finally``() =
       })
     }
 
-    // "2222"; "ee"; 
-    printfn "%A" errorlist
-    Assert.That(errorlist, Is.EqualTo(["122"; "before try"; "try"; "finally"; "4"] |> List.toArray))
+    // printfn "%A" errorlist
+    Assert.That(errorlist, Is.EqualTo(["before try"; "try"; "finally"; "4"] |> List.toArray))
+
+[<Test>]
+let ``try finally fail``() =
+
+    let errorlist = makeStringList()
+    let note = errorlist.Add
+    let anote txt = action {
+        do errorlist.Add txt
+    }
+
+    do xake DebugOptions {
+
+      phony "main" (action {
+        do! anote "before try"
+
+        try
+            printfn "Body executed"
+            do! anote "try"
+            failwith "Ouch"
+        finally
+            printfn "Finally executed"
+            do note "finally"
+        
+        do! anote "4"
+      } |> WhenError ignore)
+    } 
+
+    // printfn "%A" errorlist
+    Assert.That(errorlist, Is.EqualTo(["before try"; "try"; "finally"] |> List.toArray))
+
+[<Test>]
+let ``exception handling with 'try with'``() =
+
+    let errorlist = makeStringList()
+    let note = errorlist.Add
+    let anote txt = action {
+        do errorlist.Add txt
+    }
+
+    do xake DebugOptions {
+
+      phony "main" (action {
+        do! anote "before try"
+
+        try
+            printfn "Body executed"
+            do! anote "try"
+            failwith "Ouch"
+        with e ->
+            printfn "Finally executed"
+            do note e.Message
+        
+        do! anote "4"
+      })
+    } 
+
+    // printfn "%A" errorlist
+    Assert.That(errorlist, Is.EqualTo(["before try"; "try"; "Ouch"; "4"] |> List.toArray))
+
+[<Test>]
+let ``WhenError function to handle exceptions within actions``() =
+
+    let taskReturn n = action {
+        return n
+    }
+
+    let excCount = ref 0
+    do xake DebugOptions {
+        rules [
+            "main" => (
+                WhenError (fun _ -> excCount := 1) <|
+                action {
+                    printfn "Some useful job"
+                    do! taskReturn 3 |> FailWhen ((=) 3) "err"
+                    printfn "This wont run"
+                })
+        ]
+    }
+
+    Assert.AreEqual(1, !excCount)
 
 // TODO use!, try with exception within action
 

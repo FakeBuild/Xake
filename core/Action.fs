@@ -30,12 +30,12 @@ module Action =
         else 
             (fun () -> whileF guard prog) |> bindF prog
 
-      let tryWithF body h = // (body:Action<'a,'b>) -> (h: Action<'exc,'b>) -> Action<'a,'b> =
-          fun (r, a) -> async {
+      let tryWithF body h = // (body:Action<'a,'b>) (h: 'exc -> Action<'a,'b>) : Action<'a,'b> =
+          fun x -> async {
               try
-                  return! runAction body (r, a)
+                  return! runAction body x
               with e ->
-                  return! runAction h (r, e)
+                  return! runAction (h e) x
           } |> Action
 
       let tryFinallyF body comp = // (body:Action<'a,'b>) -> (comp: unit -> unit) -> Action<'a,'b> =
@@ -47,14 +47,13 @@ module Action =
           } |> Action
 
       let usingF (r:'T :> System.IDisposable) body =
-          tryFinallyF body (fun () -> r.Dispose())
+          tryFinallyF (body r) (fun () -> r.Dispose())
 
       let forF (e: seq<_>) prog =
-        let enumerator = e.GetEnumerator()
-        usingF enumerator (
+        usingF (e.GetEnumerator()) (fun e ->
             whileF
-                (fun () -> enumerator.MoveNext())
-                ((fun () -> prog enumerator.Current) |> delayF)
+                (fun () -> e.MoveNext())
+                ((fun () -> prog e.Current) |> delayF)
         )
 
   /// <summary>

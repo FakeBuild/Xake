@@ -124,16 +124,16 @@ let ``failif is a short circuit for task result``() =
     let excCount = ref 0
     do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
         rules [
-            "main" => WhenError (fun _ -> excCount := 1) (action {
+            "main" => (action {
                 do! taskReturn 3 |> FailWhen ((=) 3) "err"
-            })
+            } |> WhenError (fun _ -> excCount := 1))
         ]
     }
 
     Assert.AreEqual(1, !excCount)
 
 [<Test>]
-let ``OnError handler intercepts the error``() =
+let ``WhenError handler intercepts the error``() =
 
     let ex = ref 0
     do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
