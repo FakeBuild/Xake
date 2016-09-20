@@ -1,2 +1,2 @@
 #!/bin/bash
-fsharpi build.fsx  -- all
+fsharpi build.fsx $*

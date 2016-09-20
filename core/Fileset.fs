@@ -67,9 +67,8 @@ module Fileset =
             | Directory d -> Path.Combine(path, d)
             | _ -> failwith "ChDir could only contain disk or directory names"
             in
-            path |> List.fold applyPart startIn
+            (startIn, path) ||> List.fold applyPart
 
-        /// Recursively applies the pattern rules to every item is start list
         let listFiles (fs:FileSystemType) startIn (Path.PathMask pat) =
 
             // The pattern without mask become "explicit" file reference which is always included in resulting file list, regardless file presence. See impl notes for details.
@@ -77,10 +76,11 @@ module Fileset =
             let filterDir = if isExplicitRule then id else Seq.filter Directory.Exists
             let filterFile = if isExplicitRule then id else Seq.filter File.Exists
 
+            // Recursively applies the pattern rules to every item is start list
             let applyPart (paths:#seq<string>) = function
             | Disk d          -> fs.GetDisk d |> Seq.singleton
             | FsRoot          -> paths |> Seq.map fs.GetDirRoot
-            | CurrentDir      -> paths |> Seq.map id
+            | CurrentDir      -> paths
             | Parent          -> paths |> Seq.map fs.GetParent
             | Recurse         -> paths |> Seq.collect fs.AllDirs |> Seq.append paths
             | DirectoryMask mask -> paths |> Seq.collect (fs.ScanDirs mask)
@@ -88,9 +88,9 @@ module Fileset =
             | FileMask mask   -> paths |> Seq.collect (fs.ScanFiles mask)
             | FileName f      -> paths |> Seq.map (fun dir -> Path.Combine(dir, f)) |> filterFile
             in
-            pat |> List.fold applyPart startIn
+            (startIn, pat) ||> List.fold applyPart
 
-        let private ifNone v2 = function | None -> v2 | Some v -> v
+        let ifNone = Option.fold (fun _ -> id)
 
         /// Implementation of fileset execute
         /// "Materializes" fileset to a filelist

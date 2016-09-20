@@ -3,7 +3,7 @@
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
   - [The first script](#the-first-script)
-    - [Boostrapping Xake.Core](#boostrapping-xakecore)
+    - [Bootstrapping Xake.Core](#bootstrapping-xakecore)
   - [So what?](#so-what)
     - [Dependencies tracking](#dependencies-tracking)
     - [Running multiple rules in parallel](#running-multiple-rules-in-parallel)
@@ -18,6 +18,7 @@
     - [wantOverride](#wantoverride)
   - [action computation](#action-computation)
     - [Tasks, `do!` notation](#tasks-do-notation)
+    - [Exception handling](#exception-handling)
     - [need](#need)
     - [Filesets](#filesets)
     - [Other functions](#other-functions)
@@ -62,7 +63,7 @@ Here are we doing the following steps:
 1. specify the default target ("main") requires "hw.exe" target
 1. define the rule for "hw.exe" target
 
-### Boostrapping Xake.Core
+### Bootstrapping Xake.Core
 
 The steps above assumes you've downloaded xake core assembly to .tools folder.
 The next script demonstrates how to create the build script that does not require any installation steps:
@@ -290,8 +291,46 @@ If the task (action) returns a value which you do not need use Action.Ignore:
 ```fsharp
   action {
     do! system "ls" [] |> Action.Ignore
-    if error_code <> 0 then failwith...
   }
+```
+
+### Exception handling
+
+`action` block allows to handle exceptions with idiomatic try/with and try/finally blocks.
+```fsharp
+    phony "main" (action {
+      do! trace Level.Info "before try" // trace is standard action reporting to file/screen log
+      try
+        try
+            do! trace Level.Info "try"
+            failwith "Ouch"
+        with e ->
+            do! trace Level.Error "Error '%s' occured" e.Message
+      finally
+          printfn "Finally executed"
+      printfn "execution continues after try blocks"
+    })
+```
+Notice `trace` function just like any other actions (do! notation) cannot be used in `finally` blocks due to language limitations.
+
+`WhenError` function is another option to handle errors.
+```fsharp
+action {
+    printfn "Some useful job"
+    do! action {failwith "err"} |> WhenError (fun _ -> printfn "caught the error")
+}
+```
+or this way
+```fsharp
+rules [
+    "main" => (
+        WhenError ignore <| // ignore is a standard f# function accepting one argument
+        action {
+            printfn "Some useful job"
+            failwith "File IO error!"
+            printfn "This wont run"
+        })
+]
 ```
 
 ### need
