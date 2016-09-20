@@ -39,9 +39,9 @@ module Action =
           } |> Action
 
       let tryFinallyF body comp = // (body:Action<'a,'b>) -> (comp: unit -> unit) -> Action<'a,'b> =
-          fun (r, a) -> async {
+          fun x -> async {
               try
-                  return! runAction body (r,a)
+                  return! runAction body x
               finally
                   do comp()
           } |> Action

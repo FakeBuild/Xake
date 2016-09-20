@@ -289,7 +289,6 @@ let ``try finally fail``() =
 let ``exception handling with 'try with'``() =
 
     let errorlist = makeStringList()
-    let note = errorlist.Add
     let anote txt = action {
         do errorlist.Add txt
     }
@@ -304,8 +303,7 @@ let ``exception handling with 'try with'``() =
             do! anote "try"
             failwith "Ouch"
         with e ->
-            printfn "Finally executed"
-            do note e.Message
+            do! anote e.Message
         
         do! anote "4"
       })

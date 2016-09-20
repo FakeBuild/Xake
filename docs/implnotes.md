@@ -31,6 +31,26 @@ Error handling assumes the following system behavior:
 
 ### Implemented ideas
 
+#### try/with/finally exception handling
+`action` computation expression supports try/with and try/finally blocks.
+
+```fsharp
+action {
+  do! log "before try"
+
+  try
+    try
+        do! log "Body executed"
+        failwith "Ouch"
+    with e ->
+        do! log "Exception: %s" e.Message
+  finally
+    printfn "Error!"
+}
+```
+
+> actions (with do! notation) are allowed in `with` block but aren't in `finally` block. This is limitation of F#'s computation expressions.
+
 #### WhenError function
 Intercepts errors (exceptions) and allows to define a custom handler.
 ```
@@ -49,10 +69,6 @@ do! _system [shellcmd] "dir" |> FailWhen ((<>) 0) "Failed to list files in folde
 do! _system [shellcmd] "dir" |> CheckErrorLevel
 ```
 
-#### try/with/finally exception handling
-`action` computation expression supports try/with and try/finally blocks. In most cases these constructs are more
-elegant than using WhenError.
-
 ### Other ideas
 
 // or even that:
@@ -65,8 +81,6 @@ Idea #3 (orthogonal): provide an option for _system function to fail in case non
 do! _system [fail_on_error; shellcmd; startin "./bin"] "dir"
 // where shellcmd and fail_on_error are functions
 ```
-
-Let action be provided as finally argument.
 
 ### Ideas
 Implemented IgnoreErrors.
