@@ -29,8 +29,10 @@ Error handling assumes the following system behavior:
   * idea: dump the whole trace to the target
   * setting error-code for the fsi sessions
 
-### Ideas in progress
-Idea #1: WhenError function which intercepts any failures and lets define a custom handler
+### Implemented ideas
+
+#### WhenError function
+Intercepts errors (exceptions) and allows to define a custom handler.
 ```
   phony "main" (action {
     do! trace Message "The exception thrown below will be silently ignored"
@@ -38,17 +40,20 @@ Idea #1: WhenError function which intercepts any failures and lets define a cust
     } |> WhenError ignore)
 ```
 
-Idea #2 (orthogonal): special directive to fail next command on non-zero result
+#### FailWhen
+Raises the exception if action's result meet specified condition.
+E.g. the following code raises error in case errorlevel (result of shell command execution) gets non-zero value.
 ```
-fail_if ((<>) 0) _system [shellcmd] "dir"
-fail_on_errorlevel _system [shellcmd] "dir"
-// where shellcmd and fail_on_error are functions
-
-// or just function:
 do! _system [shellcmd] "dir" |> FailWhen ((<>) 0) "Failed to list files in folder"
 // or just
 do! _system [shellcmd] "dir" |> CheckErrorLevel
+```
 
+#### try/with/finally exception handling
+`action` computation expression supports try/with and try/finally blocks. In most cases these constructs are more
+elegant than using WhenError.
+
+### Other ideas
 
 // or even that:
 _system [fail_on_error; shellcmd] "dir"
@@ -61,6 +66,7 @@ do! _system [fail_on_error; shellcmd; startin "./bin"] "dir"
 // where shellcmd and fail_on_error are functions
 ```
 
+Let action be provided as finally argument.
 
 ### Ideas
 Implemented IgnoreErrors.

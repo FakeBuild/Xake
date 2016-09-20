@@ -294,6 +294,45 @@ If the task (action) returns a value which you do not need use Action.Ignore:
   }
 ```
 
+### Exception handling
+`action` block allows to handle exceptions with idiomatic try/with and try/finally blocks.
+```fsharp
+    phony "main" (action {
+      do! trace Level.Info "before try" // trace is standard action reporting to file/screen log
+      try
+        try
+            do! trace Level.Info "try"
+            failwith "Ouch"
+        with e ->
+            printfn "Error '%s' occured" e.Message
+      finally
+          printfn "Finally executed"
+        
+      printfn "execution continues after try blocks"
+    })
+```
+Notice `trace` function just like any other actions cannot be used inside `with` and `finally` blocks due to language limitations.
+
+`WhenError` function is another option to handle errors.
+```fsharp
+action {
+    printfn "Some useful job"
+    do! action {failwith "err"} |> WhenError (fun _ -> printfn "caught the error")
+}
+```
+or this way
+```fsharp
+rules [
+    "main" => (
+        WhenError ignore <| // ignore is a standard f# function accepting one argument
+        action {
+            printfn "Some useful job"
+            failwith "File IO error!"
+            printfn "This wont run"
+        })
+]
+```
+
 ### need
 
 `need` function is widely used internally and it is a key element for dependency tracking. Calling `need` ensures the requested files are built according to rules.

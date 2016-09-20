@@ -39,12 +39,12 @@ module ActionFuncs =
     /// </summary>
     /// <param name="cond"></param>
     /// <param name="act"></param>
-    let FailWhen cond err act = Action (fun (r,c) -> 
-        async {
-            let! (r',c') = A.runAction act (r,c)
-            if cond c' then failwith err
-            return (r',())
-        })
+    let FailWhen cond err (act: Action<_,_>) =
+        action {
+            let! b = act
+            if cond b then failwith err
+            return b
+        }
 
     /// <summary>
     /// Supplemental for FailWhen to verify errorlevel set by system command.
@@ -61,13 +61,10 @@ module ActionFuncs =
     /// Wraps action so that exceptions occured while executing action are ignored.
     /// </summary>
     /// <param name="act"></param>
-    let WhenError h (act:Action<'a,unit>) = 
-        Action (fun (r,a) -> async {
+    let WhenError handler (act:Action<_,_>) = 
+        action {
             try
-                let! (r',_) = A.runAction act (r,a)
-                return (r',())
-            with
-                e ->
-                    do h e 
-                    return (r,())
-        })
+                let! r = act
+                return r
+            with e -> return handler e 
+        }

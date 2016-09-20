@@ -243,19 +243,12 @@ let ``exception handling with 'try finally'``() =
 
       phony "main" (action {
         note "before try"
-
         try
             printfn "Body executed"
             do! anote "try"
         finally
             printfn "Finally executed"
             do note "finally"
-        
-        //try
-        //    failwith "ee"
-        //with e ->
-        //    do note e.Message
-        
         do note "4"
       })
     }
@@ -335,9 +328,28 @@ let ``WhenError function to handle exceptions within actions``() =
                 WhenError (fun _ -> excCount := 1) <|
                 action {
                     printfn "Some useful job"
-                    do! taskReturn 3 |> FailWhen ((=) 3) "err"
+                    do! taskReturn 3 |> FailWhen ((=) 3) "err" |> Action.Ignore
                     printfn "This wont run"
                 })
+        ]
+    }
+
+    Assert.AreEqual(1, !excCount)
+
+[<Test>]
+let ``try/with for the whole script body``() =
+    let excCount = ref 0
+    do xake DebugOptions {
+        rules [
+            "main" =>
+            action {
+                try
+                    printfn "Some useful job"
+                    do 3/0 |> ignore
+                    printfn "This wont run"
+                with _ ->
+                    excCount := 1
+            }
         ]
     }
 

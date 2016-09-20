@@ -85,7 +85,7 @@ let ``resource set instantiation``() =
 let ``script exits with errorlevel on script failure``() =
 
     let errorCode = ref 0
-    System.IO.Directory.CreateDirectory("1")
+    System.IO.Directory.CreateDirectory("1") |> ignore
     
     do xake {xakeOptions with Threads = 1; FileLog="exits-with-errorlevel.log"; FileLogLevel = Verbosity.Diag; Targets = ["one"] } {
         rules [
@@ -125,7 +125,7 @@ let ``failif is a short circuit for task result``() =
     do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
         rules [
             "main" => (action {
-                do! taskReturn 3 |> FailWhen ((=) 3) "err"
+                do! taskReturn 3 |> FailWhen ((=) 3) "err" |> Action.Ignore
             } |> WhenError (fun _ -> excCount := 1))
         ]
     }
@@ -136,13 +136,28 @@ let ``failif is a short circuit for task result``() =
 let ``WhenError handler intercepts the error``() =
 
     let ex = ref 0
-    do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
 
+    // pipe result, and provide fallback value in case of error
+    do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
         rules [
             "main" => action {
-                do! taskReturn 3 |> FailWhen ((=) 3) "fail" |> WhenError (fun _ -> ex := 1)
+                do! taskReturn 3
+                    |> FailWhen ((=) 3) "fail"
+                    |> WhenError (fun _ -> ex := 1; 0)
+                    |> Action.Ignore
+            }
+        ]
+    }
+    // intercept error for resultless action
+    do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
+        rules [
+            "main" => action {
+                do! taskReturn 3
+                    |> FailWhen ((=) 3) "fail"
+                    |> Action.Ignore
+                    |> WhenError (fun _ -> ex := !ex + 1)
             }
         ]
     }
 
-    Assert.AreEqual(1, !ex)
+    Assert.AreEqual(2, !ex)
