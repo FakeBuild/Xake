@@ -1,10 +1,16 @@
 ﻿namespace Xake
 
 [<AutoOpen>]
-module ActionFuncs =
+module Action =
 
     open Xake
-    open Xake.Action
+
+    /// <summary>
+    /// Ignores action result in case task returns the value but you don't need it.
+    /// </summary>
+    /// <param name="act"></param>
+    let Ignore act = act |> A.ignoreF
+
 
     /// <summary>
     /// Gets action context.

@@ -5,7 +5,7 @@ System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
 if not (System.IO.File.Exists file) then
     printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.5.23/Xake.Core.dll"
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.6.26/Xake.Core.dll"
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
@@ -47,10 +47,11 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
                 failwith "Failed to test"
         }
 
-        ("bin/FSharp.Core.dll") *> fun outfile -> action {
-            do! copyFile "packages/FSharp.Core/lib/net40/FSharp.Core.dll" outfile.FullName
-            do! copyFiles ["packages/FSharp.Core/lib/net40/FSharp.Core.*data"] "bin"
-        }
+        ("bin/FSharp.Core.dll") *> fun outfile ->
+            WhenError ignore <| action {
+                do! copyFile "packages/FSharp.Core/lib/net40/FSharp.Core.dll" outfile.FullName
+                do! copyFiles ["packages/FSharp.Core/lib/net40/FSharp.Core.*data"] "bin"
+            }
 
         ("bin/nunit.framework.dll") *> fun outfile -> action {
             do! copyFile "packages/NUnit/lib/nunit.framework.dll" outfile.FullName
@@ -73,7 +74,7 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
                 includes "Types.fs"
                 includes "CommonLib.fs"
                 includes "Database.fs"
-                includes "Action.fs"
+                includes "ActionBuilder.fs"
                 includes "ActionFunctions.fs"
                 includes "WorkerPool.fs"
                 includes "Progress.fs"
