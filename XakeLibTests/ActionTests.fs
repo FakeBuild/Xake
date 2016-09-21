@@ -353,5 +353,63 @@ let ``try/with for the whole script body``() =
 
     Assert.AreEqual(1, !excCount)
 
-// TODO use!, try with exception within action
+type DisposeMock(count) =
+    member this.DoNothing() =
+        printfn "doing nothing"
+    interface System.IDisposable with 
+        member this.Dispose() = 
+            count := !count + 1
+            printfn "disposed"
+
+[<Test; Explicit>]
+let ``use! for disposable resources``() =
+    let excCount = ref 0
+    let disposeCount = ref 0
+    do xake DebugOptions {
+        rules [
+            "main" =>
+            action {
+                try
+                    printfn "Some useful job"
+                    use a = new DisposeMock(disposeCount)
+                    printfn "inside use"
+                    a.DoNothing()
+                    do 3/0 |> ignore
+                with _ ->
+                    excCount := 1
+                    printfn "caught exception"
+                printfn "after trywith"
+            }
+        ]
+    }
+
+    Assert.AreEqual(1, !excCount)
+    Assert.AreEqual(1, !disposeCount)
+
+type ActionBuilderPlus() =
+    inherit ActionBuilder()
+    [<CustomOperation("need")>]
+    member this.Need(targets) = need targets
+
+let actionPlus = new ActionBuilderPlus()
+
+[<Test>]
+let ``need op``() =
+    let excCount = ref 0
+    do xake DebugOptions {
+        rules [
+            "main" =>
+            actionPlus {
+                // need "print"
+                printfn "done main"
+            }
+            "print" =>
+            action {
+                printfn "print"
+            }
+        ]
+    }
+
+    Assert.AreEqual(1, !excCount)
+// TODO use!
 
