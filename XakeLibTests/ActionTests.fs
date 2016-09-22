@@ -393,7 +393,7 @@ type ActionBuilderPlus() =
 
 let actionPlus = new ActionBuilderPlus()
 
-[<Test>]
+[<Test; Explicit>]
 let ``need op``() =
     let excCount = ref 0
     do xake DebugOptions {

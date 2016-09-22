@@ -84,6 +84,7 @@ let ``resource set instantiation``() =
 [<Test>]
 let ``script exits with errorlevel on script failure``() =
 
+    let fsiApp = if Xake.Env.isRunningOnMono then "fsharpi" else "fsi"
     let errorCode = ref 0
     System.IO.Directory.CreateDirectory("1") |> ignore
     
@@ -91,12 +92,12 @@ let ``script exits with errorlevel on script failure``() =
         rules [
             "one" => action {
                 do! need ["1/script.fsx"]
-                let! ec = system "fsi" ["1/script.fsx"]
+                let! ec = system fsiApp ["1/script.fsx"]
                 errorCode := ec
             }
             "1/script.fsx" *> fun src -> action {
                 do File.WriteAllText (src.FullName, """
-#r "..\Xake.Core.dll"
+#r "../Xake.Core.dll"
 open Xake
 
 do xake {ExecOptions.Default with DbFileName=".1err"; Threads = 4 } {
