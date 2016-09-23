@@ -202,7 +202,7 @@ let ``allows to define target in parameters``() =
     Assert.AreEqual(0, !mainCount)
     Assert.AreEqual(1, !xxxCount)
 
-[<Test; Explicit("Fails on unix")>]
+[<Test; Platform("Win")>]
 let ``target could be a relative``() =
 
     let needExecuteCount = ref 0
@@ -275,7 +275,7 @@ let ``matching groups in rule name``(tgt,mask,expect:string) =
 
 type Runtime = {Ver: string; Folder: string}
 
-[<Test; Explicit("Fails on unix")>]
+[<Test; Platform("Win")>]
 let ``target could be a relative2``() =
 
     let needExecuteCount = ref 0

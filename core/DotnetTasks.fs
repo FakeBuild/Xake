@@ -108,7 +108,7 @@ module DotNetTaskTypes =
 [<AutoOpen>]
 module DotnetTasks =
 
-    open CommonTasks.impl
+    open Xake.SystemTasks
 
     /// Default setting for CSC task so that you could only override required settings
     let CscSettings = {
@@ -327,13 +327,13 @@ module DotnetTasks =
             do! trace Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
-                SystemOptions.Default with
+                SystemTasks.Options.Default with
                     LogPrefix = "[CSC] "
                     StdOutLevel = fun _ -> Level.Verbose
                     ErrOutLevel = Impl.levelFromString Level.Verbose
                     EnvVars = fwkInfo.EnvVars
                 }
-            let! exitCode = _system options fwkInfo.CscTool commandLine
+            let! exitCode = SystemTasks._system options fwkInfo.CscTool commandLine
 
             do! trace Level.Verbose "Deleting temporary files"
             seq {
@@ -477,12 +477,12 @@ module DotnetTasks =
             do! trace Debug "Command line: '%s'" args
 
             let options = {
-                SystemOptions.Default with
+                SystemTasks.Options.Default with
                     LogPrefix = pfx
                     StdOutLevel = fun _ -> Level.Info
                     ErrOutLevel = Impl.levelFromString Level.Verbose
                 }
-            let! exitCode = args |> _system options fwkInfo.MsbuildTool
+            let! exitCode = args |> SystemTasks._system options fwkInfo.MsbuildTool
 
             do! trace Info "%s done '%s'" pfx settings.BuildFile
             if exitCode <> 0 then
@@ -595,13 +595,13 @@ module DotnetTasks =
             do! trace Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
-                SystemOptions.Default with
+                SystemTasks.Options.Default with
                     LogPrefix = "[FSC] "
                     StdOutLevel = fun _ -> Level.Verbose
                     ErrOutLevel = Impl.levelFromString Level.Verbose
                     EnvVars = fwkInfo.EnvVars
                 }
-            let! exitCode = _system options fsc (args |> String.concat " ")
+            let! exitCode = SystemTasks._system options fsc (args |> String.concat " ")
 
             do! trace Level.Verbose "Deleting temporary files"
             seq {

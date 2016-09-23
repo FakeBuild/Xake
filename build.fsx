@@ -79,7 +79,7 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
                 includes "WorkerPool.fs"
                 includes "Progress.fs"
                 includes "XakeScript.fs"
-                includes "CommonTasks.fs"
+                includes "SystemTasks.fs"
                 includes "FileTasks.fs"
                 includes "ResourceFileset.fs"
                 includes "DotNetFwk.fs"

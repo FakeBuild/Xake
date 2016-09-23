@@ -1,16 +1,14 @@
 ﻿// common tasks
+namespace Xake
 
-[<AutoOpen>]
-module Xake.CommonTasks
-
-module internal impl =
-
+module SystemTasks =
     open Xake
     open Xake.Env
+
     open System.Diagnostics
 
     // internal implementation
-    let _pexec handleStd handleErr cmd args (envvars:(string * string) list) =
+    let internal _pexec handleStd handleErr cmd args (envvars:(string * string) list) =
         let pinfo =
           ProcessStartInfo
             (cmd, args,
@@ -42,7 +40,7 @@ module internal impl =
                 return proc.ExitCode
         }
 
-    type SystemOptions = {
+    type Options = {
         LogPrefix:string;
         StdOutLevel: string -> Level; ErrOutLevel: string -> Level;
         EnvVars: (string * string) list
@@ -50,19 +48,19 @@ module internal impl =
         /// Indicates command has to be executed under mono/.net runtime
         UseClr: bool
         FailOnErrorLevel: bool
-        }
+    }
     with static member Default = {
-        LogPrefix = ""; StdOutLevel = (fun _ -> Level.Info); ErrOutLevel = (fun _ -> Level.Error);
-        EnvVars = []
-        UseClr = false
-        FailOnErrorLevel = false
+            LogPrefix = ""; StdOutLevel = (fun _ -> Level.Info); ErrOutLevel = (fun _ -> Level.Error);
+            EnvVars = []
+            UseClr = false
+            FailOnErrorLevel = false
         }
 
     /// <summary>
     /// Executes system command. E.g. '_system SystemOptions "dir" []'
     /// </summary>
     let _system settings cmd args =
-
+      
       let isExt file ext = System.IO.Path.GetExtension(file).Equals(ext, System.StringComparison.OrdinalIgnoreCase)
 
       action {
@@ -87,20 +85,32 @@ module internal impl =
         return errorlevel
     }
 
-// TODO expose settings
-open impl
+    type OptionsFn = Options -> Options
 
-/// <summary>
-/// Executes external process and waits until it completes
-/// </summary>
-/// <param name="cmd">Command or executable name.</param>
-/// <param name="args">Command arguments.</param>
-let system cmd args =
-  action {
-    do! trace Info "[system] starting '%s'" cmd
-    let! exitCode = _system SystemOptions.Default cmd (args |> String.concat " ")
-    do! trace Info "[system] completed '%s' exitcode: %d" cmd exitCode
+    /// <summary>
+    /// Executes external process and waits until it completes
+    /// </summary>
+    /// <param name="opts">Options setters</param>
+    /// <param name="cmd">Command or executable name.</param>
+    /// <param name="args">Command arguments.</param>
+    let system (opts: OptionsFn) (cmd: string) (args: string seq) =
+      action {
+        do! trace Info "[shell.run] starting '%s'" cmd
+        let! exitCode = _system (opts Options.Default) cmd (args |> String.concat " ")
+        do! trace Info "[shell.run] completed '%s' exitcode: %d" cmd exitCode
 
-    return exitCode
-  }
+        return exitCode
+      }
 
+    let useClr: OptionsFn = fun o -> {o with UseClr = true}
+    let checkErrorLevel: OptionsFn = fun o -> {o with FailOnErrorLevel = true}
+
+[<AutoOpen>]
+module CommonTasks =
+    /// <summary>
+    /// Executes external process and waits until it completes
+    /// </summary>
+    /// <param name="cmd">Command or executable name.</param>
+    /// <param name="args">Command arguments.</param>
+    [<System.Obsolete("Use shell id... instead")>]
+    let system cmd args = SystemTasks.system id cmd args

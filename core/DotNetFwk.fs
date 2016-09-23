@@ -5,7 +5,7 @@ open System.IO
 
 module (* internal *) pkg_config =
 
-    open Xake.CommonTasks.impl
+    open SystemTasks
 
     let private pkgcgf args =
         let outp = ref option<string>.None

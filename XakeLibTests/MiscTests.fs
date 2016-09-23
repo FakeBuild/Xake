@@ -4,6 +4,7 @@ open System.IO
 open NUnit.Framework
 
 open Xake
+open Xake.SystemTasks
 
 let xakeOptions = ExecOptions.Default
 
@@ -92,7 +93,7 @@ let ``script exits with errorlevel on script failure``() =
         rules [
             "one" => action {
                 do! need ["1/script.fsx"]
-                let! ec = system fsiApp ["1/script.fsx"]
+                let! ec = system id fsiApp ["1/script.fsx"]
                 errorCode := ec
             }
             "1/script.fsx" *> fun src -> action {
