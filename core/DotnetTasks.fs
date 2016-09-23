@@ -327,7 +327,7 @@ module DotnetTasks =
             do! trace Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
-                SystemTasks.Options.Default with
+                SystemTasks.SysOptions.Default with
                     LogPrefix = "[CSC] "
                     StdOutLevel = fun _ -> Level.Verbose
                     ErrOutLevel = Impl.levelFromString Level.Verbose
@@ -477,7 +477,7 @@ module DotnetTasks =
             do! trace Debug "Command line: '%s'" args
 
             let options = {
-                SystemTasks.Options.Default with
+                SystemTasks.SysOptions.Default with
                     LogPrefix = pfx
                     StdOutLevel = fun _ -> Level.Info
                     ErrOutLevel = Impl.levelFromString Level.Verbose
@@ -595,7 +595,7 @@ module DotnetTasks =
             do! trace Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
-                SystemTasks.Options.Default with
+                SystemTasks.SysOptions.Default with
                     LogPrefix = "[FSC] "
                     StdOutLevel = fun _ -> Level.Verbose
                     ErrOutLevel = Impl.levelFromString Level.Verbose

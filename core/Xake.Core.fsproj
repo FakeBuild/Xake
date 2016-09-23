@@ -74,7 +74,7 @@
     <Compile Include="WorkerPool.fs" />
     <Compile Include="Progress.fs" />
     <Compile Include="XakeScript.fs" />
-    <Compile Include="CommonTasks.fs" />
+    <Compile Include="SystemTasks.fs" />
     <Compile Include="FileTasks.fs" />
     <Compile Include="ResourceFileset.fs" />
     <Compile Include="DotNetFwk.fs" />

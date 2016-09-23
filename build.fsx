@@ -14,6 +14,8 @@ if not (System.IO.File.Exists file) then
 
 open Xake
 
+let TestsAssembly = "bin/XakeLibTests.dll"
+
 let systemClr cmd args =
     let cmd',args' = if Xake.Env.isUnix then "mono", cmd::args else cmd,args
     in system cmd' args'
@@ -27,7 +29,7 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
             do! need ["test"]
             }
 
-        "build" <== ["bin/XakeLibTests.dll"; "bin/Xake.Core.dll"]
+        "build" <== [TestsAssembly; "bin/Xake.Core.dll"]
         "clean" => action {
             do! rm ["bin/*.*"]
         }
@@ -41,8 +43,8 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
         }
 
         "test" => action {
-
-            let! exit_code = systemClr "packages/NUnit.Runners/tools/nunit-console.exe" ["./bin/XakeLibTests.dll"]
+            do! need[TestsAssembly]
+            let! exit_code = systemClr "packages/NUnit.Runners/tools/nunit-console.exe" [TestsAssembly]
             if exit_code <> 0 then
                 failwith "Failed to test"
         }
@@ -101,7 +103,7 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
 
         }
 
-        "bin/XakeLibTests.dll" *> fun file -> action {
+        TestsAssembly *> fun file -> action {
 
             // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
 

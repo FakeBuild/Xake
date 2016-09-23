@@ -40,7 +40,7 @@ module SystemTasks =
                 return proc.ExitCode
         }
 
-    type Options = {
+    type SysOptions = {
         LogPrefix:string;
         StdOutLevel: string -> Level; ErrOutLevel: string -> Level;
         EnvVars: (string * string) list
@@ -85,7 +85,7 @@ module SystemTasks =
         return errorlevel
     }
 
-    type OptionsFn = Options -> Options
+    type ExecOptionsFn = SysOptions -> SysOptions
 
     /// <summary>
     /// Executes external process and waits until it completes
@@ -93,17 +93,17 @@ module SystemTasks =
     /// <param name="opts">Options setters</param>
     /// <param name="cmd">Command or executable name.</param>
     /// <param name="args">Command arguments.</param>
-    let system (opts: OptionsFn) (cmd: string) (args: string seq) =
+    let system (opts: ExecOptionsFn) (cmd: string) (args: string seq) =
       action {
         do! trace Info "[shell.run] starting '%s'" cmd
-        let! exitCode = _system (opts Options.Default) cmd (args |> String.concat " ")
+        let! exitCode = _system (opts SysOptions.Default) cmd (args |> String.concat " ")
         do! trace Info "[shell.run] completed '%s' exitcode: %d" cmd exitCode
 
         return exitCode
       }
 
-    let useClr: OptionsFn = fun o -> {o with UseClr = true}
-    let checkErrorLevel: OptionsFn = fun o -> {o with FailOnErrorLevel = true}
+    let useClr: ExecOptionsFn = fun o -> {o with UseClr = true}
+    let checkErrorLevel: ExecOptionsFn = fun o -> {o with FailOnErrorLevel = true}
 
 [<AutoOpen>]
 module CommonTasks =
@@ -112,5 +112,5 @@ module CommonTasks =
     /// </summary>
     /// <param name="cmd">Command or executable name.</param>
     /// <param name="args">Command arguments.</param>
-    [<System.Obsolete("Use shell id... instead")>]
+    [<System.Obsolete("Use Xake.SystemTasks.system id cmd... instead")>]
     let system cmd args = SystemTasks.system id cmd args
