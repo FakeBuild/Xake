@@ -49,11 +49,13 @@ Follow the steps to compile binaries and get familiar with scripts:
 
     `git clone http://github.com/olegzee/xake`
 1. Build the xake.core dll (to xake/bin folder):
+
     ```
     cd xake
     fsharpi build.fsx -- get-deps build
     ```
 1. Now compile the C# "Hello world" application:
+
     ```
     cd samples/csc
     fsharpi helloworld.fsx
