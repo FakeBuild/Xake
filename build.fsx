@@ -5,7 +5,7 @@ System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
 if not (System.IO.File.Exists file) then
     printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.6.26/Xake.Core.dll"
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.6.27/Xake.Core.dll"
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
@@ -13,12 +13,9 @@ if not (System.IO.File.Exists file) then
 //#r @"bin/Debug/Xake.Core.dll"
 
 open Xake
+open Xake.SystemTasks
 
 let TestsAssembly = "bin/XakeLibTests.dll"
-
-let systemClr cmd args =
-    let cmd',args' = if Xake.Env.isUnix then "mono", cmd::args else cmd,args
-    in system cmd' args'
 
 do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
 
@@ -34,19 +31,18 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
             do! rm ["bin/*.*"]
         }
 
-        "get-deps" => action {
-            let! exit_code1 = systemClr ".paket/paket.bootstrapper.exe" []
-            let! exit_code2 = systemClr ".paket/paket.exe" ["install"]
-
-            if exit_code1 <> 0 || exit_code2 <> 0 then
-                failwith "Failed to install packages"
+        "get-deps" =>
+        action {
+            try
+                do! system (useClr >> checkErrorLevel) ".paket/paket.bootstrapper.exe" [] |> Action.Ignore
+                do! system (useClr >> checkErrorLevel) ".paket/paket.exe" ["install"] |> Action.Ignore
+            with e ->
+                failwithf "Failed to install packages. Error is %s" e.Message
         }
 
         "test" => action {
             do! need[TestsAssembly]
-            let! exit_code = systemClr "packages/NUnit.Runners/tools/nunit-console.exe" [TestsAssembly]
-            if exit_code <> 0 then
-                failwith "Failed to test"
+            do! system (useClr >> checkErrorLevel) "packages/NUnit.Runners/tools/nunit-console.exe" [TestsAssembly] |> Action.Ignore
         }
 
         ("bin/FSharp.Core.dll") *> fun outfile ->
