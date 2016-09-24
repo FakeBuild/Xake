@@ -18,7 +18,7 @@ module internal ParseArgs = begin
     let parseTopLevel (arg:string) optionsSoFar = 
         match arg.ToLowerInvariant() with 
 
-        | "-h" | "/h" ->
+        | "-h" | "/h" | "--help" | "/?" ->
             printf """
 Usage:
  fsi <script file> [-- options target..]
@@ -33,6 +33,7 @@ Options:
   target1 .. targetN  - define the list of targets to be executed sequentially
   target1;target2;..targetN -- execute the targets simultaneously
   -d <name>=<value>   - defines a script variable value
+  --dryrun            - defines a script variable value
 
             """
             exit(0)
@@ -50,6 +51,8 @@ Options:
             (optionsSoFar, String ("filelog verbosity", fun o s -> {o with FileLogLevel = s |> parseVerbosity }))
         | "-nologo" -> 
             ({optionsSoFar with Nologo = true}, TopLevel)
+        | "--dryrun" | "--dry-run" -> 
+            ({optionsSoFar with DryRun = true}, TopLevel)
 
         | x when x.StartsWith("-") || x.StartsWith("/") ->
             printfn "Option '%s' is unrecognized" x

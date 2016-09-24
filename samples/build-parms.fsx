@@ -13,7 +13,7 @@ do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
     printfn "Args are %A" fsi.CommandLineArgs
     printfn "Options are %A" opts
     
-    // do! writeLog Message mesg -- TODO uncommenting leads to error
+    do! trace Message "dfdf"
 
     return ()
     })

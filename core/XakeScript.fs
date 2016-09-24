@@ -38,6 +38,9 @@ module XakeScript =
 
         /// Database file
         DbFileName: string
+
+        /// Do not execute rules, just display run stats
+        DryRun: bool
     } with
     static member Default =
         {
@@ -54,6 +57,7 @@ module XakeScript =
         IgnoreCommandLine = false
         Nologo = false
         DbFileName = ".xake"
+        DryRun = false
         }
     end
 
@@ -164,9 +168,8 @@ module XakeScript =
         /// <param name="target"></param>
         let getExecTime ctx target =
             (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
-            |> Option.map (fun r -> r.Steps |> List.sumBy (fun s -> s.OwnTime))
-            |> function | Some t -> t | _ -> 0<ms>
-
+            |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
+ 
         /// Gets single dependency state
         let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
             | FileDep (a:File, wrtime) when not((File.exists a) && abs((File.getLastWriteTime a - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
@@ -358,12 +361,9 @@ module XakeScript =
                 ctx.Tgt |> Option.iter (Progress.TaskResume >> ctx.Progress.Post)
 
                 let dependencies = statuses |> Array.map snd |> List.ofArray in
-
                 return statuses
                 |> Array.exists (fst >> (=) ExecStatus.Succeed)
-                |> function
-                    | true -> ExecStatus.Succeed,dependencies
-                    | false -> ExecStatus.Skipped,dependencies
+                |> (function |true -> ExecStatus.Succeed |false -> ExecStatus.Skipped), dependencies
             }
 
         /// <summary>
@@ -380,7 +380,6 @@ module XakeScript =
 
         /// Executes the build script
         let run script =
-
             let (XakeScript (options,rules)) = script
             let logger = CombineLogger (ConsoleLogger options.ConLogLevel) options.CustomLogger
 
@@ -409,7 +408,7 @@ module XakeScript =
                 // TODO wrap more elegantly
                 let rec get_changed_deps = CommonLib.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
 
-                let check_rebuild (target:Target) =
+                let check_rebuild (target: Target) =
                     get_changed_deps >>
                     function
                     | [] -> false, ""
@@ -429,14 +428,16 @@ module XakeScript =
                 let getDurationDeps t =
                     let collectTargets = List.collect (function |Depends (t,_) -> [t] | _ -> [])
                     (getExecTime ctx t) / 1000<ms>, get_changed_deps t |> collectTargets
-                let progressSink = Progress.openProgress getDurationDeps options.Threads targets
+                if options.DryRun then
+                    printf "Here you will see the run stats"
+                else
+                    let progressSink = Progress.openProgress getDurationDeps options.Threads targets
+                    let stepCtx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
 
-                let stepCtx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
-
-                try
-                    targets |> execParallel stepCtx |> Async.RunSynchronously |> ignore
-                finally
-                    do Progress.Finish |> progressSink.Post
+                    try
+                        targets |> execParallel stepCtx |> Async.RunSynchronously |> ignore
+                    finally
+                        do Progress.Finish |> progressSink.Post
 
             logger.Log Info "Options: %A" options
 
@@ -447,19 +448,16 @@ module XakeScript =
                 }
 
             // splits list of targets ["t1;t2"; "t3;t4"] into list of list.
-            let targetLists =
-                options.Targets
-                |> function
-                    | [] ->
-                        do logger.Log Level.Message "No target(s) specified. Defaulting to 'main'"
-                        [["main"]]
-                    | tt ->
-                        tt |> List.map (fun s -> s.Split(';', '|') |> List.ofArray)
-
+            let makeTargetLists =
+                function
+                | [] ->
+                    do logger.Log Level.Message "No target(s) specified. Defaulting to 'main'"
+                    [["main"]]
+                | tt ->
+                    tt |> List.map (fun (s: string) -> s.Split(';', '|') |> List.ofArray)
             try
                 try
-                    for list in targetLists do
-                        runStep list
+                    options.Targets |> makeTargetLists |> List.iter runStep
                     logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
                 with
                     | exn ->
@@ -508,6 +506,14 @@ module XakeScript =
         member o.Yield(())    = o.Zero()
 
         member this.Run(script) = Impl.run script
+
+        [<CustomOperation("dryrun")>] member this.DryRun(XakeScript (options, rules))
+            = XakeScript ({options with DryRun = false}, rules)
+
+        [<CustomOperation("filelog")>] member this.FileLog(XakeScript (options, rules), filename, ?loglevel)
+            =
+                let loglevel = defaultArg loglevel Verbosity.Chatty in
+                XakeScript ({options with FileLog = filename; FileLogLevel = loglevel}, rules)
 
         [<CustomOperation("rule")>] member this.Rule(script, rule)
             = updRules script (Impl.addRule rule)
