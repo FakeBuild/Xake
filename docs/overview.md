@@ -257,6 +257,22 @@ Defines a default list of targets in case it was not set in script parameters (e
 
 The same as above but overrides the list of targets passed via parameters.
 
+### dryrun
+
+The `dryrun` keyword in the script instructs xake to simulate execution of the script without running the rules itself. Xake tool displays the dependencies list and execution time estimates. Respective command-line option is `--dryrun`.
+
+### filelog
+
+This option allows to specify the name of the log file and the detailization level.
+
+```fsharp
+    do xake XakeOptions {
+        dryrun
+        filelog "errors.log" Verbosity.Chatty
+        rules [
+   ...
+```
+
 ## action computation
 
 Action body is computation expression of type *action*. This computation returns *Action* type and is very similar to

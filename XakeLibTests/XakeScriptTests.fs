@@ -435,4 +435,24 @@ let ``writes a build stats to a database``() =
         printfn "%A" raaa
     finally
         db.PostAndReply CloseWait
-      
+
+[<Test>]
+let ``dryrun for not executing``() =
+
+    let count = ref 0
+    
+    do xake XakeOptions {
+        dryrun
+        filelog "errors.log" Verbosity.Chatty
+        rules [
+            "main" <== ["rule1"; "rule2"]
+            "rule1" => action {
+                count := !count + 1
+            }
+            "rule2" => action {
+                count := !count + 10
+            }
+        ]
+    }
+
+    Assert.AreEqual(0, !count)
