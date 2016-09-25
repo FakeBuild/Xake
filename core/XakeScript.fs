@@ -242,7 +242,7 @@ module XakeScript =
         /// Gets dependencies for specific target in a human friendly form
         /// </summary>
         /// <param name="ctx"></param>
-        let getPlainDeps getDepStates getExecTime ptgt =
+        let getPlainDeps getDepStates (getExecTime: Target -> int<ms>) ptgt =
 
             // strips the filelists to only 5 items
             let rec stripReasons = function
@@ -281,7 +281,8 @@ module XakeScript =
             // mg >> List.collect traverseTargets >> distinct >> List.map ptgt
             let resultList = ptgt |> getDepStates |> List.map stripDuplicates in
 
-            let totalEstimate = resultList |> List.collect collectTargets |> distinct |> List.sumBy getExecTime
+            let allTargets = resultList |> List.collect collectTargets |> distinct
+            let totalEstimate = allTargets |> List.sumBy (getExecTime)
             printfn "Total execution estimate is %Ams" totalEstimate
 
             resultList |> List.collect collectTargets |> distinct |> List.map (fun t -> (t, getExecTime t))
@@ -377,20 +378,40 @@ module XakeScript =
             else
                 ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
 
-        let dryRun ctx options targetNames =
-            let rec getDeps:Target -> DepState list =
-                (getDepsImpl ctx (fun x -> getDeps x))
-                |> memoize
+        let dryRun ctx options (targetNames: string list) =
+            let rec getDeps = getDepsImpl ctx (fun x -> getDeps x) |> memoize
 
             // getPlainDeps getDeps (getExecTime ctx)
             do ctx.Logger.Log Command "Running (dry) targets %A" targetNames
 
-        let runTargets ctx options targetNames =
-            // TODO wrap more elegantly
-            let rec get_changed_deps = CommonLib.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
+            let rec showDepStatus targets =
+                targets |>
+                function
+                | DepState.Other reason ->
+                    printfn "Reason %s" reason
+                | DepState.Depends (t, deps) ->
+                    printfn "Depends on target %s" t.ShortName
+                    deps |> List.iter showDepStatus
+                | DepState.FilesChanged (file::_) ->
+                    printfn "File(s) changed %s" file
+                | reasons ->
+                    printf "Some reason %A" reasons
+                ()
+            and showTargetStatus target =
+                let deps = getDeps target
+                if List.isEmpty deps then
+                    ()
+                else
+                    printfn "Changed target '%s'" target.ShortName
+                    deps |> List.iter showDepStatus
 
+            targetNames |> List.map (makeTarget ctx) |> List.iter showTargetStatus
+
+        let runTargets ctx options targets =
+            let rec getDeps = getDepsImpl ctx (fun x -> getDeps x) |> memoize
+            
             let check_rebuild (target: Target) =
-                get_changed_deps >>
+                getDeps >>
                 function
                 | [] -> false, ""
                 | DepState.Other reason::_            -> true, reason
@@ -405,10 +426,10 @@ module XakeScript =
                     true
                 <| target
 
-            let targets = targetNames |> List.map (makeTarget ctx)
+            // let targets = targetNames |> List.map (makeTarget ctx)
             let getDurationDeps t =
                 let collectTargets = List.collect (function |Depends (t,_) -> [t] | _ -> [])
-                (getExecTime ctx t) / 1000<ms>, get_changed_deps t |> collectTargets
+                (getExecTime ctx t) / 1000<ms>, getDeps t |> collectTargets
             let progressSink = Progress.openProgress getDurationDeps options.Threads targets
             let stepCtx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
 
@@ -452,7 +473,8 @@ module XakeScript =
                 }
 
             // splits list of targets ["t1;t2"; "t3;t4"] into list of list.
-            let makeTargetLists =
+            let targetLists =
+                options.Targets |>
                 function
                 | [] ->
                     do logger.Log Level.Message "No target(s) specified. Defaulting to 'main'"
@@ -461,10 +483,10 @@ module XakeScript =
                     tt |> List.map (fun (s: string) -> s.Split(';', '|') |> List.ofArray)
             try
                 if options.DryRun then
-                    options.Targets |> makeTargetLists |> List.iter (dryRun ctx options)
+                    targetLists |> List.iter (dryRun ctx options)
                 else
                     try
-                        options.Targets |> makeTargetLists |> List.iter (runTargets ctx options)
+                        targetLists |> List.iter (List.map (makeTarget ctx) >> (runTargets ctx options))
                         logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
                     with
                         | exn ->
