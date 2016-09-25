@@ -169,22 +169,21 @@ module XakeScript =
         let getExecTime ctx target =
             (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
             |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
+        let all predicate = List.exists (predicate >> not) >> not
  
         /// Gets single dependency state
         let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
             | FileDep (a:File, wrtime) when not((File.exists a) && abs((File.getLastWriteTime a - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
-                let afile = a in
-                DepState.FilesChanged [afile.Name]
+                DepState.FilesChanged [a.Name]
 
             | ArtifactDep (FileTarget file) when not (File.exists file) ->
                 DepState.Other <| sprintf "target doesn't exist '%s'" file.Name
 
             | ArtifactDep dependeeTarget ->
                 let ls = dependeeTarget |> isOutdatedTarget
-                in
-                match ls |> List.exists ((<>) DepState.NotChanged) with
-                | true -> DepState.Depends (dependeeTarget,ls)
-                | false -> NotChanged
+                match ls |> all ((=) DepState.NotChanged) with
+                | true -> NotChanged
+                |false -> DepState.Depends (dependeeTarget, ls)
 
             | EnvVar (name,value) when value <> getEnvVar name ->
                 DepState.Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (getEnvVar name)
@@ -378,6 +377,46 @@ module XakeScript =
             else
                 ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
 
+        let dryRun ctx options targetNames =
+            let rec getDeps:Target -> DepState list =
+                (getDepsImpl ctx (fun x -> getDeps x))
+                |> memoize
+
+            // getPlainDeps getDeps (getExecTime ctx)
+            do ctx.Logger.Log Command "Running (dry) targets %A" targetNames
+
+        let runTargets ctx options targetNames =
+            // TODO wrap more elegantly
+            let rec get_changed_deps = CommonLib.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
+
+            let check_rebuild (target: Target) =
+                get_changed_deps >>
+                function
+                | [] -> false, ""
+                | DepState.Other reason::_            -> true, reason
+                | DepState.Depends (t,_) ::_          -> true, "Depends on target " + t.ShortName
+                | DepState.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
+                | reasons -> true, sprintf "Some reason %A" reasons
+                >>
+                function
+                | false, _ -> false
+                | true, reason ->
+                    do ctx.Logger.Log Info "Rebuild %A: %s" target.ShortName reason
+                    true
+                <| target
+
+            let targets = targetNames |> List.map (makeTarget ctx)
+            let getDurationDeps t =
+                let collectTargets = List.collect (function |Depends (t,_) -> [t] | _ -> [])
+                (getExecTime ctx t) / 1000<ms>, get_changed_deps t |> collectTargets
+            let progressSink = Progress.openProgress getDurationDeps options.Threads targets
+            let stepCtx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
+
+            try
+                targets |> execParallel stepCtx |> Async.RunSynchronously |> ignore
+            finally
+                do Progress.Finish |> progressSink.Post
+
         /// Executes the build script
         let run script =
             let (XakeScript (options,rules)) = script
@@ -404,41 +443,6 @@ module XakeScript =
                 Tgt = None
                 }
 
-            let runStep targetNames =
-                // TODO wrap more elegantly
-                let rec get_changed_deps = CommonLib.memoize (getDepsImpl ctx (fun x -> get_changed_deps x)) in
-
-                let check_rebuild (target: Target) =
-                    get_changed_deps >>
-                    function
-                    | [] -> false, ""
-                    | DepState.Other reason::_            -> true, reason
-                    | DepState.Depends (t,_) ::_          -> true, "Depends on target " + t.ShortName
-                    | DepState.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
-                    | reasons -> true, sprintf "Some reason %A" reasons
-                    >>
-                    function
-                    | false, _ -> false
-                    | true, reason ->
-                        do ctx.Logger.Log Info "Rebuild %A: %s" target.ShortName reason
-                        true
-                    <| target
-
-                let targets = targetNames |> List.map (makeTarget ctx)
-                let getDurationDeps t =
-                    let collectTargets = List.collect (function |Depends (t,_) -> [t] | _ -> [])
-                    (getExecTime ctx t) / 1000<ms>, get_changed_deps t |> collectTargets
-                if options.DryRun then
-                    printf "Here you will see the run stats"
-                else
-                    let progressSink = Progress.openProgress getDurationDeps options.Threads targets
-                    let stepCtx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
-
-                    try
-                        targets |> execParallel stepCtx |> Async.RunSynchronously |> ignore
-                    finally
-                        do Progress.Finish |> progressSink.Post
-
             logger.Log Info "Options: %A" options
 
             let rec unwindAggEx (e:System.Exception) = seq {
@@ -456,16 +460,19 @@ module XakeScript =
                 | tt ->
                     tt |> List.map (fun (s: string) -> s.Split(';', '|') |> List.ofArray)
             try
-                try
-                    options.Targets |> makeTargetLists |> List.iter runStep
-                    logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
-                with
-                    | exn ->
-                        let th = if options.FailOnError then raiseError else reportError
-                        let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
-                        th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
-                        logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
-                        exit 2
+                if options.DryRun then
+                    options.Targets |> makeTargetLists |> List.iter (dryRun ctx options)
+                else
+                    try
+                        options.Targets |> makeTargetLists |> List.iter (runTargets ctx options)
+                        logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
+                    with
+                        | exn ->
+                            let th = if options.FailOnError then raiseError else reportError
+                            let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
+                            th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
+                            logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
+                            exit 2
             finally
                 db.PostAndReply Storage.CloseWait
                 Logging.FlushLogs()
@@ -501,6 +508,9 @@ module XakeScript =
         let updRules (XakeScript (options,rules)) f = XakeScript (options, f(rules))
         let updTargets (XakeScript (options,rules)) f = XakeScript ({options with Targets = f(options.Targets)}, rules)
 
+        let updateVar (key: string) (value: string) =
+            List.filter(fst >> ((<>) key)) >> ((@) [key, value])
+
         member o.Bind(x,f) = f x
         member o.Zero() = XakeScript (options, Rules [])
         member o.Yield(())    = o.Zero()
@@ -509,6 +519,9 @@ module XakeScript =
 
         [<CustomOperation("dryrun")>] member this.DryRun(XakeScript (options, rules))
             = XakeScript ({options with DryRun = false}, rules)
+
+        [<CustomOperation("var")>] member this.AddVar(XakeScript (options, rules), name, value)
+            = XakeScript ({options with Vars = options.Vars |> updateVar name value }, rules)
 
         [<CustomOperation("filelog")>] member this.FileLog(XakeScript (options, rules), filename, ?loglevel)
             =
@@ -609,18 +622,6 @@ module XakeScript =
 
     [<System.Obsolete("Use trace instead")>]
     let writeLog = Impl.traceLog
-
-    /// <summary>
-    /// Gets state of particular target.
-    /// Temporary method for analyzing changes impact.
-    /// </summary>
-    let getPlainDeps ctx =
-
-        let rec getDeps:Target -> DepState list =
-            (Impl.getDepsImpl ctx (fun x -> getDeps x))
-            |> memoize
-
-        Impl.getPlainDeps getDeps (Impl.getExecTime ctx)
 
     /// Defines a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
