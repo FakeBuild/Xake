@@ -21,9 +21,9 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <StartAction>Program</StartAction>
-    <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\Fsi.exe</StartProgram>
-    <StartWorkingDirectory>C:\!\pcomp\</StartWorkingDirectory>
-    <StartArguments>build.fsx</StartArguments>
+    <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\4.0\Framework\v4.0\Fsi.exe</StartProgram>
+    <StartWorkingDirectory>c:\projects\xake</StartWorkingDirectory>
+    <StartArguments>fsi build.fsx -- build --dryrun</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>

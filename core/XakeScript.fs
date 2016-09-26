@@ -238,57 +238,6 @@ module XakeScript =
             | _ ->
                 [DepState.Other "Unknown state"]
 
-        /// <summary>
-        /// Gets dependencies for specific target in a human friendly form
-        /// </summary>
-        /// <param name="ctx"></param>
-        let getPlainDeps getDepStates (getExecTime: Target -> int<ms>) ptgt =
-
-            // strips the filelists to only 5 items
-            let rec stripReasons = function
-                | DepState.FilesChanged fileList -> fileList |> take 5 |> DepState.FilesChanged
-                | DepState.Depends (t,deps) -> DepState.Depends (t, deps |> List.map stripReasons)
-                | state -> state
-
-            // make plain dependent targets list for specified target
-
-
-            let rec visitTargets (dep,visited) =
-                match dep with
-                | DepState.Depends (t,deps) when visited |> Map.containsKey t ->
-                    (DepState.Depends (t,[]), visited)
-
-                | DepState.Depends (t,deps) ->
-                    let deps',visited' =
-                        List.fold (fun (deps,v) d ->
-                            let d',v' = visitTargets (d,v) in
-                            (d'::deps, v')
-                        ) ([],visited |> Map.add t 1) deps
-
-                    (DepState.Depends (t, deps' |> List.rev), visited')
-                | s -> (s, visited)
-
-            let stripDuplicates dep = visitTargets (dep, Map.empty) |>  fst
-
-            // TODO where're phony actions
-            // can I make it more inductive? Consider initial graph but with stripped targets
-
-            let rec collectTargets = function
-                | DepState.Depends (t,deps) -> t:: (deps |> List.collect collectTargets)
-                | _ -> []
-
-            //let ptgt t = t, t |> mg |> mergeDeps |> List.map stripReasons |> take 5
-            // mg >> List.collect traverseTargets >> distinct >> List.map ptgt
-            let resultList = ptgt |> getDepStates |> List.map stripDuplicates in
-
-            let allTargets = resultList |> List.collect collectTargets |> distinct
-            let totalEstimate = allTargets |> List.sumBy (getExecTime)
-            printfn "Total execution estimate is %Ams" totalEstimate
-
-            resultList |> List.collect collectTargets |> distinct |> List.map (fun t -> (t, getExecTime t))
-
-            //resultList
-
         // executes single artifact
         let rec private execOne ctx target =
 
@@ -378,34 +327,62 @@ module XakeScript =
             else
                 ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
 
+        // gets task duration and list of targets it depends on. No clue why one method does both.
+        let getDurationDeps ctx getDeps t =
+            let collectTargets = List.collect (function |Depends (t,_) -> [t] | _ -> [])
+            getExecTime ctx t, getDeps t |> collectTargets
+
+        /// Implementation of "dry run"
         let dryRun ctx options (targetNames: string list) =
             let rec getDeps = getDepsImpl ctx (fun x -> getDeps x) |> memoize
 
             // getPlainDeps getDeps (getExecTime ctx)
             do ctx.Logger.Log Command "Running (dry) targets %A" targetNames
+            let doneTargets = new System.Collections.Hashtable()
 
-            let rec showDepStatus targets =
+            let print f = ctx.Logger.Log Info f
+            let indent i = String.replicate i "  "
+
+            let rec showDepStatus ii targets =
                 targets |>
                 function
                 | DepState.Other reason ->
-                    printfn "Reason %s" reason
-                | DepState.Depends (t, deps) ->
-                    printfn "Depends on target %s" t.ShortName
-                    deps |> List.iter showDepStatus
+                    print "%sReason %s" (indent ii) reason
+                | DepState.Depends (t, _) ->
+                    print "%sDepends on target %s" (indent ii) t.ShortName
                 | DepState.FilesChanged (file::_) ->
-                    printfn "File(s) changed %s" file
+                    print "%sFile(s) changed %s" (indent ii) file
                 | reasons ->
-                    printf "Some reason %A" reasons
+                    do print "%sSome reason %A" (indent ii) reasons
                 ()
-            and showTargetStatus target =
-                let deps = getDeps target
-                if List.isEmpty deps then
-                    ()
-                else
-                    printfn "Changed target '%s'" target.ShortName
-                    deps |> List.iter showDepStatus
+            let rec displayNestedDeps ii targets =
+                targets |>
+                function
+                | DepState.Depends (t, _) ->
+                    showTargetStatus ii t
+                | _ -> ()
+            and showTargetStatus ii target =
+                if not <| doneTargets.ContainsKey(target) then
+                    doneTargets.Add(target, 1)
+                    let deps = getDeps target
+                    if not <| List.isEmpty deps then
+                        let execTimeEstimate = getExecTime ctx target
+                        do ctx.Logger.Log Command "%sRebuild %A (~%Ams)" (indent ii) target.ShortName execTimeEstimate
+                        deps |> List.iter (showDepStatus (ii+1))
+                        deps |> List.iter (displayNestedDeps (ii+1))
 
-            targetNames |> List.map (makeTarget ctx) |> List.iter showTargetStatus
+            let targets = targetNames |> List.map (makeTarget ctx) in
+            let toSec v = float (v / 1<ms>) * 0.001
+            let endTime = Progress.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targets |> toSec
+
+            targets |> List.iter (showTargetStatus 0)
+
+            let parallelismMsg =
+                let endTimeTotal = Progress.estimateEndTime (getDurationDeps ctx getDeps) 1 targets |> toSec
+                if options.Threads > 1 && endTimeTotal > endTime then
+                    sprintf "\n\tTotal tasks duration is (estimate) in %As\n\tParallelist degree: %.2f" endTimeTotal (endTimeTotal / endTime)
+                else ""
+            ctx.Logger.Log Message "\n\n\tBuild will be completed (estimate) in %As%s\n" endTime parallelismMsg
 
         let runTargets ctx options targets =
             let rec getDeps = getDepsImpl ctx (fun x -> getDeps x) |> memoize
@@ -426,11 +403,7 @@ module XakeScript =
                     true
                 <| target
 
-            // let targets = targetNames |> List.map (makeTarget ctx)
-            let getDurationDeps t =
-                let collectTargets = List.collect (function |Depends (t,_) -> [t] | _ -> [])
-                (getExecTime ctx t) / 1000<ms>, getDeps t |> collectTargets
-            let progressSink = Progress.openProgress getDurationDeps options.Threads targets
+            let progressSink = Progress.openProgress (getDurationDeps ctx getDeps) options.Threads targets
             let stepCtx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
 
             try
