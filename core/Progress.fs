@@ -173,9 +173,22 @@ let emptyProgress () =
 /// <summary>
 /// Gets estimated execution time.
 /// </summary>
-let estimateEndTime getDurationDeps threadCount targets =
+let estimateEndTime getDurationDeps threadCount group =
     let machine_state = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
-    snd <| execMany machine_state getDurationDeps targets
+    snd <| execMany machine_state getDurationDeps group
+
+/// <summary>
+/// Gets estimated execution time for several target groups. Each group start when previous group is completed and runs in parallel.
+/// </summary>
+let estimateEndTime2 getDurationDeps threadCount groups =
+    let machine_state = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
+
+    groups |> List.fold (fun (state, _) group -> 
+        let newState, endTime = execMany state getDurationDeps group
+        let newState = {newState with Cpu = newState.Cpu |> List.map (fun _ -> BusyUntil endTime)}
+        newState, endTime
+        ) (machine_state, 0<ms>)
+    |> snd
 
 /// <summary>
 /// Creates windows taskbar progress reporter.

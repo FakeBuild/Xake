@@ -160,11 +160,11 @@ module XakeScript =
                 ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
 
         /// Implementation of "dry run"
-        let dryRun ctx options (targetNames: string list) =
+        let dryRun ctx options (groups: string list list) =
             let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
 
             // getPlainDeps getDeps (getExecTime ctx)
-            do ctx.Logger.Log Command "Running (dry) targets %A" targetNames
+            do ctx.Logger.Log Command "Running (dry) targets %A" groups
             let doneTargets = new System.Collections.Hashtable()
 
             let print f = ctx.Logger.Log Info f
@@ -199,14 +199,14 @@ module XakeScript =
                         deps |> List.iter (showDepStatus (ii+1))
                         deps |> List.iter (displayNestedDeps (ii+1))
 
-            let targets = targetNames |> List.map (makeTarget ctx) in 
+            let targetGroups = groups |> List.map (List.map (makeTarget ctx)) in 
             let toSec v = float (v / 1<ms>) * 0.001
-            let endTime = Progress.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targets |> toSec
+            let endTime = Progress.estimateEndTime2 (getDurationDeps ctx getDeps) options.Threads targetGroups |> toSec
 
-            targets |> List.iter (showTargetStatus 0)
+            targetGroups |> List.collect id |> List.iter (showTargetStatus 0)
 
             let parallelismMsg =
-                let endTimeTotal = Progress.estimateEndTime (getDurationDeps ctx getDeps) 1 targets |> toSec
+                let endTimeTotal = Progress.estimateEndTime2 (getDurationDeps ctx getDeps) 1 targetGroups |> toSec
                 if options.Threads > 1 && endTimeTotal > endTime then
                     sprintf "\n\tTotal tasks duration is (estimate) in %As\n\tParallelist degree: %.2f" endTimeTotal (endTimeTotal / endTime)
                 else ""
@@ -288,7 +288,7 @@ module XakeScript =
                     do logger.Log Level.Command "Dumping dependencies for targets %A" targetLists
                     targetLists |> List.iter (List.map (makeTarget ctx) >> (dumpDeps ctx))
                 else if options.DryRun then
-                    targetLists |> List.iter (dryRun ctx options)
+                    targetLists |> (dryRun ctx options)
                 else
                     try
                         targetLists |> List.iter (List.map (makeTarget ctx) >> (runTargets ctx options))
@@ -346,7 +346,7 @@ module XakeScript =
         member this.Run(script) = Impl.run script
 
         [<CustomOperation("dryrun")>] member this.DryRun(XakeScript (options, rules))
-            = XakeScript ({options with DryRun = false}, rules)
+            = XakeScript ({options with DryRun = true}, rules)
 
         [<CustomOperation("var")>] member this.AddVar(XakeScript (options, rules), name, value)
             =

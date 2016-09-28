@@ -25,9 +25,6 @@ let getExecTime ctx target =
     (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
     |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
 
-/// Gets true is all list items meet the condition defined as a predicate.
-let all predicate = List.exists (predicate >> not) >> not
-
 let targetName = function
 | PhonyAction a -> a
 | FileTarget file -> file.Name
@@ -78,27 +75,22 @@ let getDepState getVar getFileList (getChangedDeps: Target -> ChangeReason list)
 /// <param name="target">The target to analyze</param>
 let getChangeReasons ctx getTargetDeps target =
 
-    let lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
+    // separates change reason into two lists and collabses FilesChanged all into one
+    let collapseFilesChanged reasons =
+        let files, other = reasons |> List.partition (fst >> function | ChangeReason.FilesChanged _ -> true | _ -> false)
+        let filesChangedDbg = files |> List.collect (snd >> Option.toList)
+        let filesChanged = files |> List.collect (fst >> fun (FilesChanged files) -> files) |> function | [] -> [] | ls -> [FilesChanged ls, Some (sprintf "%A" filesChangedDbg)]
+        in
+        filesChanged @ other |> List.rev
 
-    printfn "Reasons for %A:\n%A" (targetName target) lastBuild
+
+    let lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
 
     match lastBuild with
     | Some {BuildResult.Depends = []} ->
-        [ChangeReason.Other "No dependencies", Some "It means target is not pure one and depends on something beyond our control (oracle)"]
+        [ChangeReason.Other "No dependencies", Some "It means target is not \"pure\" and depends on something beyond our control (oracle)"]
 
-//            | Some {BuildResult.Result = FileTarget file} when not (File.exists file)
-//            ->
-//                [DepState.Other "target not found"]
-//
     | Some {BuildResult.Depends = depends; Result = result} ->
-        // separates change reason into two lists and collabses FilesChanged all into one
-        let collapseFilesChanged reasons =
-            let files, other = reasons |> List.partition (fst >> function | ChangeReason.FilesChanged _ -> true | _ -> false)
-            let filesChangedDbg = files |> List.collect (snd >> Option.toList)
-            let filesChanged = files |> List.collect (fst >> fun (FilesChanged files) -> files) |> function | [] -> [] | ls -> [FilesChanged ls, Some (sprintf "%A" filesChangedDbg)]
-            in
-            filesChanged @ other |> List.rev
-
         let dep_state = getDepState (Util.getVar ctx.Options) (toFileList ctx.Options.ProjectRoot) getTargetDeps
 
         depends
@@ -119,7 +111,7 @@ let getChangeReasons ctx getTargetDeps target =
 
 // gets task duration and list of targets it depends on. No clue why one method does both.
 let getDurationDeps ctx getDeps t =
-    let collectTargets = List.collect (function |Depends t -> [t] | _ -> [])
+    let collectTargets = List.collect (function |Depends t |DependsMissingTarget t -> [t] | _ -> [])
     getExecTime ctx t, getDeps t |> collectTargets
 
 /// Dumps all dependencies for particular target
@@ -132,9 +124,6 @@ let dumpDeps (ctx: ExecContext) (target: Target list) =
     let rec displayNestedDeps ii =
         function
         | ArtifactDep dependeeTarget ->
-//            (FileTarget file)
-//            if not (File.exists file) then
-//                printfn "%sFile '%s' (not exists)" (indent ii) file.Name
             printfn "%sArtifact: %A" (indent ii) dependeeTarget.FullName
             showTargetStatus (ii+1) dependeeTarget
         | _ -> ()
@@ -149,7 +138,7 @@ let dumpDeps (ctx: ExecContext) (target: Target list) =
                 | false ->
                     "NOT EXISTS"
                 | _ -> ""
-            printfn "%sFile '%s' %s" (indent ii) a.Name changed
+            printfn "%sFile '%s' %A %s" (indent ii) a.Name wrtime changed
 
         | EnvVar (name,value) ->
             let newValue = Util.getEnvVar name
