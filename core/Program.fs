@@ -53,6 +53,8 @@ Options:
             ({optionsSoFar with Nologo = true}, TopLevel)
         | "--dryrun" | "--dry-run" -> 
             ({optionsSoFar with DryRun = true}, TopLevel)
+        | "--dump" -> 
+            ({optionsSoFar with DumpDeps = true}, TopLevel)
 
         | x when x.StartsWith("-") || x.StartsWith("/") ->
             printfn "Option '%s' is unrecognized" x

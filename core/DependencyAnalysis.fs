@@ -1,0 +1,182 @@
+﻿module internal Xake.DependencyAnalysis
+
+open Xake
+open Storage
+
+/// <summary>
+/// Dependency state.
+/// </summary>
+type ChangeReason =
+    | NotChanged
+    | Depends of Target
+    | DependsMissingTarget of Target
+    | Refs of string list
+    | FilesChanged of string list
+    | Other of string
+
+let TimeCompareToleranceMs = 10.0
+
+/// <summary>
+/// Gets target execution time in the last run
+/// </summary>
+/// <param name="ctx"></param>
+/// <param name="target"></param>
+let getExecTime ctx target =
+    (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
+    |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
+
+/// Gets true is all list items meet the condition defined as a predicate.
+let all predicate = List.exists (predicate >> not) >> not
+
+let targetName = function
+| PhonyAction a -> a
+| FileTarget file -> file.Name
+
+/// Gets single dependency state and reason of a change.
+let getDepState getVar getFileList (getChangedDeps: Target -> ChangeReason list) = function
+    | FileDep (a:File, wrtime) when not((File.exists a) && abs((File.getLastWriteTime a - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
+        let dbgInfo = File.exists a |> function
+            | false -> "file does not exists"
+            | _ -> sprintf "write time: %A vs %A" (File.getLastWriteTime a) wrtime
+        ChangeReason.FilesChanged [a.Name], Some dbgInfo
+
+    | ArtifactDep (FileTarget file) when not (File.exists file) ->
+        ChangeReason.DependsMissingTarget (FileTarget file), None
+
+    | ArtifactDep dependeeTarget ->
+        dependeeTarget |> getChangedDeps |> List.filter ((<>) ChangeReason.NotChanged)
+        |> function
+            |  [] -> NotChanged, None
+            |item::_ ->
+                ChangeReason.Depends dependeeTarget, Some (sprintf "E.g. %A..." item)
+
+    | EnvVar (name,value) when value <> Util.getEnvVar name ->
+        ChangeReason.Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (Util.getEnvVar name), None
+
+    | Var (name,value) when value <> getVar name ->
+        ChangeReason.Other <| sprintf "Global script variable %s was changed '%A'->'%A'" name value (getVar name), None
+
+    | AlwaysRerun ->
+        ChangeReason.Other <| "AlwaysRerun rule", Some "Rule indicating target has to be run regardless dependencies state"
+
+    | GetFiles (fileset,files) ->
+        let newfiles = getFileList fileset
+        let diff = compareFileList files newfiles
+
+        if List.isEmpty diff then
+            NotChanged, None
+        else
+            Other <| sprintf "File list is changed for fileset %A" fileset, Some (sprintf "The diff list is %A" diff)
+    | _ -> NotChanged, None
+
+
+/// <summary>
+/// Gets the list of reasons to rebuilt the target. Empty list means target is not changed.
+/// </summary>
+/// <param name="ctx"></param>
+/// <param name="getTargetDeps">gets state for nested dependency</param>
+/// <param name="target">The target to analyze</param>
+let getChangeReasons ctx getTargetDeps target =
+
+    let lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
+
+    printfn "Reasons for %A:\n%A" (targetName target) lastBuild
+
+    match lastBuild with
+    | Some {BuildResult.Depends = []} ->
+        [ChangeReason.Other "No dependencies", Some "It means target is not pure one and depends on something beyond our control (oracle)"]
+
+//            | Some {BuildResult.Result = FileTarget file} when not (File.exists file)
+//            ->
+//                [DepState.Other "target not found"]
+//
+    | Some {BuildResult.Depends = depends; Result = result} ->
+        // separates change reason into two lists and collabses FilesChanged all into one
+        let collapseFilesChanged reasons =
+            let files, other = reasons |> List.partition (fst >> function | ChangeReason.FilesChanged _ -> true | _ -> false)
+            let filesChangedDbg = files |> List.collect (snd >> Option.toList)
+            let filesChanged = files |> List.collect (fst >> fun (FilesChanged files) -> files) |> function | [] -> [] | ls -> [FilesChanged ls, Some (sprintf "%A" filesChangedDbg)]
+            in
+            filesChanged @ other |> List.rev
+
+        let dep_state = getDepState (Util.getVar ctx.Options) (toFileList ctx.Options.ProjectRoot) getTargetDeps
+
+        depends
+            |> List.map dep_state
+            |> List.filter (fst >> (<>) ChangeReason.NotChanged)
+            |> collapseFilesChanged
+            |> function
+            | [] ->
+                match result with
+                | FileTarget file when not (File.exists file) ->
+                    [ChangeReason.Other "target file does not exist", Some "The file has to be rebuilt regardless all its dependencies were not changed"]
+                | _ -> []
+            | ls -> ls
+
+    | _ ->
+        [ChangeReason.Other "Not built yet", Some "Target was not built before or build results were cleaned so we don't know dependencies."]
+    |> List.map fst
+
+// gets task duration and list of targets it depends on. No clue why one method does both.
+let getDurationDeps ctx getDeps t =
+    let collectTargets = List.collect (function |Depends t -> [t] | _ -> [])
+    getExecTime ctx t, getDeps t |> collectTargets
+
+/// Dumps all dependencies for particular target
+let dumpDeps (ctx: ExecContext) (target: Target list) =
+
+    let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
+    let doneTargets = new System.Collections.Hashtable()
+    let indent i = String.replicate i "  "
+
+    let rec displayNestedDeps ii =
+        function
+        | ArtifactDep dependeeTarget ->
+//            (FileTarget file)
+//            if not (File.exists file) then
+//                printfn "%sFile '%s' (not exists)" (indent ii) file.Name
+            printfn "%sArtifact: %A" (indent ii) dependeeTarget.FullName
+            showTargetStatus (ii+1) dependeeTarget
+        | _ -> ()
+    and showDepStatus ii (d: Dependency) =
+        match d with
+        | AlwaysRerun ->
+            printfn "%sAlways Rerun" (indent ii)
+        | FileDep (a:File, wrtime) ->
+            let changed = File.exists a |> function
+                | true when abs((File.getLastWriteTime a - wrtime).TotalMilliseconds) >= TimeCompareToleranceMs ->
+                    sprintf "CHANGED (%A <> %A)" wrtime (File.getLastWriteTime a)
+                | false ->
+                    "NOT EXISTS"
+                | _ -> ""
+            printfn "%sFile '%s' %s" (indent ii) a.Name changed
+
+        | EnvVar (name,value) ->
+            let newValue = Util.getEnvVar name
+            let changed = if value <> newValue then sprintf "CHANGED %A => %A" value newValue else ""
+            printfn "%sENV Var: '%s' = %A %s" (indent ii) name value changed
+
+        | Var (name,value) ->
+            printfn "%sScript var: '%s' = %A" (indent ii) name value
+
+        | GetFiles (fileset,files) ->
+            printfn "%sGetFiles: %A" (indent ii) fileset
+        | _ ->
+            ()
+    and showTargetStatus ii (target: Target) =
+        if not <| doneTargets.ContainsKey(target) then
+            doneTargets.Add(target, 1)
+
+            printfn "%sTarget %A" (indent ii) target.ShortName
+
+            let lastResult = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
+            match lastResult with
+            | Some {BuildResult.Depends = []} ->
+                printfn "%sno dependencies" (indent ii)
+            | Some {BuildResult.Depends = deps} ->
+                deps |> List.iter (showDepStatus (ii+1))
+                deps |> List.iter (displayNestedDeps (ii+1))
+            | None ->
+                printfn "%sno built yet (no stats)" (indent ii)
+
+    target |> List.iter (showTargetStatus 0)

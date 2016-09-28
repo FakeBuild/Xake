@@ -73,6 +73,8 @@
     <Compile Include="ActionFunctions.fs" />
     <Compile Include="WorkerPool.fs" />
     <Compile Include="Progress.fs" />
+    <Compile Include="ExecTypes.fs" />
+    <Compile Include="DependencyAnalysis.fs" />
     <Compile Include="XakeScript.fs" />
     <Compile Include="SystemTasks.fs" />
     <Compile Include="FileTasks.fs" />
@@ -85,9 +87,12 @@
     <None Include="todo.md" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="FSharp.Data.TypeProviders" />
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.Linq" />
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <Choose>

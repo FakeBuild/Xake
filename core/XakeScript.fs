@@ -1,95 +1,14 @@
 ﻿namespace Xake
 
 open Xake
-    open System.Threading
 
 [<AutoOpen>]
 module XakeScript =
 
-    type ExecOptions = {
-        /// Defines project root folder
-        ProjectRoot : string
-        /// Maximum number of rules processed simultaneously.
-        Threads: int
-
-        /// custom logger
-        CustomLogger: ILogger
-
-        /// Log file and verbosity level.
-        FileLog: string
-        FileLogLevel: Verbosity
-
-        /// Console output verbosity level. Default is Warn
-        ConLogLevel: Verbosity
-        /// Overrides "want", i.e. target list
-        Targets: string list
-
-        /// Global script variables
-        Vars: (string * string) list
-
-        /// Defines whether `run` should throw exception if script fails
-        FailOnError: bool
-
-        /// Ignores command line swithes
-        IgnoreCommandLine: bool
-
-        /// Disable logo message
-        Nologo: bool
-
-        /// Database file
-        DbFileName: string
-
-        /// Do not execute rules, just display run stats
-        DryRun: bool
-    } with
-    static member Default =
-        {
-        ProjectRoot = System.IO.Directory.GetCurrentDirectory()
-        Threads = System.Environment.ProcessorCount
-        ConLogLevel = Normal
-
-        CustomLogger = CustomLogger (fun _ -> false) ignore
-        FileLog = "build.log"
-        FileLogLevel = Chatty
-        Targets = []
-        FailOnError = false
-        Vars = List<string*string>.Empty
-        IgnoreCommandLine = false
-        Nologo = false
-        DbFileName = ".xake"
-        DryRun = false
-        }
-    end
-
-    type private ExecStatus = | Succeed | Skipped | JustFile
-    type private TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
-
-    type ExecContext = {
-        TaskPool: TaskPool
-        Db: Agent<Storage.DatabaseApi>
-        Throttler: SemaphoreSlim
-        Options: ExecOptions
-        Rules: Rules<ExecContext>
-        Logger: ILogger
-        RootLogger: ILogger
-        Progress: Agent<Progress.ProgressReport>
-        Tgt: Target option
-        Ordinal: int
-        NeedRebuild: Target -> bool
-    }
+    open DependencyAnalysis
 
     /// Main type.
     type XakeScript = XakeScript of ExecOptions * Rules<ExecContext>
-
-    /// <summary>
-    /// Dependency state.
-    /// </summary>
-    type DepState =
-        | NotChanged
-        | Depends of Target * DepState list
-        | Refs of string list
-        | FilesChanged of string list
-        | Other of string
 
     /// Default options
     [<System.Obsolete("Obsolete, use ExecOptions.Default")>]
@@ -99,11 +18,6 @@ module XakeScript =
         open WorkerPool
         open Storage
 
-        let nullableToOption = function | null -> None | s -> Some s
-        let valueByName variableName = function |name,value when name = variableName -> Some value | _ -> None
-
-        let TimeCompareToleranceMs = 100.0
-
         /// Writes the message with formatting to a log
         let traceLog (level:Logging.Level) fmt =
             let write s = action {
@@ -112,16 +26,11 @@ module XakeScript =
             }
             Printf.kprintf write fmt
 
-        let addRule rule (Rules rules) :Rules<_> =    Rules (rule :: rules)
-
-        let getEnvVar = System.Environment.GetEnvironmentVariable >> nullableToOption
-        let getVar ctx name = ctx.Options.Vars |> List.tryPick (valueByName name)
-
         // Ordinal of the task being added to a task pool
         let refTaskOrdinal = ref 0
 
         // locates the rule
-        let private locateRule (Rules rules) projectRoot target =
+        let locateRule (Rules rules) projectRoot target =
             let matchRule rule =
                 match rule, target with
 
@@ -144,11 +53,11 @@ module XakeScript =
 
             rules |> List.tryPick matchRule
 
-        let private reportError ctx error details =
+        let reportError ctx error details =
             do ctx.Logger.Log Error "Error '%s'. See build.log for details" error
             do ctx.Logger.Log Verbose "Error details are:\n%A\n\n" details
 
-        let private raiseError ctx error details =
+        let raiseError ctx error details =
             do reportError ctx error details
             raise (XakeException(sprintf "Script failed (error code: %A)\n%A" error details))
 
@@ -161,85 +70,8 @@ module XakeScript =
             in
             {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger; Tgt = Some target}
 
-        /// <summary>
-        /// Gets target execution time in the last run
-        /// </summary>
-        /// <param name="ctx"></param>
-        /// <param name="target"></param>
-        let getExecTime ctx target =
-            (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
-            |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
-        let all predicate = List.exists (predicate >> not) >> not
- 
-        /// Gets single dependency state
-        let getDepState getVar getFileList (isOutdatedTarget: Target -> DepState list) = function
-            | FileDep (a:File, wrtime) when not((File.exists a) && abs((File.getLastWriteTime a - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
-                DepState.FilesChanged [a.Name]
-
-            | ArtifactDep (FileTarget file) when not (File.exists file) ->
-                DepState.Other <| sprintf "target doesn't exist '%s'" file.Name
-
-            | ArtifactDep dependeeTarget ->
-                let ls = dependeeTarget |> isOutdatedTarget
-                match ls |> all ((=) DepState.NotChanged) with
-                | true -> NotChanged
-                |false -> DepState.Depends (dependeeTarget, ls)
-
-            | EnvVar (name,value) when value <> getEnvVar name ->
-                DepState.Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (getEnvVar name)
-
-            | Var (name,value) when value <> getVar name ->
-                DepState.Other <| sprintf "Global script variable %s was changed '%A'->'%A'" name value (getVar name)
-
-            | AlwaysRerun ->
-                DepState.Other <| "alwaysRerun rule"
-
-            | GetFiles (fileset,files) ->
-                let newfiles = getFileList fileset
-                let diff = compareFileList files newfiles
-
-                if List.isEmpty diff then
-                    NotChanged
-                else
-                    Other <| sprintf "File list is changed for fileset %A: %A" fileset diff
-            | _ -> NotChanged
-
-        /// <summary>
-        /// Gets all changed dependencies
-        /// </summary>
-        /// <param name="ctx"></param>
-        /// <param name="getTargetDeps">gets state for nested dependency</param>
-        /// <param name="target">The target to analyze</param>
-        let getDepsImpl ctx getTargetDeps target =
-
-            let lastBuild = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
-            let dep_state = getDepState (getVar ctx) (toFileList ctx.Options.ProjectRoot) getTargetDeps
-
-            match lastBuild with
-            | Some {BuildResult.Depends = []} ->
-                [DepState.Other "No dependencies"]
-
-            | Some {BuildResult.Result = FileTarget file} when not (File.exists file) ->
-                [DepState.Other "target not found"]
-
-            | Some {BuildResult.Depends = depends} ->
-                let collapseFilesChanged =
-                    ([], []) |> List.fold (fun (files, states) ->
-                        function
-                        | DepState.FilesChanged ls -> (ls @ files),states
-                        | d -> files, d :: states
-                        )
-                    >> function | ([],states) -> states | (files,states) -> DepState.FilesChanged files :: states
-                    >> List.rev
-
-                depends |>
-                    (List.map dep_state >> collapseFilesChanged >> List.filter ((<>) DepState.NotChanged))
-
-            | _ ->
-                [DepState.Other "Unknown state"]
-
         // executes single artifact
-        let rec private execOne ctx target =
+        let rec execOne ctx target =
 
             let run action =
                 async {
@@ -291,7 +123,7 @@ module XakeScript =
         /// <summary>
         /// Executes several artifacts in parallel.
         /// </summary>
-        and private execParallel ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
+        and execParallel ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
 
         /// <summary>
         /// Gets the status of dependency artifacts (obtained from 'need' calls).
@@ -327,14 +159,9 @@ module XakeScript =
             else
                 ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
 
-        // gets task duration and list of targets it depends on. No clue why one method does both.
-        let getDurationDeps ctx getDeps t =
-            let collectTargets = List.collect (function |Depends (t,_) -> [t] | _ -> [])
-            getExecTime ctx t, getDeps t |> collectTargets
-
         /// Implementation of "dry run"
         let dryRun ctx options (targetNames: string list) =
-            let rec getDeps = getDepsImpl ctx (fun x -> getDeps x) |> memoize
+            let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
 
             // getPlainDeps getDeps (getExecTime ctx)
             do ctx.Logger.Log Command "Running (dry) targets %A" targetNames
@@ -343,22 +170,23 @@ module XakeScript =
             let print f = ctx.Logger.Log Info f
             let indent i = String.replicate i "  "
 
-            let rec showDepStatus ii targets =
-                targets |>
-                function
-                | DepState.Other reason ->
-                    print "%sReason %s" (indent ii) reason
-                | DepState.Depends (t, _) ->
-                    print "%sDepends on target %s" (indent ii) t.ShortName
-                | DepState.FilesChanged (file::_) ->
-                    print "%sFile(s) changed %s" (indent ii) file
+            let rec showDepStatus ii reasons =
+                reasons |> function
+                | ChangeReason.Other reason ->
+                    print "%sReason: %s" (indent ii) reason
+                | ChangeReason.Depends t ->
+                    print "%sDepends '%s' - changed target" (indent ii) t.ShortName
+                | ChangeReason.DependsMissingTarget t ->
+                    print "%sDepends on '%s' - missing target" (indent ii) t.ShortName
+                | ChangeReason.FilesChanged (file:: rest) ->
+                    print "%sFile is changed '%s' %s" (indent ii) file (if List.isEmpty rest then "" else sprintf " and %d more file(s)" <| List.length rest)
                 | reasons ->
                     do print "%sSome reason %A" (indent ii) reasons
                 ()
-            let rec displayNestedDeps ii targets =
-                targets |>
+            let rec displayNestedDeps ii =
                 function
-                | DepState.Depends (t, _) ->
+                | ChangeReason.DependsMissingTarget t
+                | ChangeReason.Depends t ->
                     showTargetStatus ii t
                 | _ -> ()
             and showTargetStatus ii target =
@@ -371,7 +199,7 @@ module XakeScript =
                         deps |> List.iter (showDepStatus (ii+1))
                         deps |> List.iter (displayNestedDeps (ii+1))
 
-            let targets = targetNames |> List.map (makeTarget ctx) in
+            let targets = targetNames |> List.map (makeTarget ctx) in 
             let toSec v = float (v / 1<ms>) * 0.001
             let endTime = Progress.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targets |> toSec
 
@@ -385,15 +213,16 @@ module XakeScript =
             ctx.Logger.Log Message "\n\n\tBuild will be completed (estimate) in %As%s\n" endTime parallelismMsg
 
         let runTargets ctx options targets =
-            let rec getDeps = getDepsImpl ctx (fun x -> getDeps x) |> memoize
+            let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
             
             let check_rebuild (target: Target) =
                 getDeps >>
                 function
                 | [] -> false, ""
-                | DepState.Other reason::_            -> true, reason
-                | DepState.Depends (t,_) ::_          -> true, "Depends on target " + t.ShortName
-                | DepState.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
+                | ChangeReason.Other reason::_            -> true, reason
+                | ChangeReason.Depends t ::_          -> true, "Depends on target " + t.ShortName
+                | ChangeReason.DependsMissingTarget t ::_          -> true, sprintf "Depends on target %s (missing)" t.ShortName
+                | ChangeReason.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
                 | reasons -> true, sprintf "Some reason %A" reasons
                 >>
                 function
@@ -455,7 +284,10 @@ module XakeScript =
                 | tt ->
                     tt |> List.map (fun (s: string) -> s.Split(';', '|') |> List.ofArray)
             try
-                if options.DryRun then
+                if options.DumpDeps then
+                    do logger.Log Level.Command "Dumping dependencies for targets %A" targetLists
+                    targetLists |> List.iter (List.map (makeTarget ctx) >> (dumpDeps ctx))
+                else if options.DryRun then
                     targetLists |> List.iter (dryRun ctx options)
                 else
                     try
@@ -502,6 +334,7 @@ module XakeScript =
 
         let updRules (XakeScript (options,rules)) f = XakeScript (options, f(rules))
         let updTargets (XakeScript (options,rules)) f = XakeScript ({options with Targets = f(options.Targets)}, rules)
+        let addRule rule (Rules rules) :Rules<_> =    Rules (rule :: rules)
 
         let updateVar (key: string) (value: string) =
             List.filter(fst >> ((<>) key)) >> ((@) [key, value])
@@ -516,21 +349,22 @@ module XakeScript =
             = XakeScript ({options with DryRun = false}, rules)
 
         [<CustomOperation("var")>] member this.AddVar(XakeScript (options, rules), name, value)
-            = XakeScript ({options with Vars = options.Vars |> updateVar name value }, rules)
+            =
+            XakeScript ({options with Vars = options.Vars |> updateVar name value }, rules)
 
         [<CustomOperation("filelog")>] member this.FileLog(XakeScript (options, rules), filename, ?loglevel)
             =
-                let loglevel = defaultArg loglevel Verbosity.Chatty in
-                XakeScript ({options with FileLog = filename; FileLogLevel = loglevel}, rules)
+            let loglevel = defaultArg loglevel Verbosity.Chatty in
+            XakeScript ({options with FileLog = filename; FileLogLevel = loglevel}, rules)
 
         [<CustomOperation("rule")>] member this.Rule(script, rule)
-            = updRules script (Impl.addRule rule)
+            = updRules script (addRule rule)
         [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action)
-            = updRules script (pattern *> action |> Impl.addRule)
+            = updRules script (pattern *> action |> addRule)
         [<CustomOperation("phony")>] member this.Phony(script, name, action)
-            = updRules script (name => action |> Impl.addRule)
+            = updRules script (name => action |> addRule)
         [<CustomOperation("rules")>] member this.Rules(script, rules)
-            = (rules |> List.map Impl.addRule |> List.fold (>>) id) |> updRules script
+            = (rules |> List.map addRule |> List.fold (>>) id) |> updRules script
 
         [<CustomOperation("want")>] member this.Want(script, targets)
             = updTargets script (function |[] -> targets |x -> x)    // Options override script!
@@ -574,7 +408,7 @@ module XakeScript =
     /// </summary>
     /// <param name="variableName"></param>
     let getEnv variableName =
-        let value = Impl.getEnvVar variableName
+        let value = Util.getEnvVar variableName
         action {
             let! result = getResult()
             do! setResult {result with Depends = Dependency.EnvVar (variableName,value) :: result.Depends}
@@ -587,7 +421,7 @@ module XakeScript =
     /// <param name="variableName"></param>
     let getVar variableName = action {
         let! ctx = getCtx()
-        let value = ctx.Options.Vars |> List.tryPick (Impl.valueByName variableName)
+        let value = Util.getVar ctx.Options variableName
 
         // record the dependency
         let! result = getResult()

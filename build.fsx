@@ -9,8 +9,8 @@ if not (System.IO.File.Exists file) then
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
-#r @"packages/Xake.Core.dll"
-//#r @"bin/Debug/Xake.Core.dll"
+//#r @"packages/Xake.Core.dll"
+#r @"bin/Debug/Xake.Core.dll"
 
 open Xake
 open Xake.SystemTasks
@@ -76,6 +76,8 @@ do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "bui
                 includes "ActionFunctions.fs"
                 includes "WorkerPool.fs"
                 includes "Progress.fs"
+                includes "ExecTypes.fs"
+                includes "DependencyAnalysis.fs"
                 includes "XakeScript.fs"
                 includes "SystemTasks.fs"
                 includes "FileTasks.fs"
