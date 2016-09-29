@@ -151,7 +151,7 @@ let ``WhenError handler intercepts the error``() =
         ]
     }
     // intercept error for resultless action
-    do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
+    do xake {xakeOptions with Threads = 1; FileLog="failf2.log"} {
         rules [
             "main" => action {
                 do! taskReturn 3

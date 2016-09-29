@@ -75,7 +75,9 @@
     <Compile Include="Progress.fs" />
     <Compile Include="ExecTypes.fs" />
     <Compile Include="DependencyAnalysis.fs" />
+    <Compile Include="ExecCore.fs" />
     <Compile Include="XakeScript.fs" />
+    <Compile Include="ScriptFuncs.fs" />
     <Compile Include="SystemTasks.fs" />
     <Compile Include="FileTasks.fs" />
     <Compile Include="ResourceFileset.fs" />

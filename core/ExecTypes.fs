@@ -62,7 +62,7 @@ static member Default =
     }
 end
 
-type private ExecStatus = | Succeed | Skipped | JustFile
+type internal ExecStatus = | Succeed | Skipped | JustFile
 type private TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
 
 /// Script execution context

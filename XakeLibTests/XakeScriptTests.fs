@@ -202,7 +202,7 @@ let ``allows to define target in parameters``() =
     Assert.AreEqual(0, !mainCount)
     Assert.AreEqual(1, !xxxCount)
 
-[<Test; Platform("Win")>]
+[<Test; Platform("Win"); Explicit("Won't run in console nunit")>]
 let ``target could be a relative``() =
 
     let needExecuteCount = ref 0
