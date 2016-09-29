@@ -1,1 +1,1 @@
-fsi build.fsx -- all
+fsi build.fsx

@@ -5,7 +5,7 @@ System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
 if not (System.IO.File.Exists file) then
     printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.6.27/Xake.Core.dll"
+    let url = "https://github.com/OlegZee/Xake/releases/download/v0.7.0/Xake.Core.dll"
     use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
     printfn ""
 
@@ -17,7 +17,9 @@ open Xake.SystemTasks
 
 let TestsAssembly = "bin/XakeLibTests.dll"
 
-do xake {ExecOptions.Default with Vars = ["NETFX-TARGET", "4.5"]; FileLog = "build.log"; ConLogLevel = Verbosity.Chatty } {
+do xake {ExecOptions.Default with ConLogLevel = Verbosity.Chatty } {
+    var "NETFX-TARGET" "4.5"
+    filelog "build.log" Verbosity.Diag
 
     rules [
         "main"  => action {
