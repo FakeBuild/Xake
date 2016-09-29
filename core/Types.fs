@@ -3,6 +3,9 @@
 [<AutoOpen>]
 module DomainTypes =
 
+    let private stringCompare = if Env.isUnix then System.StringComparer.Ordinal else System.StringComparer.OrdinalIgnoreCase
+
+    [<CustomEquality;CustomComparison>]
     type Target =
         | FileTarget of File
         | PhonyAction of string
@@ -16,6 +19,18 @@ module DomainTypes =
                 match this with
                 | FileTarget file -> file.FullName
                 | PhonyAction name -> name
+            
+            override x.Equals(yobj) =
+                match yobj with
+                | :? Target as y -> stringCompare.Equals (x.FullName, y.FullName)
+                | _ -> false
+
+            override x.GetHashCode() = stringCompare.GetHashCode x.FullName
+            interface System.IComparable with 
+                member x.CompareTo y =
+                    match y with
+                    | :? Target as y -> stringCompare.Compare(x.FullName, y.FullName)
+                    | _ -> invalidArg "y" "cannot compare target to different types"
 
     // structures, database processor and store
     type Timestamp = System.DateTime

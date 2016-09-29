@@ -21,9 +21,9 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <StartAction>Program</StartAction>
-    <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\3.0\Framework\v4.0\Fsi.exe</StartProgram>
-    <StartWorkingDirectory>C:\!\pcomp\</StartWorkingDirectory>
-    <StartArguments>build.fsx</StartArguments>
+    <StartProgram>C:\Program Files (x86)\Microsoft SDKs\F#\4.0\Framework\v4.0\Fsi.exe</StartProgram>
+    <StartWorkingDirectory>c:\projects\xake</StartWorkingDirectory>
+    <StartArguments>fsi build.fsx -- build --dryrun</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -73,7 +73,11 @@
     <Compile Include="ActionFunctions.fs" />
     <Compile Include="WorkerPool.fs" />
     <Compile Include="Progress.fs" />
+    <Compile Include="ExecTypes.fs" />
+    <Compile Include="DependencyAnalysis.fs" />
+    <Compile Include="ExecCore.fs" />
     <Compile Include="XakeScript.fs" />
+    <Compile Include="ScriptFuncs.fs" />
     <Compile Include="SystemTasks.fs" />
     <Compile Include="FileTasks.fs" />
     <Compile Include="ResourceFileset.fs" />
@@ -85,9 +89,12 @@
     <None Include="todo.md" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="FSharp.Data.TypeProviders" />
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.Linq" />
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <Choose>
