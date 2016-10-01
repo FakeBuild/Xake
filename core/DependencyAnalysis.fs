@@ -10,7 +10,6 @@ type ChangeReason =
     | NotChanged
     | Depends of Target
     | DependsMissingTarget of Target
-    | Refs of string list
     | FilesChanged of string list
     | Other of string
 
@@ -24,10 +23,6 @@ let TimeCompareToleranceMs = 10.0
 let getExecTime ctx target =
     (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
     |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
-
-let targetName = function
-| PhonyAction a -> a
-| FileTarget file -> file.Name
 
 /// Gets single dependency state and reason of a change.
 let getDepState getVar getFileList (getChangedDeps: Target -> ChangeReason list) = function
@@ -111,8 +106,13 @@ let getChangeReasons ctx getTargetDeps target =
 
 // gets task duration and list of targets it depends on. No clue why one method does both.
 let getDurationDeps ctx getDeps t =
-    let collectTargets = List.collect (function |Depends t |DependsMissingTarget t -> [t] | _ -> [])
-    getExecTime ctx t, getDeps t |> collectTargets
+    let deps = getDeps t |> List.collect (function |Depends t |DependsMissingTarget t -> [t] | _ -> [])
+    match deps with
+    | [] -> 0<ms>, []
+    | _ -> (getExecTime ctx t, deps)
+//    |> fun (tt,dd) ->
+//        printfn "For task %A duration:%A deps:%A" t tt dd
+//        (tt,dd)
 
 /// Dumps all dependencies for particular target
 let dumpDeps (ctx: ExecContext) (target: Target list) =

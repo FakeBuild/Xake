@@ -171,16 +171,9 @@ let emptyProgress () =
         loop ())
 
 /// <summary>
-/// Gets estimated execution time.
-/// </summary>
-let estimateEndTime getDurationDeps threadCount group =
-    let machine_state = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
-    snd <| execMany machine_state getDurationDeps group
-
-/// <summary>
 /// Gets estimated execution time for several target groups. Each group start when previous group is completed and runs in parallel.
 /// </summary>
-let estimateEndTime2 getDurationDeps threadCount groups =
+let estimateEndTime getDurationDeps threadCount groups =
     let machine_state = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
 
     groups |> List.fold (fun (state, _) group -> 

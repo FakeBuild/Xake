@@ -194,16 +194,19 @@ module internal ExecCore =
 
         let targetGroups = groups |> List.map (List.map (makeTarget ctx)) in 
         let toSec v = float (v / 1<ms>) * 0.001
-        let endTime = Progress.estimateEndTime2 (getDurationDeps ctx getDeps) options.Threads targetGroups |> toSec
+        let endTime = Progress.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targetGroups |> toSec
 
         targetGroups |> List.collect id |> List.iter (showTargetStatus 0)
-
-        let parallelismMsg =
-            let endTimeTotal = Progress.estimateEndTime2 (getDurationDeps ctx getDeps) 1 targetGroups |> toSec
-            if options.Threads > 1 && endTimeTotal > endTime * 1.05 then
-                sprintf "\n\tTotal tasks duration is (estimate) in %As\n\tParallelist degree: %.2f" endTimeTotal (endTimeTotal / endTime)
-            else ""
-        ctx.Logger.Log Message "\n\n\tBuild will be completed (estimate) in %As%s\n" endTime parallelismMsg
+        let alldeps = targetGroups |> List.collect id |> List.collect getDeps
+        if List.isEmpty alldeps then
+            ctx.Logger.Log Message "\n\n\tNo changed dependencies. Nothing to do.\n"
+        else
+            let parallelismMsg =
+                let endTimeTotal = Progress.estimateEndTime (getDurationDeps ctx getDeps) 1 targetGroups |> toSec
+                if options.Threads > 1 && endTimeTotal > endTime * 1.05 then
+                    sprintf "\n\tTotal tasks duration is (estimate) in %As\n\tParallelist degree: %.2f" endTimeTotal (endTimeTotal / endTime)
+                else ""
+            ctx.Logger.Log Message "\n\n\tBuild will be completed (estimate) in %As%s\n" endTime parallelismMsg
 
     let rec unwindAggEx (e:System.Exception) = seq {
         match e with
