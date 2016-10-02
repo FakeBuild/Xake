@@ -106,10 +106,11 @@ let getChangeReasons ctx getTargetDeps target =
 
 // gets task duration and list of targets it depends on. No clue why one method does both.
 let getDurationDeps ctx getDeps t =
-    let deps = getDeps t |> List.collect (function |Depends t |DependsMissingTarget t -> [t] | _ -> [])
-    match deps with
+    match getDeps t with
     | [] -> 0<ms>, []
-    | _ -> (getExecTime ctx t, deps)
+    | deps ->
+        let targets = deps |> List.collect (function |Depends t |DependsMissingTarget t -> [t] | _ -> [])
+        (getExecTime ctx t, targets)
 //    |> fun (tt,dd) ->
 //        printfn "For task %A duration:%A deps:%A" t tt dd
 //        (tt,dd)
