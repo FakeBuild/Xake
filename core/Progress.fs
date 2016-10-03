@@ -53,7 +53,7 @@ module internal WindowsProgress =
                 let format_string = function
                 | _ when ts.TotalHours >= 1.0 -> "h'h'\ mm'm'\ ss's'"
                 | _ when ts.TotalMinutes >= 1.0 -> "mm'm'\ ss's'"
-                | _ -> "'0m 'ss's'"
+                | _ -> "'ss's'"
                 in
                 format_string ts |> ts.ToString
 
@@ -215,8 +215,9 @@ let openProgress getDurationDeps threadCount goals =
         let _,leftTime = execMany state (getDuration2 running_tasks) goals
         //printf "progress %A to %A " timePassed endTime
         let percentDone = timePassed * 100 / (timePassed + leftTime) |> int
-        ProgressMessage.Progress (System.TimeSpan.FromMilliseconds (leftTime/1<ms> |> float), percentDone)
-        |> progressBar
+        let progressData = System.TimeSpan.FromMilliseconds (leftTime/1<ms> |> float), percentDone
+        do ProgressMessage.Progress progressData |> progressBar
+        do WriteConsoleProgress progressData
 
     let updTime = ref System.DateTime.Now
     let advanceRunningTime rt =

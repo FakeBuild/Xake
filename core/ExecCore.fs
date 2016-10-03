@@ -250,7 +250,8 @@ module internal ExecCore =
             groups |> List.iter (
                 List.map (makeTarget ctx) >> (runTargets ctx options)
             )
-            ctx.Logger.Log Message "\n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
+            // some long text (looks awkward) to remove progress message. I do not think it worth spending another half an hour to design proper solution
+            ctx.Logger.Log Message "                                     \n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
         with
             | exn ->
                 let th = if options.FailOnError then raiseError else reportError

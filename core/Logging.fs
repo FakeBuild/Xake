@@ -98,45 +98,85 @@ module private ConsoleSink =
 
     open System
 
-    type Message = | Message of Level * string | Flush of AsyncReplyChannel<unit>
-
-    let defaultColor, defaultBkColor = Console.ForegroundColor, Console.BackgroundColor
+    // Going to render progress bar this way:
+    // | 22% [MM------------------] 0m 12s left
+    let ProgressBarLen = 20
+    type Message = | Message of Level * string | Progress of int * System.TimeSpan | Flush of AsyncReplyChannel<unit>
 
     let levelToColor = function
-        | Level.Message -> ConsoleColor.White, ConsoleColor.White
-        | Command -> ConsoleColor.White, ConsoleColor.Gray
-        | Error   -> ConsoleColor.Red, ConsoleColor.DarkRed
-        | Debug -> ConsoleColor.Green, ConsoleColor.DarkGreen
-        | Warning -> ConsoleColor.Yellow, ConsoleColor.DarkYellow
-        | Info    -> ConsoleColor.Cyan, ConsoleColor.DarkCyan
-        | Verbose -> ConsoleColor.Magenta, ConsoleColor.DarkMagenta
-        | _ -> defaultColor, defaultColor
+        | Level.Message -> Some (ConsoleColor.White, ConsoleColor.White)
+        | Command -> Some (ConsoleColor.White, ConsoleColor.Gray)
+        | Error   -> Some (ConsoleColor.Red, ConsoleColor.DarkRed)
+        | Debug -> Some (ConsoleColor.Green, ConsoleColor.DarkGreen)
+        | Warning -> Some (ConsoleColor.Yellow, ConsoleColor.DarkYellow)
+        | Info    -> Some (ConsoleColor.Cyan, ConsoleColor.DarkCyan)
+        | Verbose -> Some (ConsoleColor.Magenta, ConsoleColor.DarkMagenta)
+        | _ -> None
 
 
     let po = MailboxProcessor.Start(fun mbox -> 
-        let rec loop () = 
+        let fmtTs (ts:System.TimeSpan) =
+            (if ts.TotalHours >= 1.0 then "h'h'\ mm'm'\ ss's'"
+            else if ts.TotalMinutes >= 1.0 then "mm'm'\ ss's'"
+            else "'0m 'ss's'")
+            |> ts.ToString
+        let rec loop (progressMessage) =
+            let wipe pos =
+                match progressMessage with
+                | None -> ()
+                | Some x ->
+                    let extraChars = (String.length x) - pos
+                    System.Console.Write (if extraChars > 0 then (String.replicate extraChars " ") else "")
+            let renderProgress = function
+                | Some (outputString: string) ->
+                    Console.ForegroundColor <- ConsoleColor.White
+                    Console.Write outputString
+                    wipe outputString.Length
+
+                    Console.ResetColor()
+                | None -> ()
+
             async { 
                 let! msg = mbox.Receive()
                 match msg with
                 | Message(level, text) ->
-                    let color, text_color = level |> levelToColor
+                    match level |> levelToColor with
+                    | Some (color, text_color) ->
+                        let levelStr = sprintf "[%s] " (LevelToString level)
 
-                    Console.ForegroundColor <- ConsoleColor.White
-                    Console.Write "["
-                    Console.ForegroundColor <- color
-                    Console.Write (LevelToString level)
-                    Console.ForegroundColor <- ConsoleColor.White
-                    Console.Write "] "
+                        Console.ForegroundColor <- color
+                        Console.Write levelStr
 
-                    Console.ForegroundColor <- text_color
-                    text |> System.Console.WriteLine
-                    Console.ForegroundColor <- defaultColor
+                        Console.ForegroundColor <- text_color
+                        text |> System.Console.Write
+
+                        wipe (levelStr.Length + text.Length)
+                        System.Console.WriteLine ""
+                        renderProgress progressMessage
+
+                    | _ -> ()
+                    Console.ResetColor()
+
+                | Progress (pct, timeLeft) ->
+                    let outputString =
+                        match pct with
+                        | a when a >= 100 || a < 0 || timeLeft.TotalMilliseconds < 100.0 -> ""
+                        | pct ->
+                            let barlen = pct * ProgressBarLen / 100
+                            sprintf "%3d%% [%s%s] %s\r" pct (String.replicate barlen "=") (String.replicate (ProgressBarLen - barlen) "-") (fmtTs timeLeft)
+
+                    renderProgress (Some outputString)
+                    return! loop (Some outputString)
+
                 | Flush ch ->
+                    wipe 0
+                    Console.Write "\r"
                     ch.Reply ()
+                    return! loop None
 
-                return! loop ()
+                return! loop progressMessage
             }
-        loop ())
+        loop None)
 
 
 /// <summary>
@@ -165,7 +205,12 @@ let ConsoleLogger =
 
 /// Ensures all logs finished pending output.
 let FlushLogs () =
-    ConsoleSink.po.PostAndReply ((fun ch -> ConsoleSink.Flush ch), 100) |> ignore
+    ConsoleSink.po.PostAndReply (ConsoleSink.Flush, 100) |> ignore
+
+/// Draws a progress bar to console log.
+let WriteConsoleProgress =
+    let swap (a,b) = (b,a) in
+    swap >> ConsoleSink.Progress >> ConsoleSink.po.Post
 
 /// <summary>
 /// Creates a logger that is combination of two loggers.
