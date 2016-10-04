@@ -41,6 +41,9 @@ type ExecOptions = {
 
     /// Dump dependencies only
     DumpDeps: bool
+
+    /// Dump dependencies only
+    Progress: bool
 } with
 static member Default =
     {
@@ -59,6 +62,7 @@ static member Default =
     DbFileName = ".xake"
     DryRun = false
     DumpDeps = false
+    Progress = false
     }
 end
 

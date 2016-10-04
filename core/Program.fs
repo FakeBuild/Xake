@@ -34,6 +34,7 @@ Options:
   target1;target2;..targetN -- execute the targets simultaneously
   -d <name>=<value>   - defines a script variable value
   --dryrun            - defines a script variable value
+  --progress, -p      - display progress indicator
 
             """
             exit(0)
@@ -55,6 +56,8 @@ Options:
             ({optionsSoFar with DryRun = true}, TopLevel)
         | "--dump" -> 
             ({optionsSoFar with DumpDeps = true}, TopLevel)
+        | "--progress" | "-p" -> 
+            ({optionsSoFar with Progress = true}, TopLevel)
 
         | x when x.StartsWith("-") || x.StartsWith("/") ->
             printfn "Option '%s' is unrecognized" x

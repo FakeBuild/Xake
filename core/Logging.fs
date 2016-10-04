@@ -113,25 +113,26 @@ module private ConsoleSink =
         | Verbose -> Some (ConsoleColor.Magenta, ConsoleColor.DarkMagenta)
         | _ -> None
 
+    let fmtTs (ts:System.TimeSpan) =
+        (if ts.TotalHours >= 1.0 then "h'h'\ mm'm'\ ss's'"
+        else if ts.TotalMinutes >= 1.0 then "mm'm'\ ss's'"
+        else "'0m 'ss's'")
+        |> ts.ToString
 
-    let po = MailboxProcessor.Start(fun mbox -> 
-        let fmtTs (ts:System.TimeSpan) =
-            (if ts.TotalHours >= 1.0 then "h'h'\ mm'm'\ ss's'"
-            else if ts.TotalMinutes >= 1.0 then "mm'm'\ ss's'"
-            else "'0m 'ss's'")
-            |> ts.ToString
+    let po = MailboxProcessor.Start(fun mbox ->
+
         let rec loop (progressMessage) =
-            let wipe pos =
-                match progressMessage with
-                | None -> ()
-                | Some x ->
-                    let extraChars = (String.length x) - pos
-                    System.Console.Write (if extraChars > 0 then (String.replicate extraChars " ") else "")
+            let wipeProgressMessage () =
+                let len = progressMessage |> Option.fold (fun _ -> String.length) 0
+                // printfn "cleft: %A len: %d" Console.CursorLeft len
+                match len - Console.CursorLeft with
+                | e when e > 0 -> System.Console.Write (String.replicate e " ")
+                | _ -> ()
             let renderProgress = function
                 | Some (outputString: string) ->
                     Console.ForegroundColor <- ConsoleColor.White
                     Console.Write outputString
-                    wipe outputString.Length
+                    wipeProgressMessage()
 
                     Console.ResetColor()
                 | None -> ()
@@ -141,17 +142,17 @@ module private ConsoleSink =
                 match msg with
                 | Message(level, text) ->
                     match level |> levelToColor with
-                    | Some (color, text_color) ->
-                        let levelStr = sprintf "[%s] " (LevelToString level)
+                    | Some (color, textColor) ->
+                        // in case of CRLF in the string make sure we washed out the progress message
 
                         Console.ForegroundColor <- color
-                        Console.Write levelStr
+                        Console.Write (sprintf "\r[%s] " (LevelToString level))
 
-                        Console.ForegroundColor <- text_color
+                        Console.ForegroundColor <- textColor
                         text |> System.Console.Write
 
-                        wipe (levelStr.Length + text.Length)
-                        System.Console.WriteLine ""
+                        wipeProgressMessage()
+                        System.Console.WriteLine()
                         renderProgress progressMessage
 
                     | _ -> ()
@@ -163,13 +164,14 @@ module private ConsoleSink =
                         | a when a >= 100 || a < 0 || timeLeft.TotalMilliseconds < 100.0 -> ""
                         | pct ->
                             let barlen = pct * ProgressBarLen / 100
-                            sprintf "%3d%% [%s%s] %s\r" pct (String.replicate barlen "=") (String.replicate (ProgressBarLen - barlen) "-") (fmtTs timeLeft)
+                            sprintf "\r%3d%% Complete [%s%s] %s Left" pct (String.replicate barlen "=") (String.replicate (ProgressBarLen - barlen) " ") (fmtTs timeLeft)
+                        |> Some
 
-                    renderProgress (Some outputString)
-                    return! loop (Some outputString)
+                    renderProgress outputString
+                    return! loop outputString
 
                 | Flush ch ->
-                    wipe 0
+                    wipeProgressMessage()
                     Console.Write "\r"
                     ch.Reply ()
                     return! loop None
@@ -205,7 +207,9 @@ let ConsoleLogger =
 
 /// Ensures all logs finished pending output.
 let FlushLogs () =
-    ConsoleSink.po.PostAndReply (ConsoleSink.Flush, 100) |> ignore
+    try
+        ConsoleSink.po.PostAndReply (ConsoleSink.Flush, 200) |> ignore
+    with _ -> ()
 
 /// Draws a progress bar to console log.
 let WriteConsoleProgress =

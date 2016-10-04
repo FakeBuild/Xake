@@ -238,7 +238,7 @@ module internal ExecCore =
                     true
                 <| target
 
-            let progressSink = Progress.openProgress (getDurationDeps ctx getDeps) options.Threads targets
+            let progressSink = Progress.openProgress (getDurationDeps ctx getDeps) options.Threads targets options.Progress
             let stepCtx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
 
             try
@@ -251,7 +251,7 @@ module internal ExecCore =
                 List.map (makeTarget ctx) >> (runTargets ctx options)
             )
             // some long text (looks awkward) to remove progress message. I do not think it worth spending another half an hour to design proper solution
-            ctx.Logger.Log Message "                                     \n\n\tBuild completed in %A\n" (System.DateTime.Now - start)
+            ctx.Logger.Log Message "                                     \n\n    Build completed in %A\n" (System.DateTime.Now - start)
         with
             | exn ->
                 let th = if options.FailOnError then raiseError else reportError
