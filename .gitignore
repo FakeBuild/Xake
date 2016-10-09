@@ -14,6 +14,8 @@ _UpgradeReport*
 packages
 .nuget
 .paket
+nupkg/
+_.nuspec
 
 # Ignore Visual Studio files
 *.pdb
