@@ -1,18 +1,5 @@
-// xake build file
-// boostrapping xake.core
-open System.IO
-System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
-
-let file = Path.Combine("packages", "Xake.Core.dll")
-if not (File.Exists file) then
-    printf "downloading xake.core assembly..."; Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.7.0/Xake.Core.dll"
-    use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); File.Move(file + "__", file)
-    printfn ""
-
 // xake build file body
-#r @"packages/Xake.Core.dll"
-//#r @"bin/Debug/Xake.Core.dll"
+#r @"packages/Xake/tools/Xake.Core.dll"
 
 open Xake
 open Xake.SystemTasks

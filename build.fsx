@@ -1,15 +1,6 @@
 // xake build file
-// boostrapping xake.core
-System.Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
 
-let file = System.IO.Path.Combine("packages", "Xake.Core.dll")
-if not (System.IO.File.Exists file) then
-    printf "downloading xake.core assembly..."; System.IO.Directory.CreateDirectory("packages") |> ignore
-    let url = "https://github.com/OlegZee/Xake/releases/download/v0.7.0/Xake.Core.dll"
-    use wc = new System.Net.WebClient() in wc.DownloadFile(url, file + "__"); System.IO.File.Move(file + "__", file)
-    printfn ""
-
-#r @"packages/Xake.Core.dll"
+#r @"packages/Xake/tools/Xake.Core.dll"
 //#r @"bin/Debug/Xake.Core.dll"
 
 open Xake
@@ -50,7 +41,6 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Chatty } {
 
     rules [
         "main"  => action {
-            do! need ["get-deps"]
             do! need ["build"]
             do! need ["test"]
             }
@@ -58,15 +48,6 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Chatty } {
         "build" <== [TestsAssembly; "bin/Xake.Core.dll"]
         "clean" => action {
             do! rm ["bin/*.*"]
-        }
-
-        "get-deps" =>
-        action {
-            try
-                do! system (useClr >> checkErrorLevel) ".paket/paket.bootstrapper.exe" [] |> Action.Ignore
-                do! system (useClr >> checkErrorLevel) ".paket/paket.exe" ["install"] |> Action.Ignore
-            with e ->
-                failwithf "Failed to install packages. Error is %s" e.Message
         }
 
         "test" => action {
