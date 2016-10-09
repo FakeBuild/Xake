@@ -204,7 +204,7 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Chatty } {
             let package_name = sprintf "Xake.%s.nupkg" (ver =? DEF_VER)
 
             let! nuget_key = getEnv("NUGET_KEY")
-            do! nuget_exe ["push"; "nupkg" </> package_name; nuget_key =? ""; "-Source"; "nuget.org"]
+            do! nuget_exe ["push"; "nupkg" </> package_name; nuget_key =? ""; "-Source"; "https://www.nuget.org/api/v2/package"]
         }
     ]
 }
