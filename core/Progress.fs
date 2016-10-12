@@ -50,12 +50,10 @@ module internal WindowsProgress =
             let title = System.Console.Title
 
             let fmtTs (ts:System.TimeSpan) =
-                let format_string = function
-                | _ when ts.TotalHours >= 1.0 -> "h'h'\ mm'm'\ ss's'"
-                | _ when ts.TotalMinutes >= 1.0 -> "mm'm'\ ss's'"
-                | _ -> "'ss's'"
-                in
-                format_string ts |> ts.ToString
+                (if ts.TotalHours >= 1.0 then "h'h'\ mm'm'\ ss's'"
+                else if ts.TotalMinutes >= 1.0 then "mm'm'\ ss's'"
+                else "'0m 'ss's'")
+                |> ts.ToString
 
             // try to change a title to ensure we will not fail later
             System.Console.Title <- title
