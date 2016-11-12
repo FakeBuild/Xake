@@ -58,28 +58,31 @@ List of valid targets:
 Use "2.0".."4.5" targets for mutiplatform environments (will target mono-XXX being run under mono framework).
 
 The following script compiles application using 4.5 framework (mono or .net depending on running environment).
-```fsharp// xake build file
-#r @"packages/Xake/tools/Xake.Core.dll"
-open Xake
 
-do xake {ExecOptions.Default with } {
-  var "NETFX" "4.5"
-  rule ("main" ==> ["hw.exe"])
+```fsharp
+    // xake build file
+    #r @"packages/Xake/tools/Xake.Core.dll"
+    open Xake
 
-  rule("hw.exe" *> fun exe -> action {
-    do! Csc {
-      CscSettings with
-        Out = exe
-        Src = !! "a.cs"
-      }
-    })
-}
+    do xake {ExecOptions.Default with } {
+      var "NETFX" "4.5"
+      rule ("main" ==> ["hw.exe"])
+
+      rule("hw.exe" *> fun exe -> action {
+        do! Csc {
+          CscSettings with
+            Out = exe
+            Src = !! "a.cs"
+          }
+        })
+    }
 ```
 
 `NETFX-TARGET` variable allow to specify target framework in the similar way, i.e. for all `csc` and `fsc` tasks.
 
 ### F# compiler task
 Fsc task compiles fsharp project.
+
 ```fsharp
 do! Fsc {
     FscSettings with
