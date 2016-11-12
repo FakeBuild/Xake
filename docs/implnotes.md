@@ -116,7 +116,7 @@ GetFiles will be new monadic function. Record the call in dependencies as GetFil
 Need is traced as before i.e. for every "need" we record the exec time and target name.
 
 ## .NET Runtime
-Xake allows using both Mono and .NET frameworks explicitly by defining NETFX variable.
+Xake allows using both Mono and .NET frameworks explicitly by defining `NETFX` variable.
 Default behavior is to use the framework the script is running under. E.g. if running under Mono `fsharpi` recent mono toolset will be used.
 
 List of valid targets:
@@ -140,7 +140,7 @@ Tasks:
 
 ## Variables
 
- * NETFX - framework version to use for compilation, resources. E.g. "2.0", "3.5", "4.0". Default: highest available on the computer
+ * NETFX - framework version to use for compilation, resources. E.g. "2.0", "3.5", "4.0". Default: highest available on the computer. 
 
 
 ## Command line parameters

@@ -95,6 +95,8 @@ module DotNetTaskTypes =
         Define: string list
         /// Target .NET framework
         TargetFramework: string
+        /// Use specific FSC compiler version (only dotnet)
+        FscVersion: string option
         /// Custom command-line arguments
         CommandArgs: string list
         /// Build fails on compile error.
@@ -233,6 +235,8 @@ module DotnetTasks =
             if text.IndexOf "): warning " > 0 then Level.Warning
             else if text.IndexOf "): error " > 0 then Level.Error
             else defaultLevel
+        let inline coalesce ls = //: 'a option list -> 'a option =
+            ls |> List.fold (fun r a -> if Option.isSome r then r else a) None
 
         end // end of Impl module
 
@@ -412,15 +416,12 @@ module DotnetTasks =
             rcfile
 
         action {
-            //TODO
-            //for r in settings.Resources do
-            let r = settings.Resources.[0] in
+            for r in settings.Resources do
                 let (ResourceFileset (settings,fileset)) = r
                 let (Fileset (options,_)) = fileset
                 let! (Filelist files) = getFiles fileset
 
-                do files |> List.map (fun f -> f.FullName) |> List.map (resgen options.BaseDir settings) |> ignore
-
+                do files |> List.map (File.getFullName >> resgen options.BaseDir settings) |> ignore
             ()
         }
 
@@ -504,6 +505,7 @@ module DotnetTasks =
         Resources = []
         Define = []
         TargetFramework = null
+        FscVersion = None
         CommandArgs = []
         FailOnError = true
         NoFramework = false
@@ -534,7 +536,6 @@ module DotnetTasks =
 
             do! needFiles (Filelist (src @ refs @ resfiles))
 
-            // TODO implement support for targeting various frameworks
             let! globalTargetFwk = getVar "NETFX-TARGET"
             let targetFramework =
                 match settings.TargetFramework, globalTargetFwk with
@@ -551,7 +552,7 @@ module DotnetTasks =
                 | tgt ->
                     let fwk = Some tgt |> DotNetFwk.locateFramework in
                     let lookup = DotNetFwk.locateAssembly fwk
-                    let mapfn = (fun name -> "/r:" + (lookup name))
+                    let mapfn = lookup >> ((+) "/r:")
 
                     //do! writeLog Info "Using libraries from %A" fwk.AssemblyDirs
 
@@ -585,11 +586,14 @@ module DotnetTasks =
             let! dotnetFwk = getVar "NETFX"
             let fwkInfo = DotNetFwk.locateFramework dotnetFwk
 
-            if Option.isNone fwkInfo.FscTool then
+            let! fscVer = getVar "FSCVER"
+            let fsc = 
+                match fwkInfo.FscTool ([settings.FscVersion; fscVer] |> Impl.coalesce) with
+                | Some tool -> tool
+                | None -> ""
+            if fsc = "" then
                 do! trace Error "('%s') failed: F# compiler not found" outFile.Name
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
-
-            let fsc = Option.get fwkInfo.FscTool
 
             do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
             do! trace Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")

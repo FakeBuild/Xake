@@ -42,7 +42,7 @@ module DotNetFwk =
         AssemblyDirs: string list
         ToolDir: string
         CscTool: string
-        FscTool: string option
+        FscTool: string option -> string option
         MsbuildTool: string
         EnvVars: (string* string) list
         }
@@ -102,17 +102,17 @@ module DotNetFwk =
                     ("", "", "", "", "Failed to obtain mono framework (check if mono and pkg_config are installed)")
             match err with
             | null ->
-                let csc_tool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
+                let cscTool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
 
                 let fwkinfo libpath ver =
-                    let fw_lib_path = libdir </> "mono" </> libpath
+                    let libPath = libdir </> "mono" </> libpath
                     let r = Some {
                         InstallPath = sdkroot
-                        AssemblyDirs = [fw_lib_path]
-                        ToolDir = fw_lib_path
+                        AssemblyDirs = [libPath]
+                        ToolDir = libPath
                         Version = ver
-                        CscTool = csc_tool
-                        FscTool = Some "fsharpc"
+                        CscTool = cscTool
+                        FscTool = fun _ -> Some "fsharpc"
                         MsbuildTool = "xbuild"
                         EnvVars =["PATH", sdkroot </> "bin" + ";" + (%"PATH")]
                     }
@@ -142,8 +142,11 @@ module DotNetFwk =
         let tryLocateFwk fwk =
 
             // TODO drop Wow node lookup, lookup depending on fwk
-            let fscTool =
-                ["4.0"; "3.1"; "3.0"] |> tryUntil (
+            let fscTool ver =
+                match ver with
+                    | None -> ["4.1"; "4.0"; "3.1"; "3.0"]
+                    | Some v -> [v]
+                |> tryUntil (
                     sprintf @"SOFTWARE\Wow6432Node\Microsoft\FSharp\%s\Runtime\v4.0" >> registry.open_subkey registry.HKLM
                 )
                 |> Option.bind (registry.get_value_str "")
