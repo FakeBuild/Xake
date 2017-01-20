@@ -18,7 +18,7 @@ module internal ParseArgs = begin
     let parseTopLevel (arg:string) optionsSoFar = 
         match arg.ToLowerInvariant() with 
 
-        | "-h" | "/h" | "--help" | "/?" ->
+        | "-h" | "/h" | "--help" | "/help" | "/?" | "-?" ->
             printf """
 Usage:
  fsi <script file> [-- options target..]
@@ -33,7 +33,8 @@ Options:
   target1 .. targetN  - define the list of targets to be executed sequentially
   target1;target2;..targetN -- execute the targets simultaneously
   -d <name>=<value>   - defines a script variable value
-  --dryrun            - defines a script variable value
+  --dryrun            - prints dependency graph and estimates the build duration
+  --dump              - prints dependency graph based on the last run
   --progress, -p      - display progress indicator
 
             """

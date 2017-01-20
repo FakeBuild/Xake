@@ -63,7 +63,8 @@ List of valid targets:
 Use "2.0".."4.5" targets for mutiplatform environments (will target mono-XXX being run under mono framework).
 
 The following script compiles application using 4.5 framework (mono or .net depending on running environment).
-```fsharp// xake build file
+
+```fsharp
 #r @"packages/Xake/tools/Xake.Core.dll"
 open Xake
 
@@ -86,6 +87,7 @@ do xake {ExecOptions.Default with } {
 ### F# compiler task
 
 Fsc task compiles fsharp project.
+
 ```fsharp
 do! Fsc {
     FscSettings with
