@@ -5,19 +5,23 @@
 ## Common tasks
 
 ### Xake.SystemTasks
+
 Module shell provides actions related to command shell.
 Usage:
+
 ```fsharp
 open Xake.SystemTasks
 let! errorlevel = system (fun o -> o) "ls" ["-lr"]
 ```
 
 There two predefined function for passing task settings:
+
 ```fsharp
 open Xake.SystemTasks
-let! errorlevel = system (useClr >> checkErrorLevel) "ls" ["-lr"]
+do! system (useClr >> checkErrorLevel) "ls" ["-lr"] |> Action.Ignore
 ```
-The first sets `UseClr` which instructs system command to run `mono <cmd>`. The second one instructs **system** to fail when command returned non-zero errorlevel.
+
+The first sets `UseClr` which instructs system command to run `mono <cmd>` on linux. The second one instructs **system** to fail when command returned non-zero errorlevel.
 
 > Notice there's another `system` action in Xake.CommonTasks. It lacks the first parameter (for settings) and is marked as obsolete.
 
@@ -38,6 +42,7 @@ Set of tasks to build .NET applications.
 * `ResGen` - compiles resource file[s]
 
 ### NETFX, NETFX-TARGET variables
+
 Xake allows using both Mono and .NET frameworks explicitly by defining `NETFX` variable.
 Default behavior is to use the framework the script is running under. E.g. if running under Mono `fsharpi` recent mono toolset will be used.
 
@@ -79,6 +84,7 @@ do xake {ExecOptions.Default with } {
 `NETFX-TARGET` variable allow to specify target framework in the similar way, i.e. for all `csc` and `fsc` tasks.
 
 ### F# compiler task
+
 Fsc task compiles fsharp project.
 ```fsharp
 do! Fsc {
@@ -93,6 +99,6 @@ do! Fsc {
 ```
 
 Fsc uses most recent (from known) compiler version and allows to specify particular version.
- 
- * global var `FSCVER` defines version for all fsc tasks.
- * `FscVersion` field in compiler settings. Settings has higher priority.
+
+* global var `FSCVER` defines version for all fsc tasks.
+* `FscVersion` field in compiler settings. Settings has higher priority.

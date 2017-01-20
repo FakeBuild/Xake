@@ -195,13 +195,14 @@ do xake {ExecOptions.Default with Threads = 4} {
 `file pattern` allows to define regular Ant-like patterns including name wildcards, recursion wildcard (`**`) and also **named groups**.
 
 E.g. the pattern `"(plat:*)-a.ss"` will match wildcard `"*-a.ss"` pattern and store '\*' part to a 'plat' group.
+
 ``` fsharp
 do xake {XakeOptions with Targets = ["out/abc.ss"]} {
     rule ("(dir:*)/(file:*).(ext:ss)" %> fun out -> action {
-            
-        Assert.AreEqual("out", out.group "dir")
-        Assert.AreEqual("abc", out.group "file")
-        Assert.AreEqual("ss", out.group "ext")
+
+        Assert.AreEqual("out", out.GetGroup "dir")
+        Assert.AreEqual("abc", out.GetGroup "file")
+        Assert.AreEqual("ss", out.GetGroup "ext")
         matchedAny := true
     })
 }
@@ -286,6 +287,7 @@ See the functions allowing to access execution context within *action* body.
 `do!` allows executing both async methods and *tasks*. *Task* is a regular F# function that is an *action* so that it returns *Action* type.
 
 Tasks are very simple:
+
 ```fsharp
 /// Copies the file
 let cp (src: string) tgt =

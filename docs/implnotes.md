@@ -1,37 +1,41 @@
 ﻿# Implementation notes
+
 ## Fileset
+
 Implementation is very similar to NAnt's one, it does support:
 
-  * disk reference
-  * parent dir reference
-  * directories and directory masks
-  * recurse mask (e.f. "source/**/*.c"), supports
-  * file name and mask
-  * both "/" and "\" as a path separator
+* disk reference
+* parent dir reference
+* directories and directory masks
+* recurse mask (e.f. "source/**/*.c"), supports
+* file name and mask
+* both "/" and "\" as a path separator
 
 Fileset has two major subtypes - either **set of rules** or a **file list**, also called "materialized" fileset.
 
 ### Non-existing files
+
 Filesets are used to references both existing files (e.g. project source files) and **targets** which might not exists when fileset is "materialized". In case the file or directory name is treated as a mask, the non-existing file will be omitted from resulting file list and the build will likely fail.
 The rule to resolve such inconsistency the rule (part of pattern) without mask is added to resulting file list explicitly.
 
 NOTE: it should depend on the context: if fileset defines source files or references "explicit rule" is ok.
 
 ## Error handling and diagnostics
+
 Error handling assumes the following system behavior:
 
-  * system provide screen and file log for all targets built and other system actions
-  * allows to specify detailization level for screen and file separately
-  * any uncaught exception in build rule leads to script failure unless FailOnError property is for particular target is set to False
-(consider "deploy" target with a fallback implementation)
-  * failures and stack traces are written to log
-  * idea: "onfail" target, "onfail" rule setting
-  * idea: dump the whole trace to the target
-  * setting error-code for the fsi sessions
+* system provide screen and file log for all targets built and other system actions
+* allows to specify detailization level for screen and file separately
+* any uncaught exception in build rule leads to script failure unless FailOnError property is for particular target is set to False (consider "deploy" target with a fallback implementation)
+* failures and stack traces are written to log
+* idea: "onfail" target, "onfail" rule setting
+* idea: dump the whole trace to the target
+* setting error-code for the fsi sessions
 
 ### Implemented ideas
 
 #### try/with/finally exception handling
+
 `action` computation expression supports try/with and try/finally blocks.
 
 ```fsharp
@@ -52,7 +56,9 @@ action {
 > actions (with do! notation) are allowed in `with` block but aren't in `finally` block. This is limitation of F#'s computation expressions.
 
 #### WhenError function
+
 Intercepts errors (exceptions) and allows to define a custom handler.
+
 ```
   phony "main" (action {
     do! trace Message "The exception thrown below will be silently ignored"
@@ -61,8 +67,10 @@ Intercepts errors (exceptions) and allows to define a custom handler.
 ```
 
 #### FailWhen
+
 Raises the exception if action's result meet specified condition.
 E.g. the following code raises error in case errorlevel (result of shell command execution) gets non-zero value.
+
 ```
 do! _system [shellcmd] "dir" |> FailWhen ((<>) 0) "Failed to list files in folder"
 // or just

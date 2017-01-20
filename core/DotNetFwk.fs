@@ -20,7 +20,7 @@ module (* internal *) pkg_config =
     let private pkgcgf_bool args =
         let dump (s : string) = ()
         try
-            0 = _pexec dump dump "pkg-config" (args |> String.concat " ") []
+            0 = _pexec dump dump "pkg-config" (args |> String.concat " ") [] None
         with _ ->
             false
     /// Gets true if specified package exists

@@ -10,22 +10,24 @@
 
 ### Tasks
 
-  * complete copyFiles method
+* complete copyFiles method
 
 ### Refactorings
-  * Artifact -> FileName of string, relative path, functions but not methods
+
+* Artifact -> FileName of string, relative path, functions but not methods
 
 ## Thoughts
- * idea: rule settings
+
+* idea: rule settings
   * `"clean" {FailOnError = true} \*\*> file a -> action {}`
   * `"clean" \!\*> file a -> action {}`
   * `"clean" \*\*> file a -> action ({FailOnError = true}) {}`
- * folder as a target:
+* folder as a target:
   * `want ["Viewer", "Designer"]`
   * `rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}`
- * Filelist is not handy as it requires to cast all the time
- * FileInfo is not good for the same reason: poorly composable and does not cover Directory well
- * wildcards phony actions
+* Filelist is not handy as it requires to cast all the time
+* FileInfo is not good for the same reason: poorly composable and does not cover Directory well
+* wildcards phony actions
 
 ## Done (top is recent)
 

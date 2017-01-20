@@ -8,7 +8,7 @@ module SystemTasks =
     open System.Diagnostics
 
     // internal implementation
-    let internal _pexec handleStd handleErr cmd args (envvars:(string * string) list) =
+    let internal _pexec handleStd handleErr cmd args (envvars:(string * string) list) workDir =
         let pinfo =
           ProcessStartInfo
             (cmd, args,
@@ -17,6 +17,10 @@ module SystemTasks =
 
         for name,value in envvars do            
             pinfo.EnvironmentVariables.[name] <- value
+
+        match workDir with
+        | Some path -> pinfo.WorkingDirectory <- path
+        | _ -> ()
 
         let proc = new Process(StartInfo = pinfo)
 
@@ -41,17 +45,19 @@ module SystemTasks =
         }
 
     type SysOptions = {
-        LogPrefix:string;
-        StdOutLevel: string -> Level; ErrOutLevel: string -> Level;
+        LogPrefix:string
+        StdOutLevel: string -> Level; ErrOutLevel: string -> Level
         EnvVars: (string * string) list
+        WorkingDir: string option
 
         /// Indicates command has to be executed under mono/.net runtime
         UseClr: bool
         FailOnErrorLevel: bool
     }
     with static member Default = {
-            LogPrefix = ""; StdOutLevel = (fun _ -> Level.Info); ErrOutLevel = (fun _ -> Level.Error);
+            LogPrefix = ""; StdOutLevel = (fun _ -> Level.Info); ErrOutLevel = (fun _ -> Level.Error)
             EnvVars = []
+            WorkingDir = None
             UseClr = false
             FailOnErrorLevel = false
         }
@@ -80,7 +86,7 @@ module SystemTasks =
                 "mono", cmd + " " + args
             else
                 cmd, args
-        let errorlevel = _pexec handleStd handleErr cmd args settings.EnvVars
+        let errorlevel = _pexec handleStd handleErr cmd args settings.EnvVars settings.WorkingDir
         if errorlevel <> 0 && settings.FailOnErrorLevel then failwith "System command resulted in non-zero errorlevel"
         return errorlevel
     }
@@ -104,6 +110,7 @@ module SystemTasks =
 
     let useClr: ExecOptionsFn = fun o -> {o with UseClr = true}
     let checkErrorLevel: ExecOptionsFn = fun o -> {o with FailOnErrorLevel = true}
+    let workingDir dir: ExecOptionsFn = fun o -> {o with WorkingDir = dir}
 
 [<AutoOpen>]
 module CommonTasks =
