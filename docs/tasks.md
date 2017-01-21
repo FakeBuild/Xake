@@ -14,14 +14,14 @@ open Xake.SystemTasks
 let! errorlevel = system (fun o -> o) "ls" ["-lr"]
 ```
 
-There two predefined function for passing task settings:
+There several predefined functions for passing task settings. Here's the example with all three used:
 
 ```fsharp
 open Xake.SystemTasks
-do! system (useClr >> checkErrorLevel) "ls" ["-lr"] |> Action.Ignore
+do! system (useClr >> checkErrorLevel >> (workingDir "/etc")) "ls" ["-lr"] |> Action.Ignore
 ```
 
-The first sets `UseClr` which instructs system command to run `mono <cmd>` on linux. The second one instructs **system** to fail when command returned non-zero errorlevel.
+The first sets `UseClr` which instructs system command to run `mono <cmd>` on linux. The second one instructs **system** to fail when command returned non-zero errorlevel. The last one defines working directory.
 
 > Notice there's another `system` action in Xake.CommonTasks. It lacks the first parameter (for settings) and is marked as obsolete.
 
