@@ -54,22 +54,24 @@ let cp = copyFile
 let copyFiles (src: string list) targetDir =
 
     // TODO check how should it process dependencies
-    // TODO print the file name (in Verbose mode)
     // TODO currently if flattens target files layout so that
     // /src/**/*.c files will be stored without preserving folders structure.
-
-    let copyFile tgt_folder fi =
-        // TODO this 
-        let tgt = Path.Combine(tgt_folder, fi |> File.getFileName)
-        File.Copy((File.getFullName fi), tgt, true)
-
-    let copyByMask root mask =
-        let (Filelist files) = Fileset.ls mask |> (toFileList root)
-        files |> List.iter (copyFile targetDir)
 
     action {
         let! options = getCtxOptions()
         do! trace Level.Info "[copyFiles] '%A' -> '%s'" src targetDir
+
+        let! ctx = getCtx()
+        let logVerbose = ctx.Logger.Log Verbose "%s"
+
+        let copyFile target file =
+            let tgt = Path.Combine(target, file |> File.getFileName)
+            ctx.Logger.Log Verbose "Copying %s..." (file |> File.getName)
+            File.Copy((File.getFullName file), tgt, true)
+
+        let copyByMask root mask =
+            let (Filelist files) = Fileset.ls mask |> (toFileList root)
+            files |> List.iter (copyFile targetDir)
 
         src |> List.iter (copyByMask options.ProjectRoot)
     } 

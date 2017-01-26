@@ -80,17 +80,20 @@ do! _system [shellcmd] "dir" |> CheckErrorLevel
 ### Other ideas
 
 // or even that:
+```
 _system [fail_on_error; shellcmd] "dir"
 // where shellcmd and fail_on_error are functions
 ```
 
 Idea #3 (orthogonal): provide an option for _system function to fail in case non-zero errorcode.
+
 ```
 do! _system [fail_on_error; shellcmd; startin "./bin"] "dir"
 // where shellcmd and fail_on_error are functions
 ```
 
 ### Ideas
+
 Implemented IgnoreErrors.
 
   * ExecContext option to ignore all errors

@@ -36,6 +36,8 @@ module DotNetTaskTypes =
             CommandArgs: string list
             /// Build fails on compile error.
             FailOnError: bool
+            /// Path to csc executable
+            CscPath: string option
         }
     // see http://msdn.microsoft.com/en-us/library/78f4aasd.aspx
     // defines, optimize, warn, debug, platform
@@ -126,6 +128,7 @@ module DotnetTasks =
         TargetFramework = null
         CommandArgs = []
         FailOnError = true
+        CscPath = None
     }
 
     module internal Impl =
@@ -326,9 +329,10 @@ module DotnetTasks =
                     yield "@" + rspFile
                     }
             let commandLine = commandLineArgs |> String.concat " "
+            let cscTool = settings.CscPath |> function | Some v -> v | _ -> fwkInfo.CscTool
 
             do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
-            do! trace Debug "Command line: '%s %s'" fwkInfo.CscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
+            do! trace Debug "Command line: '%s %s'" cscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
                 SystemTasks.SysOptions.Default with
@@ -337,7 +341,7 @@ module DotnetTasks =
                     ErrOutLevel = Impl.levelFromString Level.Verbose
                     EnvVars = fwkInfo.EnvVars
                 }
-            let! exitCode = SystemTasks._system options fwkInfo.CscTool commandLine
+            let! exitCode = SystemTasks._system options cscTool commandLine
 
             do! trace Level.Verbose "Deleting temporary files"
             seq {
@@ -375,6 +379,7 @@ module DotnetTasks =
 
         [<CustomOperation("define")>]    member this.Define(s:CscSettingsType, value) =      {s with Define = value}
         [<CustomOperation("unsafe")>]    member this.Unsafe(s:CscSettingsType, value) =      {s with Unsafe = value}
+        [<CustomOperation("cscpath")>]       member this.CscPath(s:CscSettingsType, value) =   {s with CscPath = Some value}
 
         member this.Bind(x, f) = f x
         member this.Yield(()) = CscSettings

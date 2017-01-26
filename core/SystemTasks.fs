@@ -110,7 +110,7 @@ module SystemTasks =
 
     let useClr: ExecOptionsFn = fun o -> {o with UseClr = true}
     let checkErrorLevel: ExecOptionsFn = fun o -> {o with FailOnErrorLevel = true}
-    let workingDir dir: ExecOptionsFn = fun o -> {o with WorkingDir = dir}
+    let workingDir dir: ExecOptionsFn = fun o -> {o with WorkingDir = Some dir}
 
 [<AutoOpen>]
 module CommonTasks =

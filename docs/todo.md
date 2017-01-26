@@ -1,7 +1,9 @@
 ## TODOs and ideas
 
+  * put the rule's target file to ExecContext so that target could be get as let! target = getTarget()
   * change the first page to a tutorial with script and usage examples
-  * <== for running tasks one by one. Current one runs in parallel only.
+
+  * <<< for running tasks one by one. Current one runs in parallel only.
   * rules should accept #seq not just the list
   * switch development to mono under windows
   * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question. (we have got it out of the box, need more info)
@@ -34,6 +36,7 @@
 
 ## Done (top is recent)
 
+ * CscPath setting (cscpath in csc builder) allowing to define compiler path
  * allow to specify F# compiler version
  * overriding .xake database file name by options.DbFileName which defines relative db file name
  * redirect compiler output to [Info] category, parse output and log warnings and errors respectively
