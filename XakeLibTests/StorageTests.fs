@@ -52,39 +52,6 @@ let Setup() =
         File.Delete(dbname)
     with _ -> ()
 
-[<Test(Description = "Verifies persisting of recursive types")>]
-[<Ignore("Still no luck due to recursive types are not allowed in ML")>]
-let RecursiveType() =
-    let wrapL (d : 'a -> 'b, r : 'b -> 'a) (pu : Lazy<Pickler.PU<'a>>) =
-        { Pickler.PU.pickle = r >> pu.Value.pickle
-          Pickler.PU.unpickle = pu.Value.unpickle >> d }
-
-    let rec bookmarkPU =
-        Pickler.alt (function
-            | Bookmark _ -> 0
-            | Folder _ -> 1)
-            [| wrapL (Bookmark, fun (Bookmark(name, url)) -> name, url) (lazy Pickler.pair Pickler.str Pickler.str)
-               wrapL (Folder, fun (Folder(name, ls)) -> name, ls)
-                    (Lazy.Create(fun () -> Pickler.pair Pickler.str (bpu()))) |]
-
-    and bpu() = Pickler.list bookmarkPU
-
-    let testee =
-        Folder("root",
-                [ Bookmark("iXBT", "http://ixbt.com")
-                  Bookmark("fcenter", "http://fcenter.ru")
-                  Folder("work",
-                        [ Bookmark("fsharp.org", "http://fsharp.org")
-                          Bookmark("xamarin", "http://xamarin.org") ])
-                  Folder("empty", []) ])
-
-    let buffer = new MemoryStream()
-    bookmarkPU.pickle testee (new BinaryWriter(buffer))
-    buffer.Position <- 0L
-    let replica = bookmarkPU.unpickle (new BinaryReader(buffer))
-    Assert.AreEqual(testee, replica)
-
-
 [<Test>]
 let ``persists simple data``() =
 

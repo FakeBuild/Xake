@@ -8,8 +8,10 @@ module XakeScript =
     let ( *> ) pattern fnRule = FileRule (pattern, fun (RuleActionArgs (t,_)) -> fnRule t)
     let ( *?> ) fn fnRule = FileConditionRule (fn, fnRule)
 
+    let ( ..> ) pattern actionBody = FileRule (pattern, fun _ -> actionBody)
+
     /// Creates phony action (check if I can unify the operator name)
-    let (=>) name fnRule = PhonyRule (name,fnRule)
+    let (=>) name action = PhonyRule (name, action)
 
     /// Main type.
     type XakeScript = XakeScript of ExecOptions * Rules<ExecContext>
