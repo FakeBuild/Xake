@@ -3,10 +3,12 @@
 
 open Xake
 
-do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
+do xakeScript {
+  filelog "build.log" Verbosity.Normal
 
   phony "main" (action {
-    do! trace Message "Hello world!"
+    let username = "world"
+    do! trace Message "Hello, %s!" username
     })
 
 }

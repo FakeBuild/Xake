@@ -59,12 +59,14 @@ let ``persists simple data``() =
 
     let testee =
         { testee with
-            Depends = [
+            Depends =
+              [
                 ArtifactDep <| (mkFileTarget "abc.c")
                 FileDep (File.make "common.c", System.DateTime(1971, 11, 21))
                 EnvVar("SDK", Some "4.5")
                 Var("DEBUG", Some "false") ]
-            Steps = [
+            Steps =
+              [
                 newStepInfo ("preprocess", 187)
                 newStepInfo ("compile", 217)
                 newStepInfo ("link", 471) ] }

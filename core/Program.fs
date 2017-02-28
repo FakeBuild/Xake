@@ -145,3 +145,6 @@ module Main =
     let xake options =
         let args = get_args() |> get_script_args in
         xakeArgs args options
+
+    let xakeScript =
+        xake ExecOptions.Default

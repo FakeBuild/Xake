@@ -4,16 +4,12 @@ open Xake
 do xake ExecOptions.Default {
     rules [
         "main" <== ["hw.exe"]
-        "hw.dll" ..> Csc {
-            CscSettings with
-              Target = TargetType.Library
-              Src = !! "util.cs"
-            }
+        "hw.dll" ..> csc {src !! "util.cs"}
 
-        "hw.exe" ..> Csc {
-            CscSettings with
-              Src = !! "hw.cs"
-              Ref = !! "hw.dll"
-            }
+        "hw.exe" ..> csc {
+            target TargetType.Exe
+            src !! "hw.cs"
+            ref !! "hw.dll"
+        }
     ]
 }

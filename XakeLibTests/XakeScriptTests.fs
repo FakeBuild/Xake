@@ -285,28 +285,29 @@ let ``target could be a relative2``() =
     System.Environment.CurrentDirectory <- subdir.FullName
 
     try
-        let Runtimes = [
+        let runtimes =
+          [
             {Ver = "v9"; Folder = @"c:\\!\\aaa\Runtimes\9.1.2134.0"}
             {Ver = "v10"; Folder = @"c:\\!\\aaa\Runtimes\10.99.5262.0"}]
 
-        let pc_exe = "PerformanceComparer.exe"
+        let pcExeName = "PerformanceComparer.exe"
 
-        let copyToOutputAndRename target src = target *> fun outfile -> action {do! cp src outfile.FullName}
+        let copyToOutputAndRename target src = target *> fun outfile -> cp src outfile.FullName
 
         let makeRule runtime =
             let folder = System.Environment.CurrentDirectory </> runtime.Folder
             [
-            (folder </> pc_exe) *> fun exe -> action {
+            (folder </> pcExeName) *> fun exe -> action {
                 do! need [exe.FullName + ".config"]
                 needExecuteCount := !needExecuteCount + 1
                 }
-            (runtime.Folder </> pc_exe + ".config") *> fun outfile -> action {()}
+            (runtime.Folder </> pcExeName + ".config") *> fun outfile -> action {()}
             ]
 
         do xake {ExecOptions.Default with FileLogLevel=Verbosity.Diag; FileLog = "build.log"} {
 
-          rules (Runtimes |> List.collect makeRule)
-          rule ("main" ==> [for r in Runtimes do yield r.Folder </> pc_exe])
+          rules (runtimes |> List.collect makeRule)
+          rule ("main" ==> [for r in runtimes do yield r.Folder </> pcExeName])
 
         }
 
@@ -377,11 +378,10 @@ let ``writes dependencies to a build database``() =
           match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test"), ch) with
             | Some {
                     BuildResult.Result = PhonyAction "test"
-                    BuildResult.Depends
-                        = [
-                        ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
-                        FileDep (fileDep, depDate)
-                        ]
+                    Depends = [
+                                ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
+                                FileDep (fileDep, depDate)
+                              ]
                 }
                 when System.IO.Path.GetFileName(fileDep.Name) = "bbb.c" && depDate = cdate
                 -> true

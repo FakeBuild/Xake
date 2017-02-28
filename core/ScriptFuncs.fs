@@ -27,13 +27,17 @@ module ScriptFuncs =
     let needFiles (Filelist files) =
         files |> List.map FileTarget |> ExecCore.need
 
+    let private record d = action {
+        let! result = getResult()
+        do! setResult { result with Depends = d :: result.Depends }
+    }
+
+    let private cons x ls = x :: ls
+
     /// <summary>
     /// Instructs Xake to rebuild the target even if dependencies are not changed.
     /// </summary>
-    let alwaysRerun() = action {
-        let! result = getResult()
-        do! setResult { result with Depends = Dependency.AlwaysRerun :: result.Depends }
-    }
+    let alwaysRerun() = Dependency.AlwaysRerun |> record
 
     /// <summary>
     /// Gets the environment variable.
@@ -42,8 +46,7 @@ module ScriptFuncs =
     let getEnv variableName =
         let value = Util.getEnvVar variableName
         action {
-            let! result = getResult()
-            do! setResult {result with Depends = Dependency.EnvVar (variableName,value) :: result.Depends}
+            do! Dependency.EnvVar (variableName,value) |> record
             return value
         }
 
@@ -55,10 +58,7 @@ module ScriptFuncs =
         let! ctx = getCtx()
         let value = Util.getVar ctx.Options variableName
 
-        // record the dependency
-        let! result = getResult()
-        do! setResult {result with Depends = Dependency.Var (variableName,value) :: result.Depends}
-
+        do! Dependency.Var (variableName,value) |> record
         return value
     }
 
@@ -69,9 +69,7 @@ module ScriptFuncs =
     let getFiles fileset = action {
         let! ctx = getCtx()
         let files = fileset |> toFileList ctx.Options.ProjectRoot
-
-        let! result = getResult()
-        do! setResult {result with Depends = result.Depends @ [Dependency.GetFiles (fileset,files)]}
+        do! Dependency.GetFiles (fileset,files) |> record
 
         return files
     }

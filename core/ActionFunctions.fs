@@ -34,6 +34,14 @@ module Action =
     }
 
     /// <summary>
+    /// Gets current target file name with path
+    /// </summary>
+    let getTargetFullName() = action {
+        let! file = getTargetFile()
+        return file.FullName
+    }
+
+    /// <summary>
     /// Updates the build result
     /// </summary>
     /// <param name="s'"></param>
