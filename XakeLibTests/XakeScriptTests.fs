@@ -53,15 +53,13 @@ let ``executes need only once``() =
     let build () = xake XakeOptions {
         want (["hlo"])
 
-        rules [
-            "hlo" *> fun file -> action {
-                do! trace Error "Running inside 'hlo' rule"
-                do! need ["hlo.cs"]
-                needExecuteCount := !needExecuteCount + 1
-                do! Async.Sleep 2000
-                File.WriteAllText(file.FullName, "")
-            }
-        ]
+        rule ("hlo" ..> action {
+            do! trace Error "Running inside 'hlo' rule"
+            do! need ["hlo.cs"]
+            needExecuteCount := !needExecuteCount + 1
+            do! Async.Sleep 2000
+            do! writeTextFile ""
+        })
     }
 
     do build()
@@ -86,7 +84,7 @@ let ``allows defining conditional rule``() =
 
         rules [
             // TODO want ((=) "hlo") *?> ...
-            (fun n -> n.EndsWith("hlo")) *?> fun file -> action {
+            (fun n -> n.EndsWith("hlo")) ..?> action {
                 do! trace Error "Running inside 'hlo' rule"
                 needExecuteCount := !needExecuteCount + 1
                 do! Async.Sleep 500
@@ -110,12 +108,12 @@ let ``rebuilds when fileset is changed``() =
         want (["hello"])
 
         rules [
-            "hello" *> fun file -> action {
+            "hello" ..> recipe {
                 do! trace Error "Running inside 'hello' rule"
                 let! files = (!!"hello*.cs") |> getFiles 
                 do! needFiles files
                 needExecuteCount := !needExecuteCount + 1
-                File.WriteAllText(file.FullName, "")
+                do! writeTextFile ""
             }
         ]
     }
@@ -141,13 +139,13 @@ let ``rebuilds when env variable is changed``() =
         want (["hlo"])
 
         rules [
-            "hlo" *> fun file -> action {
+            "hlo" ..> recipe {
                 do! need ["hlo.cs"]
                 let! var = getEnv("TTT")
                 do! trace Command "Running inside 'hlo' rule with var:%A" var
                 needExecuteCount := !needExecuteCount + 1
                 do! Async.Sleep 2000
-                File.WriteAllText(file.FullName, "")
+                do! writeTextFile ""
             }
         ]
     }
@@ -219,10 +217,11 @@ let ``target could be a relative``() =
         do xake XakeOptions {
             rules [
                 "main" <== ["../subd1/a.ss"]
-                "../subd1/a.ss" %> fun out -> action {
+                "../subd1/a.ss" ..> action {
+                    let! outName = getTargetFullName()
                     do! trace Error "Running inside 'a.ss' rule"
                     needExecuteCount := !needExecuteCount + 1
-                    File.WriteAllText(out.FullName, "ss")
+                    File.WriteAllText(outName, "ss")
                 }
             ]
         }
@@ -260,8 +259,9 @@ let ``matching groups in rule name``(tgt,mask,expect:string) =
     let matchedAny = ref false
 
     do xake {XakeOptions with Targets = [tgt]} {
-        rule (mask %> fun out -> action {
-            map := RuleArgs.getGroups out; matchedAny := true
+        rule (mask ..> action {
+            let! groups = getRuleMatches()
+            map := groups; matchedAny := true
         })
     }
 
@@ -272,6 +272,22 @@ let ``matching groups in rule name``(tgt,mask,expect:string) =
     else
         let expected = expect.Split(';') |> Array.map (fun s -> let pp = s.Split(':') in pp.[0],pp.[1])
         Assert.That(!map |> Map.toArray, Is.EquivalentTo(expected))
+
+[<TestCase("x86-a.ss", "(plat:*)-a.ss", Result = "x86", TestName="Simple case")>]
+[<TestCase("subd1/x86-a.ss", "*/(plat:*)-a.ss", Result = "x86", TestName="groups in various parts")>]
+[<TestCase("(abc.ss", @"[(]*.ss", Result = "", TestName="Escaped brackets")>]
+let ``getTargetMatch() matches part``(tgt,mask) =
+
+    let resultValue = ref ""
+
+    do xake {XakeOptions with Targets = [tgt]} {
+        rule (mask ..> action {
+            let! value = getRuleMatch "plat"
+            resultValue := value
+        })
+    }
+
+    !resultValue
 
 type Runtime = {Ver: string; Folder: string}
 
@@ -417,7 +433,7 @@ let ``writes a build stats to a database``() =
                 do! newstep "b"
                 do! Async.Sleep 70
             }
-            "bbb" *> fun file -> action {
+            "bbb" ..> action {
                 do! Async.Sleep 200
             }
         ]

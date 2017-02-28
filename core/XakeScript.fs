@@ -4,11 +4,9 @@
 module XakeScript =
 
     /// Creates the rule for specified file pattern.
-    let ( %> ) pattern fnRule = FileRule (pattern, fnRule)
-    let ( *> ) pattern fnRule = FileRule (pattern, fun (RuleActionArgs (t,_)) -> fnRule t)
-    let ( *?> ) fn fnRule = FileConditionRule (fn, fnRule)
+    let ( ..?> ) fn fnRule = FileConditionRule (fn, fnRule)
 
-    let ( ..> ) pattern actionBody = FileRule (pattern, fun _ -> actionBody)
+    let ( ..> ) pattern actionBody = FileRule (pattern, actionBody)
 
     /// Creates phony action (check if I can unify the operator name)
     let (=>) name action = PhonyRule (name, action)
@@ -47,8 +45,8 @@ module XakeScript =
 
         [<CustomOperation("rule")>] member this.Rule(script, rule)
             = updRules script (addRule rule)
-        [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action)
-            = updRules script (pattern *> action |> addRule)
+        // [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action)
+        //     = updRules script (pattern *> action |> addRule)
         [<CustomOperation("phony")>] member this.Phony(script, name, action)
             = updRules script (name => action |> addRule)
         [<CustomOperation("rules")>] member this.Rules(script, rules)

@@ -60,39 +60,15 @@ module DomainTypes =
     type Action<'a,'b> = Action of (BuildResult * 'a -> Async<BuildResult * 'b>)
 
     /// Data type for action's out parameter. Defined target file and named groups in pattern
-    type RuleActionArgs = RuleActionArgs of File * Map<string,string>
 
     type 'ctx Rule =
-        | FileRule of string * (RuleActionArgs -> Action<'ctx,unit>)
+        | FileRule of string * Action<'ctx,unit>
         | PhonyRule of string * Action<'ctx,unit>
-        | FileConditionRule of (string -> bool) * (RuleActionArgs -> Action<'ctx,unit>)
+        | FileConditionRule of (string -> bool) * Action<'ctx,unit>
     type 'ctx Rules = Rules of 'ctx Rule list
-
-    type RuleActionArgs with
-        /// Gets the resulting file.
-        member this.File = let (RuleActionArgs (file,_)) = this in file
-        /// Gets the full name of resulting file.
-        member this.FullName = let (RuleActionArgs (file,_)) = this in File.getFullName file
-
-        /// Gets group (part of the name) by its name.
-        member this.GetGroup(key) =
-            let (RuleActionArgs (_,groups)) = this in
-            groups |> Map.tryFind key |> function |Some v -> v | None -> ""
 
     /// Defines common exception type
     exception XakeException of string
-
-/// Contains a methods for accessing RuleActionArgs members.
-module RuleArgs =
-
-    let getFile (args:RuleActionArgs) = args.File
-    let getFullName (RuleActionArgs (file,_)) = File.getFullName file
-
-    /// Gets all matched groups.
-    let getGroups (RuleActionArgs (_,groups)) = groups
-
-    /// Gets group (part of the name) by its name.
-    let getGroup key (args:RuleActionArgs) = args.GetGroup key
 
 /// <summary>
 /// A message to a progress reporter.

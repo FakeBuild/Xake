@@ -14,31 +14,25 @@ open Xake
 let ``various frameworks``(fwk:string) =
 
     let p =
-      xake
-        {ExecOptions.Default with
-            Vars = ["NETFX", fwk]
-            FileLog = fwk + ".log"
-            FileLogLevel = Verbosity.Diag}
-        {
+      xakeScript {
+          var "NETFX" fwk
+          filelog (fwk + ".log") Verbosity.Diag
+
           rules [
-            "main" => action {
-                do! (csc {
-                    //targetfwk fwk
-                    out (File.make ("hw" + fwk + ".exe"))
-                    src (!! "a.cs")
-                    grefs ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
-                  })
-                }
-            "a.cs" *> fun src -> action {
-                do File.WriteAllText(src.FullName, """
+            "main" => csc {
+                //targetfwk fwk
+                out (File.make ("hw" + fwk + ".exe"))
+                src (!! "a.cs")
+                grefs ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
+            }
+            "a.cs" ..> writeTextFile """
                 class Program
                 {
                   public static void Main()
                   {
                     System.Console.WriteLine("Hello world!");
                   }
-                }""")
-                }
+                }"""
             ]
         }
 

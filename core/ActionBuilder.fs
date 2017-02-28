@@ -78,4 +78,6 @@ module Builder =
         member this.TryWith(body, handler) = tryWithF body handler
         member this.TryFinally(body, compensation) = tryFinallyF (body) compensation
         member this.Using(disposable:#System.IDisposable, body) = usingF disposable body
+    
     let action = ActionBuilder()
+    let recipe = ActionBuilder()

@@ -39,19 +39,17 @@ The most simple, but structured script looks as follows:
 ```fsharp
 #r @".tools/Xake.Core.dll"       // (1)
 
-open Xake                           // (2)
+open Xake                        // (2)
 
-do xake ExecOptions.Default {               // (3)
+do xakeScript {                  // (3)
 
-  "main" <== ["hw.exe"]             // (4)
+  "main" <== ["hw.exe"]          // (4)
 
-  rule("hw.exe" *> fun exe -> action {  // (5)
-    do! Csc {
+  rule("hw.exe" *>               // (5)
+    Csc {
       CscSettings with
-        Out = exe
         Src = !! "a*.cs"
-      }
-    })
+      })
 }
 ```
 
@@ -88,14 +86,10 @@ do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
 
   rule ("main" ==> ["helloworld.exe"])
 
-  rule("*.exe" *> fun exe -> action {
-    do! Csc {
+  rule("*.exe" ..> Csc {
       CscSettings with
-        Out = exe
         Src = !! (exe.Name -. "cs")
-      }
-    })
-
+      })
 }
 ```
 
@@ -143,11 +137,10 @@ Defines a rule for making file.
 Example:
 
 ``` fsharp
-rule ("out\\Tools.dll" *> fun outname -> action {
+rule ("out\\Tools.dll" ..> recipe {
 
     do! Csc {
         CscSettings with
-            Out = outname
             Src = !! "Tools/**/*.cs"
             Ref = !! "out\\facade.dll"
     }
@@ -157,10 +150,15 @@ rule ("out\\Tools.dll" *> fun outname -> action {
 
 There're several forms of rules including:
 
-* `rule (<file pattern> %> fun out -> <action>)` - rule for single file or group of files matching the specified wildcards pattern. The file and an optional matching groups will be passed to `out` argument of type RuleActionArgs
-* `rule (<condition> *?> fun outname -> <action>)` - allows to use function instead of file name or wildcards
 * `rule (<name> => <action>)` - creates a phony rule (the rule that does not create a file)
 * `rule (<name> <== [targets])` - creates a phony rule which demands specified targets
+* `rule (<file pattern> ..> <action>)` - rule for single file or group of files matching the specified wildcards pattern. The file and an optional matching groups can be accessed via getTargetFile and getRuleMatch methods
+* `rule (<condition> ..?> <action>)` - allows to use function instead of file name or wildcards
+
+The following three options are now obsolete:
+
+* `rule (<file pattern> %> fun out -> <action>)` - rule for single file or group of files matching the specified wildcards pattern. The file and an optional matching groups will be passed to `out` argument of type RuleActionArgs
+* `rule (<condition> *?> fun outname -> <action>)` - allows to use function instead of file name or wildcards
 * `rule (<file pattern> *> fun outname -> <action>)` - the same as `%>` but the file is passed to action. Outdated option.
 
 > Notice: you are not bound to `outname` name above, you could change it to any other name.
@@ -172,10 +170,9 @@ There're several forms of rules including:
 
 open Xake
 
-let mainRule = "hw.exe" *> fun exe -> action {
+let mainRule = "hw.exe" ..> recipe {
     do! Csc {
       CscSettings with
-        Out = exe
         Src = !! "a.cs"
       }
     }
@@ -198,11 +195,14 @@ E.g. the pattern `"(plat:*)-a.ss"` will match wildcard `"*-a.ss"` pattern and st
 
 ``` fsharp
 do xake {XakeOptions with Targets = ["out/abc.ss"]} {
-    rule ("(dir:*)/(file:*).(ext:ss)" %> fun out -> action {
+    rule ("(dir:*)/(file:*).(ext:ss)" ..> recipe {
 
-        Assert.AreEqual("out", out.GetGroup "dir")
-        Assert.AreEqual("abc", out.GetGroup "file")
-        Assert.AreEqual("ss", out.GetGroup "ext")
+        let! dir = getRuleMatch "dir"
+        let! file = getRuleMatch "file"
+        let! ext = getRuleMatch "ext"
+        Assert.AreEqual("out", dir)
+        Assert.AreEqual("abc", file)
+        Assert.AreEqual("ss", ext)
         matchedAny := true
     })
 }
@@ -222,29 +222,28 @@ rules [
   "main"  <== ["build"]
   "build" <== ["out\\tools.dll"; "out\\main.exe"]
 
-  "out\\main.exe" *> fun outname -> action {
+  "out\\main.exe" ..> recipe {
 
     do! Csc {
-        CscSettings with Out = outname
+        CscSettings with
             Src = !! "Main/**/*.cs" + "Common/*.cs"
             Ref = !! "out\\tools.dll"
     }
   }
 
-  "out\\tools.dll" *> fun outname -> action {
+  "out\\tools.dll" ..> recipe {
 
     do! Csc {
-        CscSettings with Out = outname
+        CscSettings with
             Src = !! "Tools/**/*.cs"
             Ref = !! "out\\facade.dll"
     }
   }
 
-  "out\\facade.dll" *> fun outname -> action {
+  "out\\facade.dll" ..> action {
 
     do! Csc {
-        CscSettings with Out = outname
-            Src = !! "facade/**/*.cs"
+        CscSettings with Src = !! "facade/**/*.cs"
     }
   }
 ]
@@ -267,20 +266,22 @@ The `dryrun` keyword in the script instructs xake to simulate execution of the s
 This option allows to specify the name of the log file and the detailization level.
 
 ```fsharp
-    do xake XakeOptions {
+    do xakeScript {
         dryrun
         filelog "errors.log" Verbosity.Chatty
         rules [
    ...
 ```
 
-## action computation
+## recipe: action computation
 
 Action body is computation expression of type *action*. This computation returns *Action* type and is very similar to
 *async* computation. You could use both regular code (such as assignments/binding, loops and conditional expressions)
 and do! notation within *action* body.
 
 See the functions allowing to access execution context within *action* body.
+
+> Notice the new name for 'action' is 'recipe'. They are completely equivalent.
 
 ### Tasks, `do!` notation
 

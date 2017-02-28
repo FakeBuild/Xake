@@ -23,25 +23,6 @@ module Action =
     let getResult()  = Action (fun (s,_) -> async {return (s,s)})
 
     /// <summary>
-    /// Gets current target file
-    /// </summary>
-    let getTargetFile() = action {
-        let! result = getResult()
-        return result.Result
-            |> function
-            | FileTarget file -> file
-            | _ -> failwith "getTargetFile is not available for phony actions"
-    }
-
-    /// <summary>
-    /// Gets current target file name with path
-    /// </summary>
-    let getTargetFullName() = action {
-        let! file = getTargetFile()
-        return file.FullName
-    }
-
-    /// <summary>
     /// Updates the build result
     /// </summary>
     /// <param name="s'"></param>

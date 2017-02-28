@@ -1,7 +1,7 @@
 #r @"../bin/Xake.Core.dll"
 open Xake
 
-do xake ExecOptions.Default {
+do xakeScript {
     rules [
         "main" <== ["hw.exe"]
         "hw.dll" ..> csc {src !! "util.cs"}
@@ -10,6 +10,11 @@ do xake ExecOptions.Default {
             target TargetType.Exe
             src !! "hw.cs"
             ref !! "hw.dll"
+        }
+
+        "(name:*).exe" ..> recipe {
+            let! name = getRuleMatch "name"
+            do! csc {src !!(name + ".cs")}
         }
     ]
 }

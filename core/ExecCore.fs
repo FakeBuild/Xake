@@ -57,26 +57,30 @@ module internal ExecCore =
     /// <summary>
     /// Creates a context for a new task
     /// </summary>
-    let newTaskContext target ctx =
+    let newTaskContext target matches ctx =
         let ordinal = System.Threading.Interlocked.Increment(refTaskOrdinal)
         let prefix = ordinal |> sprintf "%i> "
         in
-        {ctx with Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger; Tgt = Some target}
+        {ctx with
+            Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger
+            Tgt = Some target
+            RuleMatches = matches
+        }
 
     // executes single artifact
     let rec execOne ctx target =
 
-        let run action =
+        let run ruleMatches action =
             async {
                 match ctx.NeedRebuild target with
                 | true ->
-                    let taskContext = newTaskContext target ctx
+                    let taskContext = newTaskContext target ruleMatches ctx
                     do ctx.Logger.Log Command "Started %s as task %i" target.ShortName taskContext.Ordinal
 
                     do Progress.TaskStart target |> ctx.Progress.Post
 
                     let startResult = {BuildLog.makeResult target with Steps = [Step.start "all"]}
-                    let! (result,_) = action (startResult,taskContext)
+                    let! (result,_) = action (startResult, taskContext)
                     let result = Step.updateTotalDuration result
 
                     Store result |> ctx.Db.Post
@@ -89,21 +93,19 @@ module internal ExecCore =
                     return ExecStatus.Skipped
             }
 
-        let getAction groups = function
-            | FileRule (_, action)
-            | FileConditionRule (_, action) ->
-                let (FileTarget artifact) = target in
-                let (Action r) = action (RuleActionArgs (artifact,groups)) in
-                r
-            | PhonyRule (_, Action r) -> r
+        let getAction = function
+            | FileRule (_, a)
+            | FileConditionRule (_, a)
+            | PhonyRule (_, a) ->
+                a
 
         // result expression is...
         match target |> locateRule ctx.Rules ctx.Options.ProjectRoot with
         | Some(rule,groups) ->
             let groupsMap = groups |> Map.ofSeq
-            let action = rule |> getAction groupsMap
+            let (Action action) = rule |> getAction
             async {
-                let! waitTask = (fun channel -> Run(target, run action, channel)) |> ctx.TaskPool.PostAndAsyncReply
+                let! waitTask = (fun channel -> Run(target, run groupsMap action, channel)) |> ctx.TaskPool.PostAndAsyncReply
                 let! status = waitTask
                 return status, ArtifactDep target
             }
@@ -282,6 +284,7 @@ module internal ExecCore =
             Progress = Progress.emptyProgress()
             NeedRebuild = fun _ -> false
             Tgt = None
+            RuleMatches = Map.empty
             }
 
         logger.Log Info "Options: %A" options

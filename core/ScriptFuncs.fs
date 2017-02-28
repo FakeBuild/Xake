@@ -32,8 +32,6 @@ module ScriptFuncs =
         do! setResult { result with Depends = d :: result.Depends }
     }
 
-    let private cons x ls = x :: ls
-
     /// <summary>
     /// Instructs Xake to rebuild the target even if dependencies are not changed.
     /// </summary>
@@ -75,6 +73,39 @@ module ScriptFuncs =
     }
 
     /// <summary>
+    /// Gets current target file
+    /// </summary>
+    let getTargetFile() = action {
+        let! ctx = getCtx()
+        return ctx.Tgt
+            |> function
+            | Some (FileTarget file) -> file
+            | _ -> failwith "getTargetFile is not available for phony actions"
+    }
+
+    /// <summary>
+    /// Gets current target file name with path
+    /// </summary>
+    let getTargetFullName() = action {
+        let! file = getTargetFile()
+        return file.FullName
+    }
+
+    let getRuleMatches () = action {
+        let! ctx = getCtx()
+        return ctx.RuleMatches
+    }
+
+    /// <summary>
+    /// Gets group (part of the name) by its name.
+    /// </summary>
+    let getRuleMatch key = action {
+        let! groups = getRuleMatches()
+        return groups |> Map.tryFind key |> function |Some v -> v | None -> ""
+    }
+
+
+    /// <summary>
     /// Writes a message to a log.
     /// </summary>
     let trace = ExecCore.traceLog
@@ -89,3 +120,46 @@ module ScriptFuncs =
         do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available
     })
     let (==>) = (<==)
+
+    [<System.Obsolete("Use ..> operator and getTargetFile() instead")>]
+    let ( *> ) pattern (fnRule : File -> Action<'ctx,unit>) = FileRule (pattern, action {
+        let! file = getTargetFile()
+        do! fnRule file
+    })
+
+    [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
+    type RuleActionArgs =
+        RuleActionArgs of File * Map<string,string>
+        with
+        /// Gets the resulting file.
+        member this.File = let (RuleActionArgs (file,_)) = this in file
+        /// Gets the full name of resulting file.
+        member this.FullName = let (RuleActionArgs (file,_)) = this in File.getFullName file
+
+        /// Gets group (part of the name) by its name.
+        member this.GetGroup(key) =
+            let (RuleActionArgs (_,groups)) = this in
+            groups |> Map.tryFind key |> function |Some v -> v | None -> ""
+
+    /// Contains a methods for accessing RuleActionArgs members.
+    [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
+    module RuleArgs =
+
+        let getFile (args:RuleActionArgs) = args.File
+        let getFullName (RuleActionArgs (file,_)) = File.getFullName file
+
+        /// Gets all matched groups.
+        let getGroups (RuleActionArgs (_,groups)) = groups
+
+        /// Gets group (part of the name) by its name.
+        let getGroup key (args:RuleActionArgs) = args.GetGroup key
+
+    [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
+    let ( %> ) pattern (fnRule : RuleActionArgs -> Action<'ctx,unit>) = FileRule (pattern, action {
+        let! file = getTargetFile()
+        let! groups = getRuleMatches()
+
+        let args = RuleActionArgs (file, groups)
+        do! fnRule args
+    })
+

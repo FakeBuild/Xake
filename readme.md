@@ -12,23 +12,21 @@ See [documentation](docs/overview.md) for more details.
 
 ## The script
 
-The simple script might look like:
+The simple script looks like:
 ```fsharp
 #r @"Xake.Core.dll"
 
 open Xake
 
-do xake ExecOptions.Default {
+do xakeScript {
 
-  rule ("main" ==> ["helloworld.exe"])
+  rules [
+    "main" ==> ["helloworld.exe"]
 
-  rule("*.exe" *> fun exe -> action {
-    do! Csc {
-      CscSettings with
-        Out = exe
-        Src = !! (exe.Name -. "cs")
-      }
-    })
+    "*.exe" ..> recipe {
+        let! exe = getTargetFullName()
+        do! csc {src !!(exe -. "cs")}
+    }
 
 }
 ```

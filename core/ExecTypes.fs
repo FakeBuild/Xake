@@ -80,6 +80,7 @@ type ExecContext = {
     RootLogger: ILogger
     Progress: Agent<Progress.ProgressReport>
     Tgt: Target option
+    RuleMatches: Map<string,string>
     Ordinal: int
     NeedRebuild: Target -> bool
 }

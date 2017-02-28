@@ -31,6 +31,8 @@ These tasks allows to perform various file operations. Using these tasks ensures
 
 * `cp <srcfile> <dest-file-name>` - copies the file
 * `rm <mask list>` - removes the files by mask
+* `writeTextFile <text>` - writes content to target (of recipe)
+* `copyFrom <location>` - copies file to target (of recipe)
 
 ### Dotnet tasks
 

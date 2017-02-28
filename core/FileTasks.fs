@@ -20,7 +20,15 @@ let rm (names : string list) =
 
         names |> List.iter (deleteByMask options.ProjectRoot)
         do! trace Level.Info "[rm] Completed"
-    } 
+    }
+
+/// <summary>
+/// Writes text to a file.
+/// </summary>
+let writeTextFile content = recipe {
+    let! file = getTargetFullName()
+    do File.WriteAllText(file, content)
+}
 
 /// <summary>
 /// Copies one file to another location.
@@ -39,6 +47,15 @@ let copyFile (src: string) tgt =
             Directory.CreateDirectory(tgtFolder) |> ignore
 
         File.Copy(src, tgt, true)
+    }
+
+/// <summary>
+/// Requests the file and writes under specific name
+/// </summary>
+let copyFrom (src: string) =
+    recipe {
+        let! tgt = getTargetFullName()
+        do! copyFile src tgt
     }
 
 /// <summary>
