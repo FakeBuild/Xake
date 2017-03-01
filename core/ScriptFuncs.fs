@@ -88,7 +88,7 @@ module ScriptFuncs =
     /// </summary>
     let getTargetFullName() = action {
         let! file = getTargetFile()
-        return file.FullName
+        return File.getFullName file
     }
 
     let getRuleMatches () = action {

@@ -96,21 +96,19 @@ let ``script exits with errorlevel on script failure``() =
                 let! ec = system id fsiApp ["1/script.fsx"]
                 errorCode := ec
             }
-            "1/script.fsx" *> fun src -> action {
-                do File.WriteAllText (src.FullName, """
-#r "../Xake.Core.dll"
-open Xake
+            "1/script.fsx" ..> writeTextFile """
+                #r "../Xake.Core.dll"
+                open Xake
 
-do xake {ExecOptions.Default with DbFileName=".1err"; Threads = 4 } {
+                do xake {ExecOptions.Default with DbFileName=".1err"; Threads = 4 } {
 
-  phony "main" (action {
-    do! trace Message "Hello world!"
-    failwith "error-text"
-    })
+                phony "main" (action {
+                    do! trace Message "Hello world!"
+                    failwith "error-text"
+                    })
 
-}
-""")
-            }
+                }
+            """
         ]
     }
 
