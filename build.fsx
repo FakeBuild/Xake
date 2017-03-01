@@ -16,7 +16,7 @@ let makePackageName () = recipe {
 }
 let paket args = system (useClr >> checkErrorLevel) ".paket/paket.exe" args |> Action.Ignore
 
-do xake {ExecOptions.Default with ConLogLevel = Verbosity.Chatty } {
+do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
     var "NETFX-TARGET" "4.5"
     filelog "build.log" Verbosity.Diag
 
