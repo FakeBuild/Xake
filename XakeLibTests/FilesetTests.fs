@@ -1,5 +1,6 @@
 ﻿module ``Fileset type``
 
+open System
 open System.IO
 
 open Xake
@@ -144,7 +145,6 @@ let ``could combine filesets into new one``() =
     (fs1 + fs2) |> getFiles |> ignore
 
 [<Test>]
-[<ExpectedException>]
 let ``combine filesets with different base dirs are not implemented yet``() =
     let fs1 = fileset {
         basedir @"c:\!"
@@ -152,10 +152,12 @@ let ``combine filesets with different base dirs are not implemented yet``() =
         includesif false @"debug\*.css"
     }
 
-    let fs2 = fileset {
-        basedir @"c:\!\bak"
-        includes @"*.rdl"
+    Assert.Throws<Exception> (fun () ->
+        let fs2 = fileset {
+            basedir @"c:\!\bak"
+            includes @"*.rdl"
 
-        join fs1
-    }
-    fs2 |> getFiles |> ignore
+            join fs1
+        }
+        fs2 |> getFiles |> ignore
+    ) |> ignore

@@ -43,6 +43,11 @@ module XakeScript =
             let loglevel = defaultArg loglevel Verbosity.Chatty in
             XakeScript ({options with FileLog = filename; FileLogLevel = loglevel}, rules)
 
+        [<CustomOperation("consolelog")>] member this.ConLog(XakeScript (options, rules), ?loglevel)
+            =
+            let loglevel = defaultArg loglevel Verbosity.Chatty in
+            XakeScript ({options with ConLogLevel =loglevel}, rules)
+
         [<CustomOperation("rule")>] member this.Rule(script, rule)
             = updRules script (addRule rule)
         // [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action)

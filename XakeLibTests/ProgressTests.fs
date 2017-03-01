@@ -21,8 +21,8 @@ let internal estimate threadCount completed_tasks tasks goals =
     in
     endTime
 
-[<TestCase(1, Result = 8<ms>)>]
-[<TestCase(6, Result = 8<ms>)>]
+[<TestCase(1, ExpectedResult = 8<ms>)>]
+[<TestCase(6, ExpectedResult = 8<ms>)>]
 let Test1(threads) =
 
     let tasks1 =
@@ -34,8 +34,8 @@ let Test1(threads) =
 
     estimate threads [] tasks1 ["build"]       
 
-[<TestCase(1, Result = 12<ms>)>]
-[<TestCase(2, Result = 10<ms>)>]
+[<TestCase(1, ExpectedResult = 12<ms>)>]
+[<TestCase(2, ExpectedResult = 10<ms>)>]
 let TestPara(threads) =
 
     let tasks1 =
@@ -48,8 +48,8 @@ let TestPara(threads) =
 
     estimate threads [] tasks1 ["build"]       
 
-[<TestCase(6, Result = 11<ms>)>]
-[<TestCase(1, Result = 21<ms>)>]
+[<TestCase(6, ExpectedResult = 11<ms>)>]
+[<TestCase(1, ExpectedResult = 21<ms>)>]
 let ComplexCase(threads) =
     let tasks1 =
         [
@@ -69,8 +69,8 @@ let ComplexCase(threads) =
         ]
     estimate threads [] tasks1 ["build"]
 
-[<TestCase(1, Result = 9<ms>)>]
-[<TestCase(2, Result = 5<ms>)>]
+[<TestCase(1, ExpectedResult = 9<ms>)>]
+[<TestCase(2, ExpectedResult = 5<ms>)>]
 let TestPara2(threads) =
 
     let tasks1 =

@@ -14,8 +14,6 @@ _UpgradeReport*
 packages
 .nuget
 .paket
-nupkg/
-_.nuspec
 
 # Ignore Visual Studio files
 *.pdb
@@ -33,3 +31,4 @@ _.nuspec
 TestResult.*
 .xake
 samples/**/*.exe
+samples/**/*.dll

@@ -1,0 +1,16 @@
+type file
+id Xake
+version 0.0.1
+authors OlegZee
+owners OlegZee
+projectUrl https://github.com/OlegZee/Xake
+requireLicenseAcceptance false
+description
+  Xake build tool
+releaseNotes
+  v.0.9+
+    Unified rules declarations.
+copyright Copyright 2017
+tags Xake F# Build
+files
+    bin/Xake.Core.dll ==> tools

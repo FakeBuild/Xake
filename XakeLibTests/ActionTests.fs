@@ -400,11 +400,10 @@ let ``need op``() =
         rules [
             "main" =>
             actionPlus {
-                // need "print"
+                //need "print"
                 printfn "done main"
             }
-            "print" =>
-            action {
+            "print" => recipe {
                 printfn "print"
             }
         ]
