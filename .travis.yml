@@ -2,7 +2,7 @@ language: csharp
 solution: xake.sln
 env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}; else echo 0.0.0; fi;)
 install:
-- mono .paket/paket.bootstrapper.exe
+- mono .paket/paket.bootstrapper.exe 3.36.0
 - mono .paket/paket.exe install
 script:
 - echo "module Xake.Const [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\"" > ./core/VersionInfo.fs
