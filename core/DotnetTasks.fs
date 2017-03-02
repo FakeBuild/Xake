@@ -602,8 +602,9 @@ module DotnetTasks =
                 do! trace Error "('%s') failed: F# compiler not found" outFile.Name
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
 
+            let args = args |> Seq.map Impl.escapeArgument
             do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
-            do! trace Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
+            do! trace Debug "Command line: '%s %s'" fsc (args |> String.concat "\r\n\t")
 
             let options = {
                 SystemTasks.SysOptions.Default with

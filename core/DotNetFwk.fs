@@ -65,41 +65,43 @@ module DotNetFwk =
         open Xake
         open registry
 
-        let MonoProbeKeys = [@"SOFTWARE\Wow6432Node\Novell\Mono"; @"SOFTWARE\Novell\Mono"]
-
         let tryLocateFwk fwk : option<FrameworkInfo> * string =
 
-            let (monover,sdkroot,libdir,configdir,err) =
+            let (sdkroot,libdir,err) =
                 if pkg_config.exists "mono" then
                     let prefix = pkg_config.get_variable "mono" "prefix" in
 
                     let winpath (str:string) = str.Replace('/', System.IO.Path.DirectorySeparatorChar)
                     (
-                        pkg_config.get_mod_version "mono",
                         prefix |> winpath,
                         pkg_config.get_variable "mono" "libdir" |> winpath,
-                        prefix |> winpath </> "etc",
                         null
                     )
                 else if Env.isWindows then
-                    let key = MonoProbeKeys |> List.tryPick (open_subkey HKLM)
-                    let monover = key |> Option.bind (registry.get_value_str "DefaultCLR")
-                    let monokey = monover |> Option.bind (open_subkey (Option.get key))
+                    let MonoProbeKeys = [@"SOFTWARE\Wow6432Node\Novell\Mono"; @"SOFTWARE\Novell\Mono"]
+                    let Mono48ProbeKeys = [@"SOFTWARE\Wow6432Node\Mono"; @"SOFTWARE\Mono"]
 
-                    match monover, monokey with
-                    | Some monover, Some monokey ->
+                    MonoProbeKeys |> List.tryPick (open_subkey HKLM)
+                    |>
+                    function
+                    | Some key ->
+                        let monover = key |> registry.get_value_str "DefaultCLR"
+                        monover |> Option.bind (open_subkey key)
+                    | _ ->
+                        Mono48ProbeKeys |> List.tryPick (open_subkey HKLM)
+                    |>
+                    function
+                    | Some monokey ->
                         let gets key = monokey |> registry.get_value_str key |> Option.get in
                         (
-                            monover,
                             gets "SdkInstallRoot",
                             gets "FrameworkAssemblyDirectory",
-                            gets "MonoConfigDir",
                             null
                         )
                     | _ ->
-                        ("", "", "", "", "Failed to obtain mono framework location from registry")
+                        ("", "", "Failed to locate default mono version")
                 else
-                    ("", "", "", "", "Failed to obtain mono framework (check if mono and pkg_config are installed)")
+                    ("", "", "Failed to obtain mono framework (check if mono and pkg_config are installed)")
             match err with
             | null ->
                 let cscTool = if pkg_config.is_atleast_version "mono" "3.0" then "mcs" else "dmcs"
@@ -239,8 +241,14 @@ module DotNetFwk =
             //["/Library/Frameworks/Mono.framework/Versions/Current/lib/pkgconfig/../../lib/mono/4.0"]
             |> List.tryPick (fun dir ->
                 let fullName = dir </> file
-                match File.Exists(fullName) with
-                | true -> Some fullName | _ -> None
+                if File.Exists(fullName) then
+                    Some fullName
+                else
+                    let fullName = fullName + ".dll"
+                    if File.Exists(fullName) then
+                        Some fullName
+                    else
+                        None
             )
             |> function | Some x -> x | None -> file
             
