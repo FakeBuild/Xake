@@ -19,18 +19,16 @@ let ``allows delete file``() =
             "main" => action {
                 execCount := !execCount + 1
                 do! need ["samplefile"]
-                Assert.IsTrue <| File.Exists ("samplefile")
+                File.Exists "samplefile" |> Assert.True
                 do! rm ["samplefile"]
             }
 
-            "samplefile" *> fun file -> action {
-                File.WriteAllText(file.FullName, "hello world")
-            }
+            "samplefile" ..> writeTextFile "hello world"
         ]
     }
 
     Assert.AreEqual(1, !execCount)
-    Assert.IsFalse <| File.Exists ("samplefile")
+    File.Exists "samplefile" |> Assert.False
 
 [<Test>]
 let ``allows delete file by mask``() =
@@ -41,19 +39,17 @@ let ``allows delete file by mask``() =
         rules [
             "main" => action {
                 do! need ["$$1"; "$$2"]
-                Assert.IsTrue <| File.Exists ("$$2")
+                File.Exists "$$2" |> Assert.True
                 do! rm ["$$*"]
                 execCount := !execCount + 1
             }
 
-            "$$*" *> fun file -> action {
-                File.WriteAllText(file.FullName, "hello world")
-            }
+            "$$*" ..> writeTextFile "hello world"
         ]
     }
 
     Assert.AreEqual(1, !execCount)
-    ["$$1"; "$$2"] |> List.iter (Assert.IsFalse << File.Exists)
+    ["$$1"; "$$2"] |> List.iter (File.Exists >> Assert.False)
 
 [<Test>]
 let ``allows to delete by several masks``() =
@@ -62,17 +58,15 @@ let ``allows to delete by several masks``() =
         rules [
             "main" => action {
                 do! need ["$aa"; "$bb"]
-                Assert.IsTrue <| File.Exists ("$bb")
+                File.Exists ("$bb") |> Assert.True
                 do! rm ["$aa"; "$b*"]
             }
 
-            "$*" *> fun file -> action {
-                File.WriteAllText(file.FullName, "hello world")
-            }
+            "$*" ..> writeTextFile "hello world"
         ]
     }
 
-    ["$aa"; "$bb"] |> List.iter (Assert.IsFalse << File.Exists)
+    ["$aa"; "$bb"] |> List.iter (File.Exists >> Assert.False)
 
 [<Test>]
 let ``supports simple file copy``() =
@@ -85,14 +79,9 @@ let ``supports simple file copy``() =
                 do! copyFile "aaa" "aaa-copy"
             }
 
-            "clean" => action {
-                do! rm ["aaa-copy"]
-            }
-
-            "aaa" *> fun file -> action {
-                File.WriteAllText(file.FullName, "hello world")
-            }
+            "clean" => rm ["aaa-copy"]
+            "aaa" ..> writeTextFile "hello world"
         ]
     }
 
-    Assert.IsTrue <| File.Exists ("aaa-copy")
+    File.Exists "aaa-copy" |> Assert.True

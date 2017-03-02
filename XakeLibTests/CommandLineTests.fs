@@ -61,7 +61,7 @@ let ``reads target lists``() =
     Assert.IsTrue !executed2
 
 
-[<Test; Ignore>]
+[<Test; Ignore("")>]
 let ``warns on incorrect switch``() =
 
     do xakeArgs ["/xxx"] XakeOptions {

@@ -273,9 +273,9 @@ let ``matching groups in rule name``(tgt,mask,expect:string) =
         let expected = expect.Split(';') |> Array.map (fun s -> let pp = s.Split(':') in pp.[0],pp.[1])
         Assert.That(!map |> Map.toArray, Is.EquivalentTo(expected))
 
-[<TestCase("x86-a.ss", "(plat:*)-a.ss", Result = "x86", TestName="Simple case")>]
-[<TestCase("subd1/x86-a.ss", "*/(plat:*)-a.ss", Result = "x86", TestName="groups in various parts")>]
-[<TestCase("(abc.ss", @"[(]*.ss", Result = "", TestName="Escaped brackets")>]
+[<TestCase("x86-a.ss", "(plat:*)-a.ss", ExpectedResult = "x86", TestName="Simple case")>]
+[<TestCase("subd1/x86-a.ss", "*/(plat:*)-a.ss", ExpectedResult = "x86", TestName="groups in various parts")>]
+[<TestCase("(abc.ss", @"[(]*.ss", ExpectedResult = "", TestName="Escaped brackets")>]
 let ``getTargetMatch() matches part``(tgt,mask) =
 
     let resultValue = ref ""
@@ -389,28 +389,27 @@ let ``writes dependencies to a build database``() =
 
     use testee = Storage.openDb "./.xake" (ConsoleLogger Verbosity.Diag)
     try
+        match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test"), ch) with
+        | Some {
+                BuildResult.Result = PhonyAction "test"
+                Depends = [
+                            ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
+                            FileDep (fileDep, depDate)
+                            ]
+            }
+            when System.IO.Path.GetFileName(fileDep.Name) = "bbb.c" && depDate = cdate
+            -> true
+        | a -> false
+        |> Assert.True
 
-        Assert.IsTrue <|
-          match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test"), ch) with
-            | Some {
-                    BuildResult.Result = PhonyAction "test"
-                    Depends = [
-                                ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
-                                FileDep (fileDep, depDate)
-                              ]
-                }
-                when System.IO.Path.GetFileName(fileDep.Name) = "bbb.c" && depDate = cdate
-                -> true
-            | a -> false
-
-        Assert.IsTrue <|
-            match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test1"), ch) with
-            | Some {
-                    BuildResult.Result = PhonyAction "test1"
-                    BuildResult.Depends = [ArtifactDep (PhonyAction "aaa")]
-                    //BuildResult.Steps = []
-                } -> true
-            | _ -> false
+        match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test1"), ch) with
+        | Some {
+                BuildResult.Result = PhonyAction "test1"
+                BuildResult.Depends = [ArtifactDep (PhonyAction "aaa")]
+                //BuildResult.Steps = []
+            } -> true
+        | _ -> false
+        |> Assert.True
 
     finally
         testee.PostAndReply DatabaseApi.CloseWait
