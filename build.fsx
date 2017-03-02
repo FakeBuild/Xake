@@ -35,7 +35,7 @@ module nuget =
     let target t ff = ff |> List.map (fun file -> file,t)
     let package = String.concat newline >> wrapXmlNl "package" >> ((+) ("<?xml version=\"1.0\"?>" + newline))
 
-do xake {ExecOptions.Default with ConLogLevel = Verbosity.Chatty } {
+do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
     var "NETFX-TARGET" "4.5"
     filelog "build.log" Verbosity.Diag
 
