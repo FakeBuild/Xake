@@ -4,4 +4,4 @@ nuget FSharp.Core 3.1.2.5
 nuget NUnit.Runners
 nuget Nuget.CommandLine
 nuget nunit 2.6.3 framework
-nuget Xake 0.8.2
+nuget Xake 0.9.1

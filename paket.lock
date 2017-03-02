@@ -4,4 +4,4 @@ NUGET
     NuGet.CommandLine (2.8.5)
     NUnit (2.6.3)
     NUnit.Runners (2.6.4)
-    Xake (0.8.2)
+    Xake (0.9.1)
