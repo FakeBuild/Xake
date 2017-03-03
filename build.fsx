@@ -6,19 +6,19 @@
 open Xake
 open Xake.SystemTasks
 
-let TestsAssembly = "bin/XakeLibTests.dll"
+let TestsAssembly, CoreAssembly = "bin/XakeLibTests.dll", "bin/Xake.Core.dll"
 let (=?) value deflt = match value with |Some v -> v |None -> deflt
 
-let DEF_VER = "0.0.1"
 let makePackageName () = recipe {
     let! ver = getEnv("VER")
-    return sprintf "Xake.%s.nupkg" (ver =? DEF_VER)
+    return sprintf "Xake.%s.nupkg" (ver =? "0.0.1")
 }
 let paket args = system (useClr >> checkErrorLevel) ".paket/paket.exe" args |> Action.Ignore
 
-do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
+do xakeScript {
     var "NETFX-TARGET" "4.5"
     filelog "build.log" Verbosity.Diag
+    consolelog Verbosity.Normal
 
     rules [
         "main"  => recipe {
@@ -26,7 +26,7 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
             do! need ["test"]
             }
 
-        "build" <== [TestsAssembly; "bin/Xake.Core.dll"]
+        "build" <== [TestsAssembly; CoreAssembly]
         "clean" => rm ["bin/*.*"]
 
         "test" => recipe {
@@ -44,7 +44,7 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
 
         ("bin/nunit.framework.dll") ..> copyFrom "packages/NUnit/lib/net40/nunit.framework.dll"
 
-        "bin/Xake.Core.dll" ..> recipe {
+        CoreAssembly ..> recipe {
 
             // TODO multitarget rule!
             let xml = "bin/Xake.Core.XML" // file.FullName .- "XML"
@@ -83,44 +83,22 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
 
             do! Fsc {
                 FscSettings with
-                    Out = file
                     Src = sources
                     Ref = !! "bin/FSharp.Core.dll"
-                    RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
+                    RefGlobal = ["System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
                     Define = ["TRACE"]
                     CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"; "--doc:" + xml]
             }
 
         }
 
-        TestsAssembly ..> recipe {
-
-            // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
-            let! file = getTargetFile()
-
-            let sources = fileset {
-                basedir "XakeLibTests"
-                includes "ActionTests.fs"
-                includes "FilesetTests.fs"
-                includes "ScriptErrorTests.fs"
-                includes "XakeScriptTests.fs"
-                includes "MiscTests.fs"
-                includes "StorageTests.fs"
-                includes "FileTasksTests.fs"
-                includes "ProgressTests.fs"
-                includes "CommandLineTests.fs"
-            }
-
-            do! Fsc {
-                FscSettings with
-                    Out = file
-                    Src = sources
-                    Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + "bin/Xake.Core.dll"
-                    RefGlobal = ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
-                    Define = ["TRACE"]
-                    CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"]
-            }
-
+        // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
+        TestsAssembly ..> Fsc {
+            FscSettings with
+                Src = !! "XakeLibTests/*.fs"
+                Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + CoreAssembly
+                RefGlobal = ["System.dll"; "System.Core.dll"]
+                Define = ["TRACE"]
         }
     ]
 
@@ -132,7 +110,7 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
         }
 
         "Xake.(ver:*).nupkg" ..> recipe {
-            do! need ["bin/Xake.Core.dll"]
+            do! need [CoreAssembly]
             let! ver = getRuleMatch("ver")
             do! paket ["pack"; "version"; ver; "output"; "." ]
         }

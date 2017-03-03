@@ -4,4 +4,4 @@ NUGET
     FSharp.Core (3.1.2.5)
     NUnit (3.6.1)
     NUnit.ConsoleRunner (3.6)
-    Xake (0.8.8)
+    Xake (0.9.3)

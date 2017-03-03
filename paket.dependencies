@@ -4,4 +4,4 @@ source https://www.nuget.org/api/v2/
 nuget FSharp.Core 3.1.2.5
 nuget NUnit.ConsoleRunner
 nuget NUnit >= 3.6
-nuget Xake 0.8.8
+nuget Xake 0.9.3
