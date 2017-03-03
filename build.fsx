@@ -10,65 +10,43 @@ let TestsAssembly = "bin/XakeLibTests.dll"
 let (=?) value deflt = match value with |Some v -> v |None -> deflt
 
 let DEF_VER = "0.0.1"
-
-let nuget_exe args = system (useClr >> checkErrorLevel) "packages/NuGet.CommandLine/tools/NuGet.exe" args |> Action.Ignore
-
-module nuget =
-    module private impl =
-        let newline = System.Environment.NewLine
-        let wrapXml node value = sprintf "<%s>%s</%s>" node value node
-        let wrapXmlNl node (value:string) =
-            let attrs = value.Split([|newline|], System.StringSplitOptions.None) |> Seq.ofArray
-            let content = attrs |> Seq.map ((+) "  ") |> String.concat newline
-            sprintf "<%s>%s</%s>" node (newline + content + newline) node
-        let toXmlStr (node,value) = wrapXml node value
-
-    open impl
-
-    let dependencies deps =
-        "dependencies", newline
-        + (deps |> List.map (fun (s,v) -> sprintf """<dependency id="%s" version="%s" />""" s v) |> String.concat newline)
-        + newline
-
-    let metadata = List.map toXmlStr >> String.concat newline >> wrapXmlNl "metadata"
-    let files = List.map (fun(f,t) -> (f,t) ||> sprintf """<file src="%s" target="%s" />""") >> String.concat newline >> wrapXmlNl "files"
-    let target t ff = ff |> List.map (fun file -> file,t)
-    let package = String.concat newline >> wrapXmlNl "package" >> ((+) ("<?xml version=\"1.0\"?>" + newline))
+let makePackageName () = recipe {
+    let! ver = getEnv("VER")
+    return sprintf "Xake.%s.nupkg" (ver =? DEF_VER)
+}
+let paket args = system (useClr >> checkErrorLevel) ".paket/paket.exe" args |> Action.Ignore
 
 do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
     var "NETFX-TARGET" "4.5"
     filelog "build.log" Verbosity.Diag
 
     rules [
-        "main"  => action {
+        "main"  => recipe {
             do! need ["build"]
             do! need ["test"]
             }
 
         "build" <== [TestsAssembly; "bin/Xake.Core.dll"]
-        "clean" => action {
-            do! rm ["bin/*.*"]
-        }
+        "clean" => rm ["bin/*.*"]
 
-        "test" => action {
+        "test" => recipe {
+            do! alwaysRerun()
             do! need[TestsAssembly]
-            do! system (useClr >> checkErrorLevel) "packages/NUnit.Runners/tools/nunit-console.exe" [TestsAssembly] |> Action.Ignore
+            do! system (useClr >> checkErrorLevel >> workingDir "bin") "packages/NUnit.ConsoleRunner/tools/nunit3-console.exe" ["XakeLibTests.dll"] |> Action.Ignore
         }
 
-        ("bin/FSharp.Core.dll") *> fun outfile ->
-            WhenError ignore <| action {
-                do! copyFile "packages/FSharp.Core/lib/net40/FSharp.Core.dll" outfile.FullName
+        ("bin/FSharp.Core.dll") ..> (WhenError ignore <| recipe {
+                do! copyFrom "packages/FSharp.Core/lib/net40/FSharp.Core.dll"
                 do! copyFiles ["packages/FSharp.Core/lib/net40/FSharp.Core.*data"] "bin"
-            }
+            })
 
-        ("bin/nunit.framework.dll") *> fun outfile -> action {
-            do! copyFile "packages/NUnit/lib/nunit.framework.dll" outfile.FullName
-        }
+        ("bin/nunit.framework.dll") ..> copyFrom "packages/NUnit/lib/net40/nunit.framework.dll"
 
-        "bin/Xake.Core.dll" *> fun file -> action {
+        "bin/Xake.Core.dll" ..> recipe {
 
             // TODO multitarget rule!
             let xml = "bin/Xake.Core.XML" // file.FullName .- "XML"
+            let! file = getTargetFile()
 
             let sources = fileset {
                 basedir "core"
@@ -113,9 +91,10 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
 
         }
 
-        TestsAssembly *> fun file -> action {
+        TestsAssembly ..> recipe {
 
             // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
+            let! file = getTargetFile()
 
             let sources = fileset {
                 basedir "XakeLibTests"
@@ -145,47 +124,30 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Diag } {
 
     (* Nuget publishing rules *)
     rules [
-        "nuget-pack" => action {
-
-            let libFiles = ["bin/Xake.Core.dll"]
-            do! need libFiles
-
-            let! ver = getEnv("VER")
-
-            let nuspec =
-                nuget.package [
-                    nuget.metadata [
-                        "id", "Xake"
-                        "version", ver =? DEF_VER
-                        "authors", "OlegZee"
-                        "owners", "OlegZee"
-                        "projectUrl", "https://github.com/OlegZee/Xake"
-                        "requireLicenseAcceptance", "false"
-                        "description", "Xake build tool"
-                        "releaseNotes", ""
-                        "copyright", sprintf "Copyright %i" System.DateTime.Now.Year
-                        "tags", "Xake F# Build"
-                        nuget.dependencies []
-                    ]
-                    nuget.files (libFiles |> nuget.target "tools")
-                ]
-
-            let nuspec_file = "_.nuspec"
-            do System.IO.Directory.CreateDirectory("nupkg") |> ignore
-            do System.IO.File.WriteAllText(nuspec_file, nuspec)
-
-            do! nuget_exe ["pack"; nuspec_file; "-OutputDirectory"; "nupkg" ]
+        "nuget-pack" => recipe {
+            let! package_name = makePackageName ()
+            do! need [package_name]
         }
 
-        "nuget-push" => action {
+        "Xake.(ver:*).nupkg" ..> recipe {
+            do! need ["bin/Xake.Core.dll"]
+            let! ver = getRuleMatch("ver")
+            do! paket ["pack"; "version"; ver; "output"; "." ]
+        }
 
-            do! need ["nuget-pack"]
+        "nuget-push" => recipe {
 
-            let! ver = getEnv("VER")
-            let package_name = sprintf "Xake.%s.nupkg" (ver =? DEF_VER)
+            let! package_name = makePackageName ()
+            do! need [package_name]
 
             let! nuget_key = getEnv("NUGET_KEY")
-            do! nuget_exe ["push"; "nupkg" </> package_name; nuget_key =? ""; "-Source"; "https://www.nuget.org/api/v2/package"]
+            do! paket
+                  [
+                    "push"
+                    "url"; "https://www.nuget.org/api/v2/package"
+                    "file"; package_name
+                    "apikey"; nuget_key =? ""
+                  ]
         }
     ]
 }
