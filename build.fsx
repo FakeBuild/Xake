@@ -32,7 +32,9 @@ do xake {ExecOptions.Default with ConLogLevel = Verbosity.Chatty } {
         "test" => recipe {
             do! alwaysRerun()
             do! need[TestsAssembly]
-            do! system (useClr >> checkErrorLevel >> workingDir "bin") "packages/NUnit.ConsoleRunner/tools/nunit3-console.exe" ["XakeLibTests.dll"] |> Action.Ignore
+            // making full path because there's a different system semantics on linux and windows
+            let nunit_console = "packages/NUnit.ConsoleRunner/tools/nunit3-console.exe" |> File.make |> File.getFullName
+            do! system (useClr >> checkErrorLevel >> workingDir "bin") nunit_console ["XakeLibTests.dll"] |> Action.Ignore
         }
 
         ("bin/FSharp.Core.dll") ..> (WhenError ignore <| recipe {
