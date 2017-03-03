@@ -270,7 +270,7 @@ module DotnetTasks =
             let! globalTargetFwk = getVar "NETFX-TARGET"
             let targetFramework =
                 match settings.TargetFramework, globalTargetFwk with
-                | s, _ when s <> null && s <> "" -> s
+                | s, _ when not <| System.String.IsNullOrWhiteSpace(s) -> s
                 | _, Some s when s <> "" -> s
                 | _ -> null
 
@@ -283,9 +283,7 @@ module DotnetTasks =
                 | tgt ->
                     let fwk = Some tgt |> DotNetFwk.locateFramework in
                     let lookup = DotNetFwk.locateAssembly fwk
-                    let mapfn = (fun name -> "/r:" + (lookup name))
-
-                    //do! writeLog Info "Using libraries from %A" fwk.AssemblyDirs
+                    let mapfn = lookup >> ((+) "/r:")
 
                     ("mscorlib.dll" :: settings.RefGlobal |> List.map mapfn), true, true
 
@@ -523,6 +521,9 @@ module DotnetTasks =
     let Fsc (settings:FscSettingsType) =
 
         action {
+            let! ctx = getCtx()
+            let logger = ctx.RootLogger
+
             let! options = getCtxOptions()
             let getFiles = toFileList options.ProjectRoot
 
@@ -546,24 +547,24 @@ module DotnetTasks =
             let! globalTargetFwk = getVar "NETFX-TARGET"
             let targetFramework =
                 match settings.TargetFramework, globalTargetFwk with
-                | s, _ when not (System.String.IsNullOrEmpty s) -> s
+                | s, _ when not (System.String.IsNullOrWhiteSpace s) -> s
                 | _, Some s when s <> "" -> s
                 | _ -> null
 
+            logger.Log Debug "targetFramework: %s" targetFramework
+
             let (globalRefs,noframework) =
+                let mapfn = (+) "/r:"
                 match targetFramework with
                 | null ->
-                    let mapfn = (+) "/r:"
                     // TODO provide an option for user to explicitly specify all grefs (currently csc.rsp is used)
                     (settings.RefGlobal |> List.map mapfn), false
                 | tgt ->
                     let fwk = Some tgt |> DotNetFwk.locateFramework in
                     let lookup = DotNetFwk.locateAssembly fwk
-                    let mapfn = lookup >> ((+) "/r:")
+                    do logger.Log Debug "Found fwk %A" fwk
 
-                    //do! writeLog Info "Using libraries from %A" fwk.AssemblyDirs
-
-                    ("mscorlib.dll" :: settings.RefGlobal |> List.map mapfn), true
+                    ("mscorlib.dll" :: settings.RefGlobal |> List.map (lookup >> mapfn)), true
 
             let args =
                 seq {
@@ -602,8 +603,9 @@ module DotnetTasks =
                 do! trace Error "('%s') failed: F# compiler not found" outFile.Name
                 if settings.FailOnError then failwithf "Exiting due to FailOnError set on '%s'" outFile.Name
 
+            let args = args |> Seq.map Impl.escapeArgument
             do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
-            do! trace Debug "Command line: '%s %s'" fsc (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
+            do! trace Debug "Command line: '%s %s'" fsc (args |> String.concat "\r\n\t")
 
             let options = {
                 SystemTasks.SysOptions.Default with
