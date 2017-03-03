@@ -9,9 +9,9 @@ module (* internal *) pkg_config =
 
     let private pkgcgf args =
         let outp = ref option<string>.None
-        let dump s = outp := match !outp with | None -> Some s | _ as str -> str
+        let dump s = outp := match !outp with | None -> Some s | s -> s
         try
-            _pexec dump dump "pkg-config" (args |> String.concat " ") [] |> ignore
+            do _pexec dump dump "pkg-config" (args |> String.concat " ") [] None |> ignore
             match !outp with | None -> "" | Some str -> str
         with _ ->
             ""
