@@ -48,7 +48,6 @@ do xakeScript {
 
             // TODO multitarget rule!
             let xml = "bin/Xake.Core.XML" // file.FullName .- "XML"
-            let! file = getTargetFile()
 
             let sources = fileset {
                 basedir "core"
@@ -92,7 +91,6 @@ do xakeScript {
 
         }
 
-        // TODO --doc:..\bin\Xake.Core.XML --- multitarget rule!
         TestsAssembly ..> Fsc {
             FscSettings with
                 Src = !! "XakeLibTests/*.fs"
