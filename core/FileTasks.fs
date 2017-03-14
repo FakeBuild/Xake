@@ -1,5 +1,5 @@
 ﻿[<AutoOpen>]
-module Xake.FileTasks
+module Xake.FileTasksOld
 
 open System.IO
 open Xake

@@ -3,7 +3,7 @@
 open NUnit.Framework
 
 open Xake
-open Xake.FileTasks
+open Xake.FileTasksOld
 
 type private File = System.IO.File
 
@@ -85,3 +85,31 @@ let ``supports simple file copy``() =
     }
 
     File.Exists "aaa-copy" |> Assert.True
+
+open Xake.FileTasks
+
+[<Test>]
+let ``new modules``() =
+    printfn "%s" Cp
+
+    do xake TestOptions {
+        rules [
+            "main" => recipe {
+                do! Rm {RmArgs.Default with file = "aaa.cs"}
+                do! Rm {RmArgs.Default with dir = "dummy"}
+                do! Rm {RmArgs.Default with fileset = fileset {"**/*.tmp"}; verbose = true}
+
+                do! rm {file "aaa.cs"}
+                do! rm {dir "aaa"}
+                do! rm {
+                    fileset {"**/*.tmp"}
+                    fileset {"**/*.tmp_"}
+                    file "aaa.cs"
+                    file "bbb.cs"
+                    dir "aaa"
+
+                    verbose
+                }
+            }
+        ]
+    }
