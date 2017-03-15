@@ -8,7 +8,7 @@ module ScriptFuncs =
     /// <summary>
     /// Gets the script options.
     /// </summary>
-    let getCtxOptions () = action {
+    let getCtxOptions () = recipe {
         let! (ctx: ExecContext) = getCtx()
         return ctx.Options
     }
@@ -27,7 +27,7 @@ module ScriptFuncs =
     let needFiles (Filelist files) =
         files |> List.map FileTarget |> ExecCore.need
 
-    let private record d = action {
+    let private record d = recipe {
         let! result = getResult()
         do! setResult { result with Depends = d :: result.Depends }
     }
@@ -52,7 +52,7 @@ module ScriptFuncs =
     /// Gets the global (options) variable.
     /// </summary>
     /// <param name="variableName"></param>
-    let getVar variableName = action {
+    let getVar variableName = recipe {
         let! ctx = getCtx()
         let value = Util.getVar ctx.Options variableName
 
@@ -64,7 +64,7 @@ module ScriptFuncs =
     /// Gets the list of files matching specified fileset.
     /// </summary>
     /// <param name="fileset"></param>
-    let getFiles fileset = action {
+    let getFiles fileset = recipe {
         let! ctx = getCtx()
         let files = fileset |> toFileList ctx.Options.ProjectRoot
         do! Dependency.GetFiles (fileset,files) |> record
@@ -75,7 +75,7 @@ module ScriptFuncs =
     /// <summary>
     /// Gets current target file
     /// </summary>
-    let getTargetFile() = action {
+    let getTargetFile() = recipe {
         let! ctx = getCtx()
         return ctx.Tgt
             |> function
@@ -86,12 +86,12 @@ module ScriptFuncs =
     /// <summary>
     /// Gets current target file name with path
     /// </summary>
-    let getTargetFullName() = action {
+    let getTargetFullName() = recipe {
         let! file = getTargetFile()
         return File.getFullName file
     }
 
-    let getRuleMatches () = action {
+    let getRuleMatches () = recipe {
         let! ctx = getCtx()
         return ctx.RuleMatches
     }
@@ -115,7 +115,7 @@ module ScriptFuncs =
 
     /// Defines a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
-    let (<==) name targets = PhonyRule (name,action {
+    let (<==) name targets = PhonyRule (name, recipe {
         do! need targets
         do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available
     })
@@ -155,7 +155,7 @@ module ScriptFuncs =
         let getGroup key (args:RuleActionArgs) = args.GetGroup key
 
     [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
-    let ( %> ) pattern (fnRule : RuleActionArgs -> Action<'ctx,unit>) = FileRule (pattern, action {
+    let ( %> ) pattern (fnRule : RuleActionArgs -> Action<'ctx,unit>) = FileRule (pattern, recipe {
         let! file = getTargetFile()
         let! groups = getRuleMatches()
 

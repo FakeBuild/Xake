@@ -97,13 +97,13 @@ let ``new modules``() =
             "main" => recipe {
                 do! Rm {RmArgs.Default with file = "aaa.cs"}
                 do! Rm {RmArgs.Default with dir = "dummy"}
-                do! Rm {RmArgs.Default with fileset = fileset {"**/*.tmp"}; verbose = true}
+                do! Rm {RmArgs.Default with fileset = fileset {includes "**/*.tmp"}; verbose = true}
 
                 do! rm {file "aaa.cs"}
                 do! rm {dir "aaa"}
                 do! rm {
-                    fileset {"**/*.tmp"}
-                    fileset {"**/*.tmp_"}
+                    fileset {includes "**/*.tmp"}
+                    fileset {includes "**/*.tmp_"}
                     file "aaa.cs"
                     file "bbb.cs"
                     dir "aaa"

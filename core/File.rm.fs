@@ -33,7 +33,7 @@ module RmImpl =
 
         member this.Bind(x, f) = f x
         member this.Yield(()) = RmArgs.Default
-        member x.For(sq, b) = for e in sq do b e
+        member this.For(x, f) = f x
 
         member this.Zero() = RmArgs.Default
         member this.Run(args:RmArgs) = Rm args
