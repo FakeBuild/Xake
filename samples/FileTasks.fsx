@@ -5,27 +5,93 @@ open Xake.FileTasks
 
 type RmArgsBuilder() =
 
-    let mutable args = RmArgs.Default
+    [<DefaultValue>] val mutable file: string
+    [<DefaultValue>] val mutable dir: string
+    [<DefaultValue>] val mutable fset: FilesetBuilder
 
-    [<CustomOperation("file")>]    member this.File(value) =   args <- {args with file = value; dir = null; fileset = Fileset.Empty}
-    [<CustomOperation("dir")>]     member this.Dir(value) =    args <- {args with file = null; dir = value; fileset = Fileset.Empty}
-    [<CustomOperation("files")>]   member this.Files(value) =  args <- {args with file = null; dir = null; fileset = value}
-    [<CustomOperation("verbose")>] member this.Verbose() =     args <- {args with verbose = true}
+    [<CustomOperation("file")>]    member this.File(a :RmArgsBuilder,value) =   this.file <- value; ()
+    [<CustomOperation("dir")>]     member this.Dir(a :RmArgsBuilder,value) =    this.dir <- value; ()
+
+    [<CustomOperation("files")>]   member this.Fileset(a :RmArgsBuilder) =
+        let fs = new FilesetBuilder()
+        // {a with file = null; dir = null; fileset = fs}
+        this.fset <- fs
+        fs
+
 
     // member this.Bind(x, f) = f x
-    // member this.Yield(()) = RmArgs.Default
-    // // member x.For(sq, b) = for e in sq do b e
 
-    // member this.Zero() = RmArgs.Default
-    // member this.Run(args:RmArgs) = Rm args
+    // member this.Bind(x, f) = f x
+    member this.Yield(()) = ()
+    member x.Quote(c) = c
 
+    // member x.Combine(a,b) =
+    //     printfn "se"
+    //     a
     member x.Zero() = ()
     member x.Delay(f : unit -> unit) = f
 
-    member x.set(s: string) = 
-        args <- {args with file = s}
+    // member this.Yield (txt : string) =
+    //     printfn "yield txt"
+    //     this.file <- this.file + "$" + txt
+    member x.Run(c) =
+        printfn "run"
+        c
+    // member x.For(sq, b) =
+    //     printfn "for"
+    //     for e in sq do b e
 
 let rm = RmArgsBuilder()
+
+let c = rm {
+    // files (fileset {includes "**/*.tmp"})
+    //file "aa.c"
+    "d"
+//    files { "ddd" }
+    // dir "c"
+}
+
+printf "%A" c
+
+type Rm1ArgsBuilder() =
+
+    [<CustomOperation("file")>]    member this.File(a :RmArgs, value) =   {a with file = value; dir = null; fileset = Fileset.Empty}
+    [<CustomOperation("dir")>]     member this.Dir(a :RmArgs, value) =    {a with file = null; dir = value; fileset = Fileset.Empty}
+    [<CustomOperation("files")>]   member this.Files(a :RmArgs, value) =  {a with file = null; dir = null; fileset = value}
+    [<CustomOperation("verbose")>] member this.Verbose(a:RmArgs) =        {a with verbose = true}
+
+    member this.Bind(x, f) = f x
+    member this.Yield(()) = RmArgs.Default
+
+    member this.Yield (txt : string) =
+        printfn "yield txt"
+        {RmArgs.Default with file = txt}
+
+    member this.ReturnFrom (txt : string) =
+        printfn "ret txt"
+        {RmArgs.Default with file = txt}
+
+    member this.Zero() = RmArgs.Default
+    member this.Run(args:RmArgs) = args
+
+    // member this.Quote() = ()
+    member this.Combine(a, b: RmArgs) =
+        printfn "combine"
+        {a with dir = b.dir}
+
+    member this.Delay(f) = 
+        printfn "Delay"
+        f()
+let rm1 = Rm1ArgsBuilder()
+
+let d = rm1 {
+    // files (fileset {includes "**/*.tmp"})
+   // file "ddd"
+   file "c"
+   dir "d"
+}
+
+printf "%A" d
 
 do xakeScript {
    rules [
@@ -38,10 +104,10 @@ do xakeScript {
 
             // do! rm {file "aaa.cs"}
             // do! rm {dir "aaa"}
-            do! rm {
-                 // files (fileset {includes "**/*.tmp"})
-                 dir "c"
-            }
+            // do! rm {
+            //      // files (fileset {includes "**/*.tmp"})
+            //      dir "c"
+            // }
             // do! rm {
             //     fileset {includes "**/*.tmp"}
             //     fileset {includes "**/*.tmp_"}

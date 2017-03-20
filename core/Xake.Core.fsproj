@@ -87,8 +87,8 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Program.fs" />
     <None Include="todo.md" />
-    <Compile Include="File.cp.fs" />
-    <Compile Include="File.rm.fs" />
+    <Compile Include="Tasks\File.cp.fs" />
+    <Compile Include="Tasks\File.rm.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Data.TypeProviders" />
