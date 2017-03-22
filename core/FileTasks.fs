@@ -4,6 +4,12 @@ module Xake.FileTasksOld
 open System.IO
 open Xake
 
+let private ensureDirCreated fileName =
+    let dir = fileName |> Path.GetDirectoryName
+
+    if not <| System.String.IsNullOrEmpty(dir) then
+        do dir |> Directory.CreateDirectory |> ignore
+
 /// <summary>
 /// Removes the files.
 /// </summary>
@@ -26,8 +32,9 @@ let rm (names : string list) =
 /// Writes text to a file.
 /// </summary>
 let writeTextFile content = recipe {
-    let! file = getTargetFullName()
-    do File.WriteAllText(file, content)
+    let! fileName = getTargetFullName()
+    do ensureDirCreated fileName
+    do File.WriteAllText(fileName, content)
 }
 
 /// <summary>
@@ -41,10 +48,7 @@ let copyFile (src: string) tgt =
         do! need [src]
         do! trace Level.Info "[copyFile] '%A' -> '%s'" src tgt
 
-        let tgtFolder = Path.GetDirectoryName(tgt)
-
-        if not <| System.String.IsNullOrEmpty(tgtFolder) then
-            Directory.CreateDirectory(tgtFolder) |> ignore
+        do ensureDirCreated tgt
 
         File.Copy(src, tgt, true)
     }

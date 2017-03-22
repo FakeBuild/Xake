@@ -1,6 +1,7 @@
 namespace Xake.FileTasks
 
 open Xake
+open System.IO
 
 [<AutoOpen>]
 module RmImpl =
@@ -10,22 +11,17 @@ module RmImpl =
         file: string
         files: Fileset
         verbose: bool
-        includeemptydirs: bool
     } with static member Default = {
             dir = null
             file = null
             files = Fileset.Empty
             verbose = false
-            includeemptydirs = true
         }
 
     let Rm (args: RmArgs) =
 
         recipe {
-            // TODO implement
             do! trace Level.Debug "Rm: args=%A" args
-
-            failwith "Not implemented"
 
             // match args
             let! ctx = getCtx()
@@ -36,22 +32,32 @@ module RmImpl =
                     ctx.Logger.Log Level.Message "[rm] deleting '%A'" file
                 ctx.Logger.Log Level.Debug "deleting '%A'" file
 
-            let deleteFile (file: string) =
-                // do System.IO.File.Delete file
-                do reportDeleting file
+            match args with
+            | { files = f } when f <> Fileset.Empty ->
+                ctx.Logger.Log Level.Message "[rm] %A" f
+                let (Filelist files) = toFileList projectRoot f
+                files |> List.map (fun f -> f.FullName)
+                |> List.iter (fun file ->
+                    do reportDeleting file
+                    do File.Delete file
+                )
+            
+            | { file = fileMask } when fileMask <> null ->
+                ctx.Logger.Log Level.Message "[rm] %A" fileMask
+                fileMask |> Path.parse |> Fileset.listByMask projectRoot
+                |> Seq.iter (fun file ->
+                    do reportDeleting file
+                    do File.Delete file
+                )
 
-            let fileset =
-                match args with
-                | { files = f } when f <> Fileset.Empty ->     f
-                | { file = fileMask } when fileMask <> null -> !! fileMask
-                | { dir = dirMask } when dirMask <> null ->    !! (dirMask </> "**/*.*")
-                | _ -> Fileset.Empty
+            | { dir = dirMask } when dirMask <> null ->
+                dirMask |> Path.parseDir |> Fileset.listByMask projectRoot
+                |> Seq.iter (fun dir ->
+                    do reportDeleting dir
+                    do Directory.Delete (dir, true)
+                )
 
-            // TODO empty dirs
-
-            do! trace Level.Info "[rm] %A" fileset
-            // let (Filelist files) = toFileList projectRoot fileset
-            // files |> List.map (fun f -> f.FullName) |> List.iter deleteFile
+            | _ -> ()
 
             do! trace Level.Info "[rm] Completed"
 
@@ -64,7 +70,6 @@ module RmImpl =
         [<CustomOperation("dir")>]     member this.Dir(a :RmArgs, value) =    {a with dir = value}
         [<CustomOperation("files")>] member this.Fileset(a :RmArgs, value)= {a with files = value}
         [<CustomOperation("verbose")>] member this.Verbose(a:RmArgs) =        {a with verbose = true}
-        [<CustomOperation("includeemptydirs")>] member this.Includeemptydirs(a:RmArgs, includeEmpty) = {a with includeemptydirs = includeEmpty}
 
         member this.Bind(x, f) = f x
         member this.Yield(()) = RmArgs.Default
