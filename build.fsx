@@ -14,11 +14,12 @@ let makePackageName () = recipe {
     return sprintf "Xake.%s.nupkg" (ver =? "0.0.1")
 }
 let paket args = system (useClr >> checkErrorLevel) ".paket/paket.exe" args |> Action.Ignore
+let nunitConsoleExe = "packages/NUnit.ConsoleRunner/tools/nunit3-console.exe" |> File.make |> File.getFullName
 
 do xakeScript {
     var "NETFX-TARGET" "4.5"
     filelog "build.log" Verbosity.Diag
-    consolelog Verbosity.Normal
+    // consolelog Verbosity.Normal
 
     rules [
         "main"  => recipe {
@@ -32,9 +33,11 @@ do xakeScript {
         "test" => recipe {
             do! alwaysRerun()
             do! need[TestsAssembly]
-            // making full path because there's a different system semantics on linux and windows
-            let nunit_console = "packages/NUnit.ConsoleRunner/tools/nunit3-console.exe" |> File.make |> File.getFullName
-            do! system (useClr >> checkErrorLevel >> workingDir "bin") nunit_console ["XakeLibTests.dll"] |> Action.Ignore
+
+            let! where = getVar("WHERE")
+            let whereArgs = where |> function | Some clause -> ["--where"; clause] | None -> []
+
+            do! system (useClr >> checkErrorLevel >> workingDir "bin") nunitConsoleExe (["XakeLibTests.dll"] @ whereArgs) |> Action.Ignore
         }
 
         ("bin/FSharp.Core.dll") ..> (WhenError ignore <| recipe {
@@ -42,7 +45,7 @@ do xakeScript {
                 do! copyFiles ["packages/FSharp.Core/lib/net40/FSharp.Core.*data"] "bin"
             })
 
-        ("bin/nunit.framework.dll") ..> copyFrom "packages/NUnit/lib/net40/nunit.framework.dll"
+        ("bin/nunit.framework.dll") ..> copyFrom "packages/NUnit/lib/nunit.framework.dll"
 
         CoreAssembly ..> recipe {
 

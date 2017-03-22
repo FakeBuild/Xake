@@ -82,7 +82,7 @@ let ``could search and return directories``() =
     Assert.That (files |> List.map File.getFileName, Is.EquivalentTo (List.toSeq ["bak"; "rpt"; "jparsec"]))
 
 [<Test>]
-let ``privides builder computation``() =
+let ``provides builder computation``() =
     let fileset = fileset {
         basedir @"c:\rpt"
 

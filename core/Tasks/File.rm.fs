@@ -34,9 +34,10 @@ module RmImpl =
             let reportDeleting file =
                 if args.verbose then
                     ctx.Logger.Log Level.Message "[rm] deleting '%A'" file
+                ctx.Logger.Log Level.Debug "deleting '%A'" file
 
             let deleteFile (file: string) =
-                do System.IO.File.Delete file
+                // do System.IO.File.Delete file
                 do reportDeleting file
 
             let fileset =
@@ -48,8 +49,9 @@ module RmImpl =
 
             // TODO empty dirs
 
-            let (Filelist files) = toFileList projectRoot fileset
-            files |> List.map (fun f -> f.FullName) |> List.iter deleteFile
+            do! trace Level.Info "[rm] %A" fileset
+            // let (Filelist files) = toFileList projectRoot fileset
+            // files |> List.map (fun f -> f.FullName) |> List.iter deleteFile
 
             do! trace Level.Info "[rm] Completed"
 

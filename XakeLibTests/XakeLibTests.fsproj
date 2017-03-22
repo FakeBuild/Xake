@@ -20,6 +20,11 @@
     <OutputPath>..\bin\Debug</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
+    <StartAction>Program</StartAction>
+    <StartProgram>C:\projects\Xake\packages\NUnit.ConsoleRunner\tools\nunit3-console.exe</StartProgram>
+    <StartWorkingDirectory>C:\projects\Xake\bin\Debug\</StartWorkingDirectory>
+    <StartArguments>--debug XakeLibTests.dll</StartArguments>
+    <EnableUnmanagedDebugging>true</EnableUnmanagedDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -48,6 +53,7 @@
     <Compile Include="MiscTests.fs" />
     <Compile Include="StorageTests.fs" />
     <Compile Include="FileTasksTests.fs" />
+    <Compile Include="FileTasksRm.fs" />
     <Compile Include="ProgressTests.fs" />
     <Compile Include="CommandLineTests.fs" />
     <Compile Include="ExplicitTests.fs" />

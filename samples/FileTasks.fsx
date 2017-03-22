@@ -89,6 +89,7 @@ let d = rm1 {
    // file "ddd"
    file "c"
    dir "d"
+   files (fileset {includes "**/*.tmp"})
 }
 
 printf "%A" d
