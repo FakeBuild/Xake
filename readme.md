@@ -22,12 +22,12 @@ Unlike NAnt, Fake and similar tools with imperative script style, Xake is declar
   * you describe rules on how to make particular target and which targets it depends on
   * build tool identifies dependencies and build your targets
 
-See [wiki documentation](/OlegZee/Xake/wiki) for more details.
+See [wiki documentation](https://github.com/OlegZee/Xake/wiki) for more details.
 
 [![Build Status](https://travis-ci.org/OlegZee/Xake.svg?branch=master)](https://travis-ci.org/OlegZee/Xake)
 
 ## References
 
-  * [documentation wiki](/OlegZee/Xake/wiki)
+  * [documentation wiki](https://github.com/OlegZee/Xake/wiki)
   * [implementation notes](docs/implnotes.md)
   * [Shake manual](https://github.com/ndmitchell/shake/blob/master/docs/Manual.md)
