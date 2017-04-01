@@ -1,5 +1,6 @@
-﻿[<AutoOpen>]
-module Xake.FileTasksOld
+﻿[<System.Obsolete("Use Xake.Tasks.File instead")>]
+[<AutoOpen>]
+module Xake.FileTasks
 
 open System.IO
 open Xake
@@ -14,6 +15,7 @@ let private ensureDirCreated fileName =
 /// Removes the files.
 /// </summary>
 /// <param name="names">List of files/filemasks to be removed.</param>
+[<System.Obsolete("Use Xake.Tasks.File.del instead")>]
 let rm (names : string list) =
 
     let deleteByMask root mask =
@@ -42,6 +44,7 @@ let writeTextFile content = recipe {
 /// </summary>
 /// <param name="src">Source file name</param>
 /// <param name="tgt">Target file location and name.</param>
+[<System.Obsolete("Use Xake.Tasks.File.copy instead")>]
 let copyFile (src: string) tgt =
     action {
         // TODO fail on error, normalize names
@@ -63,15 +66,9 @@ let copyFrom (src: string) =
     }
 
 /// <summary>
-/// Copies single file.
-/// </summary>
-[<System.Obsolete("Use copyFile instead. `cp` is reserved for future flexible and powerful solution.")>]
-let cp = copyFile
-
-/// <summary>
 /// Copies multiple files specified by a mask to another location.
 /// </summary>
-[<System.Obsolete("Use with caution, the implementation is incomplete")>]
+[<System.Obsolete("Use Xake.Tasks.File.copy instead")>]
 let copyFiles (src: string list) targetDir =
 
     // TODO check how should it process dependencies

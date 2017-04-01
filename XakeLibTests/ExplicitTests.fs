@@ -4,6 +4,8 @@ open System.IO
 open NUnit.Framework
 
 open Xake
+open Xake.Tasks.File
+open Xake.Tasks.Dotnet
 
 [<Explicit>]
 [<TestCase("mono-35")>]
@@ -25,7 +27,7 @@ let ``various frameworks``(fwk:string) =
                 src (!! "a.cs")
                 grefs ["mscorlib.dll"; "System.dll"; "System.Core.dll"]
             }
-            "a.cs" ..> writeTextFile """
+            "a.cs" ..> writeText """
                 class Program
                 {
                   public static void Main()

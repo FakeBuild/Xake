@@ -1,4 +1,4 @@
-namespace Xake.FileTasks
+namespace Xake.Tasks.File
 
 open Xake
 open System.IO
@@ -18,7 +18,7 @@ module RmImpl =
             verbose = false
         }
 
-    let Rm (args: RmArgs) =
+    let Del (args: RmArgs) =
 
         recipe {
             do! trace Level.Debug "Rm: args=%A" args
@@ -64,7 +64,7 @@ module RmImpl =
             return ()
         }
 
-    type RmArgsBuilder() =
+    type DelArgsBuilder() =
 
         [<CustomOperation("file")>]    member this.File(a :RmArgs, value) =   {a with file = value }
         [<CustomOperation("dir")>]     member this.Dir(a :RmArgs, value) =    {a with dir = value}
@@ -76,6 +76,6 @@ module RmImpl =
         member x.For(sq, b) = for e in sq do b e
 
         member this.Zero() = RmArgs.Default
-        member this.Run(args:RmArgs) = Rm args
+        member this.Run(args:RmArgs) = Del args
 
-    let rm = RmArgsBuilder()
+    let del = DelArgsBuilder()

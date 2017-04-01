@@ -5,6 +5,7 @@ open NUnit.Framework
 
 open Xake
 open Xake.SystemTasks
+open Xake.Tasks.Dotnet
 
 let xakeOptions = ExecOptions.Default
 

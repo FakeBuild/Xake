@@ -78,17 +78,20 @@
     <Compile Include="ExecCore.fs" />
     <Compile Include="XakeScript.fs" />
     <Compile Include="ScriptFuncs.fs" />
+    <Compile Include="ResourceFileset.fs" />
     <Compile Include="SystemTasks.fs" />
     <Compile Include="FileTasks.fs" />
-    <Compile Include="ResourceFileset.fs" />
     <Compile Include="DotNetFwk.fs" />
     <Compile Include="DotnetTasks.fs" />
+    <Compile Include="Tasks\File.copy.fs" />
+    <Compile Include="Tasks\File.rm.fs" />
+    <Compile Include="Tasks\Dotnet.csc.fs" />
+    <Compile Include="Tasks\Dotnet.fsc.fs" />
+    <Compile Include="Tasks\Dotnet.Msbuild.fs" />
+    <Compile Include="Tasks\File.misc.fs" />
     <Compile Include="VersionInfo.fs" />
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Program.fs" />
-    <None Include="todo.md" />
-    <Compile Include="Tasks\File.cp.fs" />
-    <Compile Include="Tasks\File.rm.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Data.TypeProviders" />

@@ -3,35 +3,11 @@
 open NUnit.Framework
 
 open Xake
-open Xake.FileTasks
+open Xake.Tasks.File
 
 type private File = System.IO.File
 
 let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Diag; FileLogLevel = Silent}
-
-// [<Test>]
-//let ``new modules``() =
-//    printfn "%s" Cp
-
-//    do xake TestOptions {
-//        rules [
-//            "main" => recipe {
-//                do! Rm {RmArgs.Default with file = "aaa.cs"}
-//                do! Rm {RmArgs.Default with dir = "dummy"}
-//                do! Rm {RmArgs.Default with files = fileset {includes "**/*.tmp"}; verbose = true}
-
-//                do! rm {file "aaa.cs"}
-//                do! rm {dir "aaa"}
-//                do! rm {files !! "**/*.tmp"}
-//                do! rm {
-//                    files (fileset {includes "**/*.tmp"})
-
-//                    verbose
-//                    includeemptydirs true
-//                }
-//            }
-//        ]
-//    }
 
 
 [<Test>]
@@ -43,7 +19,7 @@ let ``Rm deletes single file``() =
             "main" => action {
                 do! need ["samplefile"]
                 File.Exists "samplefile" |> Assert.True
-                do! rm {file "samplefile"}
+                do! del {file "samplefile"}
             }
 
             "samplefile" ..> writeTextFile "hello world"
@@ -62,7 +38,8 @@ let ``Rm deletes files by mask``() =
                 do! need ["samplefile"; "samplefile1"]
                 File.Exists "samplefile" |> Assert.True
                 File.Exists "samplefile1" |> Assert.True
-                do! rm {file "samplefile*"}
+
+                do! del {file "samplefile*"}
             }
 
             "samplefile" ..> writeTextFile "hello world"
@@ -83,7 +60,8 @@ let ``Rm deletes dir``() =
                 // do System.IO.Directory.CreateDirectory("a\\b") |> ignore
                 do! need ["a/samplefile"; "a/b/samplefile1"]
                 File.Exists "a\\b\\samplefile1" |> Assert.True
-                do! rm {dir "a"}
+
+                do! del {dir "a"}
             }
 
             "a/samplefile" ..> writeTextFile "hello world"

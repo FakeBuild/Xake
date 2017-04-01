@@ -4,6 +4,7 @@ open System.IO
 open NUnit.Framework
 
 open Xake
+open Xake.Tasks.File
 open Storage
 
 // one thread to avoid simultaneous access to 'wasExecuted'
@@ -308,7 +309,7 @@ let ``target could be a relative2``() =
 
         let pcExeName = "PerformanceComparer.exe"
 
-        let copyToOutputAndRename target src = target *> fun outfile -> cp src outfile.FullName
+        let copyToOutputAndRename target src = target *> fun outfile -> copyFile src outfile.FullName
 
         let makeRule runtime =
             let folder = System.Environment.CurrentDirectory </> runtime.Folder
