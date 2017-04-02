@@ -78,3 +78,4 @@ See [documentation](docs/overview.md) for more details.
 ## Mono on OSX troubleshooting
 Xake requires 'pkg-config' to locate mono runtime. Pkg-config utility is deployed with mono, but it's not included in
 $PATH. The options available are described on [monobjc mailing list](http://www.mail-archive.com/users@lists.monobjc.net/msg00235.html)
+
