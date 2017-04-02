@@ -1,7 +1,5 @@
 ﻿module ``File tasks module``
 
-#if FALSE
-
 open NUnit.Framework
 
 open Xake
@@ -86,5 +84,3 @@ let ``supports simple file copy``() =
     }
 
     File.Exists "aaa-copy" |> Assert.True
-
-#endif

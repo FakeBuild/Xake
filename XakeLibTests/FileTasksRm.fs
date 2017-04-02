@@ -57,9 +57,8 @@ let ``Rm deletes dir``() =
     do xake TestOptions {
         rules [
             "main" => recipe {
-                // do System.IO.Directory.CreateDirectory("a\\b") |> ignore
                 do! need ["a/samplefile"; "a/b/samplefile1"]
-                File.Exists "a\\b\\samplefile1" |> Assert.True
+                File.Exists ("a" </> "b" </> "samplefile1") |> Assert.True
 
                 do! del {dir "a"}
             }
