@@ -6,8 +6,7 @@ install:
 - mono .paket/paket.exe install
 script:
 - echo "module Xake.Const [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\"" > ./core/VersionInfo.fs
-- fsharpi build.fsx -- build test nuget-pack
-- fsharpi build.fsx -- nuget-pack
+- fsharpi build.fsx -- build test nuget-pack -ll Diag
 deploy:
   - provider: releases
     file:
@@ -20,7 +19,7 @@ deploy:
     api-key:
       secure: GcNd0L3Kdyv9vTeKqDXHAfxQne8a6guWQYCiiEvQWtLwNss4foV2dD6PQ8W+J7l+ay8wLC+P3ZKxO0GiKbn5cglXTbBI9WlrHk+nrSQ/JWmaqqjZhGUlAvlek0Ko4walGfRQJPIaZ9pbnX4L4Mj+jrwQWrI1IyzZXbSBL2i2Tgo=
   - provider: script
-    script: fsharpi build.fsx -- -ll Diag nuget-push
+    script: fsharpi build.fsx -- nuget-push
     skip_cleanup: true
     on:
       tags: true
