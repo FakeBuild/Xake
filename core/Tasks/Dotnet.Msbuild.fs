@@ -6,7 +6,7 @@ module MsbuildImpl =
     open System.IO
     open Xake
     open Xake.SystemTasks
-    open Xake.DotNetTaskTypes
+    open DotNetTaskTypes
 
     // Sln (msbuild/xbuild) task settings
     type MSBuildSettingsType = {

@@ -6,7 +6,7 @@ module CscImpl =
     open System.IO
     open Xake
     open Xake.SystemTasks
-    open Xake.DotNetTaskTypes
+    open DotNetTaskTypes
 
     type CscSettingsType = {
         /// Limits which platforms this code can run on. The default is anycpu.

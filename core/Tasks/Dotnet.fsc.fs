@@ -6,7 +6,7 @@ module FscImpl =
     open System.IO
     open Xake
     open Xake.SystemTasks
-    open Xake.DotNetTaskTypes
+    open DotNetTaskTypes
 
     /// <summary>
     /// Fsc (F# compiler) task settings.

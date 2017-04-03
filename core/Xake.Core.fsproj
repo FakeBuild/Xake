@@ -87,6 +87,7 @@
     <Compile Include="Tasks\File.rm.fs" />
     <Compile Include="Tasks\Dotnet.csc.fs" />
     <Compile Include="Tasks\Dotnet.fsc.fs" />
+    <Compile Include="Tasks\Dotnet.resgen.fs" />
     <Compile Include="Tasks\Dotnet.Msbuild.fs" />
     <Compile Include="Tasks\File.misc.fs" />
     <Compile Include="VersionInfo.fs" />
