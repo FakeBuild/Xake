@@ -9,20 +9,17 @@ if not (System.IO.File.Exists file) then
     printfn ""
 
 // xake build file body
-#r @"packages/Xake.Core.dll"
+#r @"../bin/Xake.Core.dll"
 
 open Xake
+open Xake.Tasks.Dotnet
 
 do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
 
   rule ("main" ==> ["helloworld.exe"])
 
-  rule("*.exe" *> fun exe -> action {
-    do! Csc {
+  rule("*.exe" ..> Csc {
       CscSettings with
-        Out = exe
-        Src = !! (exe.Name -. "cs")
-      }
-    })
-
+        Src = !! "helloworld.cs"
+      })
 }

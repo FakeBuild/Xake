@@ -19,7 +19,7 @@ let ``Rm deletes single file``() =
             "main" => action {
                 do! need ["samplefile"]
                 File.Exists "samplefile" |> Assert.True
-                do! del {file "samplefile"}
+                do! del {file "samplefile"; verbose}
             }
 
             "samplefile" ..> writeTextFile "hello world"
@@ -69,3 +69,26 @@ let ``Rm deletes dir``() =
     }
 
     System.IO.Directory.Exists "a" |> Assert.False
+
+
+[<Test>]
+let ``Rm deletes fileset``() =
+    "." </> ".xake" |> File.Delete
+
+    do xake TestOptions {
+        rules [
+            "main" => recipe {
+                do! need ["samplefile"; "samplefile1"]
+                do! del {
+                    files (fileset {
+                        includes "samplefile*"
+                    })
+                }
+            }
+
+            "samplefile*" ..> writeTextFile "hello world"
+        ]
+    }
+
+    File.Exists "samplefile" |> Assert.False
+    File.Exists "samplefile1" |> Assert.False

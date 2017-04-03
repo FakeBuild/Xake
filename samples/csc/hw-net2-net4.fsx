@@ -1,5 +1,5 @@
 // xake build file
-#r @"../../bin/Debug/Xake.Core.dll"
+#r @"../../bin/Xake.Core.dll"
 
 open Xake
 

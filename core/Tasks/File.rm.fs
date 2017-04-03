@@ -6,7 +6,7 @@ open System.IO
 [<AutoOpen>]
 module RmImpl =
 
-    type RmArgs = {
+    type DelArgs = {
         dir: string
         file: string
         files: Fileset
@@ -18,7 +18,7 @@ module RmImpl =
             verbose = false
         }
 
-    let Del (args: RmArgs) =
+    let Del (args: DelArgs) =
 
         recipe {
             do! trace Level.Debug "Rm: args=%A" args
@@ -66,16 +66,16 @@ module RmImpl =
 
     type DelArgsBuilder() =
 
-        [<CustomOperation("file")>]    member this.File(a :RmArgs, value) =   {a with file = value }
-        [<CustomOperation("dir")>]     member this.Dir(a :RmArgs, value) =    {a with dir = value}
-        [<CustomOperation("files")>] member this.Fileset(a :RmArgs, value)= {a with files = value}
-        [<CustomOperation("verbose")>] member this.Verbose(a:RmArgs) =        {a with verbose = true}
+        [<CustomOperation("file")>]    member this.File(a :DelArgs, value) =   {a with file = value }
+        [<CustomOperation("dir")>]     member this.Dir(a :DelArgs, value) =    {a with dir = value}
+        [<CustomOperation("files")>] member this.Fileset(a :DelArgs, value)= {a with files = value}
+        [<CustomOperation("verbose")>] member this.Verbose(a:DelArgs) =        {a with verbose = true}
 
         member this.Bind(x, f) = f x
-        member this.Yield(()) = RmArgs.Default
+        member this.Yield(()) = DelArgs.Default
         member x.For(sq, b) = for e in sq do b e
 
-        member this.Zero() = RmArgs.Default
-        member this.Run(args:RmArgs) = Del args
+        member this.Zero() = DelArgs.Default
+        member this.Run(args:DelArgs) = Del args
 
     let del = DelArgsBuilder()

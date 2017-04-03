@@ -35,7 +35,7 @@ module ScriptFuncs =
     /// <summary>
     /// Instructs Xake to rebuild the target even if dependencies are not changed.
     /// </summary>
-    let alwaysRerun() = Dependency.AlwaysRerun |> record
+    let alwaysRerun() = AlwaysRerun |> record
 
     /// <summary>
     /// Gets the environment variable.
@@ -44,7 +44,7 @@ module ScriptFuncs =
     let getEnv variableName =
         let value = Util.getEnvVar variableName
         action {
-            do! Dependency.EnvVar (variableName,value) |> record
+            do! EnvVar (variableName,value) |> record
             return value
         }
 
@@ -56,7 +56,7 @@ module ScriptFuncs =
         let! ctx = getCtx()
         let value = Util.getVar ctx.Options variableName
 
-        do! Dependency.Var (variableName,value) |> record
+        do! Var (variableName,value) |> record
         return value
     }
 
@@ -67,7 +67,7 @@ module ScriptFuncs =
     let getFiles fileset = recipe {
         let! ctx = getCtx()
         let files = fileset |> toFileList ctx.Options.ProjectRoot
-        do! Dependency.GetFiles (fileset,files) |> record
+        do! GetFiles (fileset,files) |> record
 
         return files
     }
