@@ -1,4 +1,4 @@
-﻿module FileTasksRm
+﻿module ``Del(rm) task``
 
 open NUnit.Framework
 

@@ -2,6 +2,7 @@ namespace Xake.Tasks.File
 
 open Xake
 open System.IO
+open Xake.FileTasksImpl
 
 [<AutoOpen>]
 module CopyImpl =
@@ -14,6 +15,7 @@ module CopyImpl =
         flatten: bool
         verbose: bool
         overwrite: bool
+        dryrun: bool
     } with static member Default = {
             dir = null
             file = null
@@ -22,28 +24,31 @@ module CopyImpl =
             flatten = false
             verbose = false
             overwrite = false
+            dryrun = false
         }
 
     let Copy (args: CopyArgs) = recipe {
-        do! trace Level.Debug "Copy: args=%A" args
+        do! trace Level.Debug "Copy: args=%A" args        
 
         let! ctx = getCtx()
 
         let copyFile target file =
+            let fullname = file |> File.getFullName
             let tofile = target </> (file |> File.getFileName)
 
             if args.verbose then
-                ctx.Logger.Log Level.Message "[copy] '%A' -> '%s'" file tofile
-            ctx.Logger.Log Level.Debug "copying '%A' -> %s" file tofile
+                ctx.Logger.Log Level.Message "[copy] '%A' -> '%s'" fullname tofile
+            ctx.Logger.Log Level.Debug "copying '%A' -> %s" fullname tofile
 
-            File.Copy((File.getFullName file), tofile, true)
+            if not args.dryrun then
+                ensureDirCreated tofile
+                File.Copy(fullname, tofile, true)
 
         let projectRoot = ctx.Options.ProjectRoot
-        // TODO do we need todir to be specified? Use-cases for not defining todir...
-        let targetDir = if System.String.IsNullOrWhiteSpace args.todir then projectRoot else args.todir
+        let targetDir = args.todir |> function | null -> projectRoot | s -> System.IO.Path.Combine(projectRoot, s)
 
         // TODO flatten
-        // TODO overwrite
+        // TODO overwrite        
 
         match args with
         | { files = f } when f <> Fileset.Empty ->
@@ -62,7 +67,6 @@ module CopyImpl =
             files |> List.iter (copyFile targetDir)
 
         | _ -> ()
-
         do! trace Level.Info "[copy] Completed"    
         return ()
     }
