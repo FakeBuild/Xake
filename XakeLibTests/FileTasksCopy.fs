@@ -77,7 +77,9 @@ let ``copies fileset NO flatten``() =
                 do! Copy {CopyArgs.Default with
                     files = (fileset {basedir "cpin"; includes "**/*"})
                     todir = "cptgt"
-                    flatten = false}
+                    flatten = false
+                    dryrun = true
+                    }
             }
 
             "cpin/a/samplefile" ..> writeTextFile "hello world"
