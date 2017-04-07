@@ -27,14 +27,37 @@ module CopyImpl =
             dryrun = false
         }
 
+    module internal impl =
+        let makeRelPath (root: string) =
+            let rootLen = root.Length
+            if rootLen <= 0 then id
+            else
+                let root', rootLen' =
+                    if root.[rootLen - 1] = Path.DirectorySeparatorChar then
+                        root, rootLen
+                    else
+                        root + (System.String (Path.DirectorySeparatorChar, 1)), rootLen + 1
+
+                fun (path: string) ->
+                    if path.StartsWith root' then
+                        path.Substring rootLen'
+                    else
+                        path
+
+        let getBasedirFullPath projectRoot fileset =
+            let (Fileset ({BaseDir = basedir'}, _)) = fileset
+
+            let basedir = basedir' |> function | None -> projectRoot | Some s -> Path.Combine(projectRoot, s)
+            FileInfo(basedir).FullName
+
     let Copy (args: CopyArgs) = recipe {
         do! trace Level.Debug "Copy: args=%A" args        
 
         let! ctx = getCtx()
 
-        let copyFile target file =
+        let copyFile target getRelativePath file =
             let fullname = file |> File.getFullName
-            let tofile = target </> (file |> File.getFileName)
+            let tofile = target </> (getRelativePath file)
 
             if args.verbose then
                 ctx.Logger.Log Level.Message "[copy] '%A' -> '%s'" fullname tofile
@@ -47,26 +70,31 @@ module CopyImpl =
         let projectRoot = ctx.Options.ProjectRoot
         let targetDir = args.todir |> function | null -> projectRoot | s -> System.IO.Path.Combine(projectRoot, s)
 
-        // TODO flatten
-        // TODO overwrite        
+        // TODO overwrite
 
-        match args with
-        | { files = f } when f <> Fileset.Empty ->
-            ctx.Logger.Log Level.Message "[copy] fileset"
-            let (Filelist files) = toFileList projectRoot f
-            files |> List.iter (copyFile targetDir)
-        
-        | { file = fileMask } when fileMask <> null ->
-            ctx.Logger.Log Level.Message "[copy] %A" fileMask
-            let (Filelist files) = !!fileMask |> (toFileList projectRoot)
-            files |> List.iter (copyFile targetDir)
+        let fileset =
+            args
+            |> function
+            | { files = f } when f <> Fileset.Empty ->
+                ctx.Logger.Log Level.Message "[copy] fileset"
+                f
+            | { file = fileMask } when fileMask <> null ->
+                ctx.Logger.Log Level.Message "[copy] %A" fileMask
+                !!fileMask
+            | { dir = dirMask } when dirMask <> null ->
+                !!(dirMask </> "**/*.*")
+            | _ -> Fileset.Empty
 
-        | { dir = dirMask } when dirMask <> null ->
-            let fileMask = dirMask </> "**/*.*"
-            let (Filelist files) = !!fileMask |> (toFileList projectRoot)
-            files |> List.iter (copyFile targetDir)
+        let getRelativePath = args.flatten |> function
+            |true -> File.getFileName
+            | _ ->
+                let baseFullPath = impl.getBasedirFullPath projectRoot fileset
+                File.getFullName >> (impl.makeRelPath baseFullPath)
 
-        | _ -> ()
+        let (Filelist files) = fileset |> (toFileList projectRoot)
+        for file in files do
+            copyFile targetDir getRelativePath file
+
         do! trace Level.Info "[copy] Completed"    
         return ()
     }
