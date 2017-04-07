@@ -65,8 +65,6 @@ let ``copies folder no flatten``() =
 
     Assert.True <| File.Exists ("cptgt" </> "cpin" </> "a" </> "samplefile")
 
-(*
-
 [<Test>]
 let ``copies fileset NO flatten``() =
     "." </> ".xake" |> File.Delete
@@ -88,7 +86,7 @@ let ``copies fileset NO flatten``() =
 
     Assert.True <| File.Exists ("cptgt" </> "a" </> "samplefile")
 
-
+(*
 [<Test>]
 let ``copies fileset flatten``() =
     "." </> ".xake" |> File.Delete
