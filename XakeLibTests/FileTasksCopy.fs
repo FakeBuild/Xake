@@ -74,12 +74,11 @@ let ``copies fileset NO flatten``() =
     do xake TestOptions {
         rules [
             "main" => action {
-                do! need ["cpin\\a\\samplefile"]
+                do! need ["cpin/a/samplefile"]
                 do! Copy {CopyArgs.Default with
                     files = (fileset {basedir "cpin"; includes "**/*"})
                     todir = "cptgt"
                     flatten = false
-                    dryrun = true
                     }
             }
 

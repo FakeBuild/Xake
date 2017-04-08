@@ -59,9 +59,9 @@ module CopyImpl =
             let fullname = file |> File.getFullName
             let tofile = target </> (getRelativePath file)
 
-            if args.verbose then
-                ctx.Logger.Log Level.Message "[copy] '%A' -> '%s'" fullname tofile
-            ctx.Logger.Log Level.Debug "copying '%A' -> %s" fullname tofile
+            ctx.Logger.Log
+                (if args.verbose then Level.Message else Level.Debug)
+                "[copy] '%A' -> '%s'" fullname tofile
 
             if not args.dryrun then
                 ensureDirCreated tofile
@@ -92,10 +92,10 @@ module CopyImpl =
                 File.getFullName >> (impl.makeRelPath baseFullPath)
 
         do! trace Level.Debug "[copy] materializing fileset %A at folder %s" fileset projectRoot
-        // let (Filelist files) = fileset |> (toFileList projectRoot)
-        // do! trace Level.Debug "[copy] files are %A" files
-        // for file in files do
-        //     copyFile targetDir getRelativePath file
+        let (Filelist files) = fileset |> (toFileList projectRoot)
+
+        for file in files do
+            copyFile targetDir getRelativePath file
 
         do! trace Level.Info "[copy] Completed"    
         return ()
