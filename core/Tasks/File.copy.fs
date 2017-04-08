@@ -92,8 +92,8 @@ module CopyImpl =
                 File.getFullName >> (impl.makeRelPath baseFullPath)
 
         do! trace Level.Debug "[copy] materializing fileset %A at folder %s" fileset projectRoot
-        let (Filelist files) = fileset |> (toFileList projectRoot)
-        do! trace Level.Debug "[copy] files are %A" files
+        // let (Filelist files) = fileset |> (toFileList projectRoot)
+        // do! trace Level.Debug "[copy] files are %A" files
         // for file in files do
         //     copyFile targetDir getRelativePath file
 
