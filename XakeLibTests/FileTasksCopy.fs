@@ -95,7 +95,7 @@ let ``copies fileset flatten``() =
         rules [
             "main" => action {
                 do! need ["cpin\\a\\samplefile"]
-                do! Copy {CopyArgs.Default with files = !!"cpin/**/*"; todir = "cptgt"; flatten = true}
+                do! copy {files !!"cpin/**/*"; todir "cptgt"; flatten}
             }
 
             "cpin\\a\\samplefile" ..> writeTextFile "hello world"
