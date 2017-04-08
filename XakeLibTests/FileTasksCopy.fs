@@ -9,7 +9,7 @@ open System.IO
 
 let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Diag; FileLogLevel = Silent}
 
-
+(*
 [<Test>]
 let ``copies single file``() =
     "." </> ".xake" |> File.Delete
@@ -64,6 +64,7 @@ let ``copies folder no flatten``() =
     }
 
     Assert.True <| File.Exists ("cptgt" </> "cpin" </> "a" </> "samplefile")
+*)
 
 [<Test>]
 let ``copies fileset NO flatten``() =
@@ -74,12 +75,12 @@ let ``copies fileset NO flatten``() =
         rules [
             "main" => action {
                 do! need ["cpin\\a\\samplefile"]
-                // do! Copy {CopyArgs.Default with
-                //     files = (fileset {basedir "cpin"; includes "**/*"})
-                //     todir = "cptgt"
-                //     flatten = false
-                //     dryrun = true
-                //     }
+                do! Copy {CopyArgs.Default with
+                    files = (fileset {basedir "cpin"; includes "**/*"})
+                    todir = "cptgt"
+                    flatten = false
+                    dryrun = true
+                    }
             }
 
             "cpin/a/samplefile" ..> writeTextFile "hello world"

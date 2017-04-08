@@ -51,7 +51,7 @@ module CopyImpl =
             FileInfo(basedir).FullName
 
     let Copy (args: CopyArgs) = recipe {
-        do! trace Level.Debug "Copy: args=%A" args        
+        do! trace Level.Debug "Copy: args=%A" args
 
         let! ctx = getCtx()
 
@@ -91,9 +91,9 @@ module CopyImpl =
                 let baseFullPath = impl.getBasedirFullPath projectRoot fileset
                 File.getFullName >> (impl.makeRelPath baseFullPath)
 
-        let (Filelist files) = fileset |> (toFileList projectRoot)
-        for file in files do
-            copyFile targetDir getRelativePath file
+        // let (Filelist files) = fileset |> (toFileList projectRoot)
+        // for file in files do
+        //     copyFile targetDir getRelativePath file
 
         do! trace Level.Info "[copy] Completed"    
         return ()
