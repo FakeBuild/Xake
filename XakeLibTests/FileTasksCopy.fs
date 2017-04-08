@@ -94,11 +94,11 @@ let ``copies fileset flatten``() =
     do xake TestOptions {
         rules [
             "main" => action {
-                do! need ["cpin\\a\\samplefile"]
+                do! need ["cpin/a/samplefile"]
                 do! copy {files !!"cpin/**/*"; todir "cptgt"; flatten}
             }
 
-            "cpin\\a\\samplefile" ..> writeTextFile "hello world"
+            "cpin/a/samplefile" ..> writeTextFile "hello world"
         ]
     }
 

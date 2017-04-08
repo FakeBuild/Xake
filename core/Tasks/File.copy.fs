@@ -87,7 +87,9 @@ module CopyImpl =
                 !!(dirMask </> "**/*.*")
             | _ -> Fileset.Empty
 
-        let getRelativePath = args.flatten |> function
+        // in single file mode always flatten
+        let flatten = args.flatten || args.file <> null
+        let getRelativePath = flatten |> function
             |true -> File.getFileName
             | _ ->
                 let baseFullPath = impl.getBasedirFullPath projectRoot fileset
