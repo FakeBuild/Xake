@@ -45,6 +45,7 @@ module RmImpl =
             | { file = fileMask } when fileMask <> null ->
                 ctx.Logger.Log Level.Message "[rm] %A" fileMask
                 fileMask |> Path.parse |> Fileset.listByMask projectRoot
+                // TODO !!fileMask |> (toFileList projectRoot)
                 |> Seq.iter (fun file ->
                     do reportDeleting file
                     do File.Delete file
