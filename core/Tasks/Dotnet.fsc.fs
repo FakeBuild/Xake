@@ -155,12 +155,14 @@ module FscImpl =
 
             let options = {
                 SysOptions.Default with
+                    Command = fsc
+                    Args = args
                     LogPrefix = "[FSC] "
                     StdOutLevel = fun _ -> Level.Verbose
                     ErrOutLevel = Impl.levelFromString Level.Verbose
                     EnvVars = fwkInfo.EnvVars
                 }
-            let! exitCode = _system options fsc (args |> String.concat " ")
+            let! exitCode = _system options
 
             do! trace Verbose "Deleting temporary files"
             seq {

@@ -314,11 +314,12 @@ let ``target could be a relative2``() =
         let makeRule runtime =
             let folder = System.Environment.CurrentDirectory </> runtime.Folder
             [
-            (folder </> pcExeName) *> fun exe -> action {
-                do! need [exe.FullName + ".config"]
+            (folder </> pcExeName) ..> recipe {
+                let! exe = getTargetFullName()
+                do! need [exe + ".config"]
                 needExecuteCount := !needExecuteCount + 1
                 }
-            (runtime.Folder </> pcExeName + ".config") *> fun outfile -> action {()}
+            (runtime.Folder </> pcExeName + ".config") ..> recipe {()}
             ]
 
         do xake {ExecOptions.Default with FileLogLevel=Verbosity.Diag; FileLog = "build.log"} {

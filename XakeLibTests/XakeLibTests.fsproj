@@ -58,6 +58,7 @@
     <Compile Include="CommandLineTests.fs" />
     <Compile Include="ExplicitTests.fs" />
     <None Include="paket.references" />
+    <Compile Include="SystemTaskTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\core\Xake.Core.fsproj">
