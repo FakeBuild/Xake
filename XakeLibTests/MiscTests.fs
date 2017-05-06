@@ -94,7 +94,7 @@ let ``script exits with errorlevel on script failure``() =
         rules [
             "one" => action {
                 do! need ["1/script.fsx"]
-                let! ec = sys {cmd fsiApp; args ["1/script.fsx"]}
+                let! ec = shell {cmd fsiApp; args ["1/script.fsx"]}
                 errorCode := ec
             }
             "1/script.fsx" ..> writeTextFile """
@@ -115,7 +115,7 @@ let ``script exits with errorlevel on script failure``() =
 
     Assert.AreEqual(2, !errorCode)
 
-let taskReturn n = action {
+let taskReturn n = recipe {
     return n
 }
 

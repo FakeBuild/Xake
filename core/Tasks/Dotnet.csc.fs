@@ -144,7 +144,7 @@ module CscImpl =
             do! trace Debug "Command line: '%s %s'" cscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
-                SysOptions.Default with
+                ShellOptions.Default with
                     Command = cscTool
                     Args = commandLineArgs
                     LogPrefix = "[CSC] "

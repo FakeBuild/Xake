@@ -154,7 +154,7 @@ module FscImpl =
             do! trace Debug "Command line: '%s %s'" fsc (args |> String.concat "\r\n\t")
 
             let options = {
-                SysOptions.Default with
+                ShellOptions.Default with
                     Command = fsc
                     Args = args
                     LogPrefix = "[FSC] "

@@ -80,7 +80,7 @@ module MsbuildImpl =
             do! trace Debug "Command line: '%A'" args
 
             let options = {
-                SysOptions.Default with
+                ShellOptions.Default with
                     Command = fwkInfo.MsbuildTool
                     Args = args
                     LogPrefix = pfx

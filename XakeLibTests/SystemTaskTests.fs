@@ -1,4 +1,4 @@
-﻿module ``System task``
+﻿module ``SystemTasksTests``
 
 open NUnit.Framework
 
@@ -10,26 +10,21 @@ type private File = System.IO.File
 let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Diag; FileLogLevel = Silent}
 
 
-//[<Test>]
-let ``system action``() =
+[<Test; Platform("windows")>]
+let ``shell``() =
     "." </> ".xake" |> File.Delete
 
     do xake TestOptions {
         rules [
             "main" => recipe {
-                do! need ["samplefile"]
-                File.Exists "samplefile" |> Assert.True
-
-                let! error = sys {
+                let! error = shell {
                     cmd "dir"
                     useclr
                     failonerror
-                    dir "bin"}
-                let! xx = Sys {SysOptions.Default with Command = "dir"}
+                    // workdir "."
+                    }
                 Assert.AreEqual (0, error)
             }
-
-            "samplefile" ..> writeTextFile "hello world"
         ]
     }
 
