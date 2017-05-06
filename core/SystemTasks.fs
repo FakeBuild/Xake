@@ -44,7 +44,9 @@ module SystemTasks =
                 return proc.ExitCode
         }
 
-    type SysOptions = {
+    type ShellOptions = {
+        Command: string
+        Args: string seq
         LogPrefix:string
         StdOutLevel: string -> Level; ErrOutLevel: string -> Level
         EnvVars: (string * string) list
@@ -55,7 +57,8 @@ module SystemTasks =
         FailOnErrorLevel: bool
     }
     with static member Default = {
-            LogPrefix = ""; StdOutLevel = (fun _ -> Level.Info); ErrOutLevel = (fun _ -> Level.Error)
+            Command = null; Args = []
+            LogPrefix = ""; StdOutLevel = (fun _ -> Info); ErrOutLevel = (fun _ -> Error)
             EnvVars = []
             WorkingDir = None
             UseClr = false
@@ -65,16 +68,16 @@ module SystemTasks =
     /// <summary>
     /// Executes system command. E.g. '_system SystemOptions "dir" []'
     /// </summary>
-    let _system settings cmd args =
-      
+    let _system settings =
+      let cmd = settings.Command
+      let args = (settings.Args |> String.concat " ")
       let isExt file ext = System.IO.Path.GetExtension(file).Equals(ext, System.StringComparison.OrdinalIgnoreCase)
 
-      action {
+      recipe {
         let! ctx = getCtx()
         let log = ctx.Logger.Log
 
-        do! trace Level.Debug "[system] envvars: '%A'" settings.EnvVars
-        do! trace Level.Debug "[system] args: '%A'" args
+        do! trace Level.Debug "[_system] settings: '%A'" settings
 
         let handleErr s = log (settings.ErrOutLevel s) "%s %s" settings.LogPrefix s
         let handleStd s = log (settings.StdOutLevel s) "%s %s" settings.LogPrefix s
@@ -91,7 +94,17 @@ module SystemTasks =
         return errorlevel
     }
 
-    type ExecOptionsFn = SysOptions -> SysOptions
+    let Shell (opts: ShellOptions) =
+      recipe {
+        let cmd = opts.Command
+        do! trace Info "[shell] starting '%s'" cmd
+        let! exitCode = _system opts
+        do! trace Info "[shell] completed '%s' exitcode: %d" cmd exitCode
+
+        return exitCode
+      }
+
+    type ExecOptionsFn = ShellOptions -> ShellOptions
 
     /// <summary>
     /// Executes external process and waits until it completes
@@ -99,18 +112,30 @@ module SystemTasks =
     /// <param name="opts">Options setters</param>
     /// <param name="cmd">Command or executable name.</param>
     /// <param name="args">Command arguments.</param>
+    [<System.Obsolete("Use Xake.SystemTasks.sys instead")>]
     let system (opts: ExecOptionsFn) (cmd: string) (args: string seq) =
-      action {
-        do! trace Info "[shell.run] starting '%s'" cmd
-        let! exitCode = _system (opts SysOptions.Default) cmd (args |> String.concat " ")
-        do! trace Info "[shell.run] completed '%s' exitcode: %d" cmd exitCode
-
-        return exitCode
-      }
+        Shell ({ShellOptions.Default with Command = cmd; Args = args} |> opts)
 
     let useClr: ExecOptionsFn = fun o -> {o with UseClr = true}
     let checkErrorLevel: ExecOptionsFn = fun o -> {o with FailOnErrorLevel = true}
     let workingDir dir: ExecOptionsFn = fun o -> {o with WorkingDir = Some dir}
+
+    type ShellBuilder() =
+
+        [<CustomOperation("cmd")>]      member this.Command(a:ShellOptions, value) = {a with Command = value}
+        [<CustomOperation("args")>]     member this.Args(a:ShellOptions, value) =    {a with Args = value}
+        [<CustomOperation("workdir")>]  member this.WorkDir(a:ShellOptions, value) = {a with WorkingDir = Some value}
+        [<CustomOperation("useclr")>]   member this.UseClr(a :ShellOptions) =        {a with UseClr = true}
+        [<CustomOperation("failonerror")>] member this.FailOnError(a :ShellOptions)= {a with FailOnErrorLevel = true}
+
+        member this.Bind(x, f) = f x
+        member this.Yield(()) = ShellOptions.Default
+        member x.For(sq, b) = for e in sq do b e
+
+        member this.Zero() = ShellOptions.Default
+        member this.Run(opts:ShellOptions) = Shell opts
+
+    let shell = ShellBuilder()
 
 [<AutoOpen>]
 module CommonTasks =
@@ -119,5 +144,5 @@ module CommonTasks =
     /// </summary>
     /// <param name="cmd">Command or executable name.</param>
     /// <param name="args">Command arguments.</param>
-    [<System.Obsolete("Use Xake.SystemTasks.system id cmd... instead")>]
+    [<System.Obsolete("Use Xake.SystemTasks.sys instead")>]
     let system cmd args = SystemTasks.system id cmd args

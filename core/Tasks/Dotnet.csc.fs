@@ -138,20 +138,21 @@ module CscImpl =
                         yield "/noconfig"
                     yield "@" + rspFile
                     }
-            let commandLine = commandLineArgs |> String.concat " "
             let cscTool = settings.CscPath |> function | Some v -> v | _ -> fwkInfo.CscTool
 
             do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
             do! trace Debug "Command line: '%s %s'" cscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
             let options = {
-                SystemTasks.SysOptions.Default with
+                ShellOptions.Default with
+                    Command = cscTool
+                    Args = commandLineArgs
                     LogPrefix = "[CSC] "
                     StdOutLevel = fun _ -> Level.Verbose
                     ErrOutLevel = Impl.levelFromString Level.Verbose
                     EnvVars = fwkInfo.EnvVars
                 }
-            let! exitCode = SystemTasks._system options cscTool commandLine
+            let! exitCode = _system options
 
             do! trace Level.Verbose "Deleting temporary files"
             seq {

@@ -3,6 +3,7 @@
 open NUnit.Framework
 
 open Xake
+open Xake.Tasks.File
 
 type private File = System.IO.File
 
@@ -19,7 +20,7 @@ let ``allows delete file``() =
                 execCount := !execCount + 1
                 do! need ["samplefile"]
                 File.Exists "samplefile" |> Assert.True
-                do! rm ["samplefile"]
+                do! del {file "samplefile"}
             }
 
             "samplefile" ..> writeTextFile "hello world"
@@ -39,7 +40,7 @@ let ``allows delete file by mask``() =
             "main" => action {
                 do! need ["$$1"; "$$2"]
                 File.Exists "$$2" |> Assert.True
-                do! rm ["$$*"]
+                do! del {file "$$*"}
                 execCount := !execCount + 1
             }
 
@@ -58,7 +59,8 @@ let ``allows to delete by several masks``() =
             "main" => action {
                 do! need ["$aa"; "$bb"]
                 File.Exists ("$bb") |> Assert.True
-                do! rm ["$aa"; "$b*"]
+                do! del {file "$aa"}
+                do! del {file "$b*"}
             }
 
             "$*" ..> writeTextFile "hello world"
@@ -78,7 +80,7 @@ let ``supports simple file copy``() =
                 do! copyFile "aaa" "aaa-copy"
             }
 
-            "clean" => rm ["aaa-copy"]
+            "clean" => del {file "aaa-copy"}
             "aaa" ..> writeTextFile "hello world"
         ]
     }

@@ -51,7 +51,6 @@ module MsbuildImpl =
             let verbosityKey = function | Quiet -> "q" | Minimal -> "m" | Normal -> "n" | Detailed -> "d" | Diag -> "diag"
 
             let args =
-                String.concat " " <|
                 seq {
                     yield "/nologo"
                     yield settings.BuildFile
@@ -78,15 +77,17 @@ module MsbuildImpl =
                 }
 
             do! trace Info "%s making '%s' using framework '%s'" pfx settings.BuildFile fwkInfo.Version
-            do! trace Debug "Command line: '%s'" args
+            do! trace Debug "Command line: '%A'" args
 
             let options = {
-                SystemTasks.SysOptions.Default with
+                ShellOptions.Default with
+                    Command = fwkInfo.MsbuildTool
+                    Args = args
                     LogPrefix = pfx
                     StdOutLevel = fun _ -> Level.Info
                     ErrOutLevel = Impl.levelFromString Level.Verbose
                 }
-            let! exitCode = args |> SystemTasks._system options fwkInfo.MsbuildTool
+            let! exitCode = _system options
 
             do! trace Info "%s done '%s'" pfx settings.BuildFile
             if exitCode <> 0 then

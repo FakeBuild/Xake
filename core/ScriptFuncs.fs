@@ -127,7 +127,6 @@ module ScriptFuncs =
         do! fnRule file
     })
 
-    [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
     type RuleActionArgs =
         RuleActionArgs of File * Map<string,string>
         with

@@ -5,6 +5,7 @@ open System.Collections.Generic
 open NUnit.Framework
 
 open Xake
+open Xake.Tasks.File
 
 [<TestFixture>]
 type ``Script error handling``() =
@@ -92,11 +93,11 @@ type ``Script error handling``() =
     Assert.DoesNotThrow (fun () ->
         do xake (MakeDebugOptions errorlist) {
             want (["clean"; "make"])
-            phony "clean" (action {
-              do! rm ["*.failbroken"]
+            phony "clean" (recipe {
+              do! del {file "*.failbroken"}
               do! trace Info "Running inside 'clean' rule"
             })
-            phony "make" (action {
+            phony "make" (recipe {
               File.WriteAllText ("1.failbroken", "abc")
               File.WriteAllText ("2.failbroken", "def")
               do! trace Info "Running inside 'build' rule"

@@ -22,25 +22,25 @@ let ``runs csc task (full test)``() =
         want (["hello"])
 
         rules [
-            "hello" *> fun file -> action {
+            "hello" ..> recipe {
                 do! trace Error "Running inside 'hello' rule"
                 do! need ["hello.cs"]
 
                 do! trace Error "Rebuilding..."
                 do! Csc {
                 CscSettings with
-                    Out = file
                     Src = !!"hello.cs"
                 }
             }
-            "hello.cs" *> fun src -> action {
-                do File.WriteAllText (src.FullName, """class Program
+            "hello.cs" ..> action {
+                do! writeTextFile """class Program
                 {
 	                public static void Main()
 	                {
 		                System.Console.WriteLine("Hello world!");
 	                }
-                }""")
+                }"""
+                let! src = getTargetFullName()
                 do! trace Error "Done building 'hello.cs' rule in %A" src
                 needExecuteCount := !needExecuteCount + 1
             }
@@ -94,7 +94,7 @@ let ``script exits with errorlevel on script failure``() =
         rules [
             "one" => action {
                 do! need ["1/script.fsx"]
-                let! ec = system id fsiApp ["1/script.fsx"]
+                let! ec = shell {cmd fsiApp; args ["1/script.fsx"]}
                 errorCode := ec
             }
             "1/script.fsx" ..> writeTextFile """
@@ -115,7 +115,7 @@ let ``script exits with errorlevel on script failure``() =
 
     Assert.AreEqual(2, !errorCode)
 
-let taskReturn n = action {
+let taskReturn n = recipe {
     return n
 }
 
