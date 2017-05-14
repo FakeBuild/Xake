@@ -94,7 +94,7 @@ type ``Script error handling``() =
         do xake (MakeDebugOptions errorlist) {
             want (["clean"; "make"])
             phony "clean" (recipe {
-              do! del {file "*.failbroken"}
+              do! rm {file "*.failbroken"}
               do! trace Info "Running inside 'clean' rule"
             })
             phony "make" (recipe {

@@ -19,7 +19,7 @@ let ``copies single file``() =
         rules [
             "main" => action {
                 do! need ["samplefile"]
-                do! Copy {CopyArgs.Default with file = "samplefile"; todir = "cptgt"}
+                do! Cp {CpArgs.Default with file = "samplefile"; todir = "cptgt"}
             }
 
             "samplefile" ..> writeTextFile "hello world"
@@ -37,7 +37,7 @@ let ``copies folder flatten``() =
         rules [
             "main" => action {
                 do! need ["cpin/samplefile"]
-                do! Copy {CopyArgs.Default with dir = "cpin"; todir = "cptgt"; flatten = true}
+                do! Cp {CpArgs.Default with dir = "cpin"; todir = "cptgt"; flatten = true}
             }
 
             "cpin/samplefile" ..> writeTextFile "hello world"
@@ -55,7 +55,7 @@ let ``copies folder no flatten``() =
         rules [
             "main" => action {
                 do! need ["cpin/a/samplefile"]
-                do! Copy {CopyArgs.Default with dir = "cpin"; todir = "cptgt"; flatten = false}
+                do! Cp {CpArgs.Default with dir = "cpin"; todir = "cptgt"; flatten = false}
             }
 
             "cpin/a/samplefile" ..> writeTextFile "hello world"
@@ -73,7 +73,7 @@ let ``copies fileset NO flatten``() =
         rules [
             "main" => action {
                 do! need ["cpin/a/samplefile"]
-                do! Copy {CopyArgs.Default with
+                do! Cp {CpArgs.Default with
                     files = (fileset {basedir "cpin"; includes "**/*"})
                     todir = "cptgt"
                     flatten = false
@@ -95,7 +95,7 @@ let ``copies fileset flatten``() =
         rules [
             "main" => action {
                 do! need ["cpin/a/samplefile"]
-                do! copy {files !!"cpin/**/*"; todir "cptgt"; flatten}
+                do! cp {files !!"cpin/**/*"; todir "cptgt"; flatten}
             }
 
             "cpin/a/samplefile" ..> writeTextFile "hello world"

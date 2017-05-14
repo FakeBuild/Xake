@@ -19,7 +19,7 @@ let ``Rm deletes single file``() =
             "main" => action {
                 do! need ["samplefile"]
                 File.Exists "samplefile" |> Assert.True
-                do! del {file "samplefile"; verbose}
+                do! rm {file "samplefile"; verbose}
             }
 
             "samplefile" ..> writeTextFile "hello world"
@@ -39,7 +39,7 @@ let ``Rm deletes files by mask``() =
                 File.Exists "samplefile" |> Assert.True
                 File.Exists "samplefile1" |> Assert.True
 
-                do! del {file "samplefile*"}
+                do! rm {file "samplefile*"}
             }
 
             "samplefile" ..> writeTextFile "hello world"
@@ -60,7 +60,7 @@ let ``Rm deletes dir``() =
                 do! need ["a/samplefile"; "a/b/samplefile1"]
                 File.Exists ("a" </> "b" </> "samplefile1") |> Assert.True
 
-                do! del {dir "a"}
+                do! rm {dir "a"}
             }
 
             "a/samplefile" ..> writeTextFile "hello world"
@@ -79,7 +79,7 @@ let ``Rm deletes fileset``() =
         rules [
             "main" => recipe {
                 do! need ["samplefile"; "samplefile1"]
-                do! del {
+                do! rm {
                     files (fileset {
                         includes "samplefile*"
                     })

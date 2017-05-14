@@ -4,9 +4,9 @@ open Xake
 open System.IO
 
 [<AutoOpen>]
-module DelImpl =
+module RmImpl =
 
-    type DelArgs = {
+    type RmArgs = {
         dir: string
         file: string
         files: Fileset
@@ -18,7 +18,7 @@ module DelImpl =
             verbose = false
         }
 
-    let Del (args: DelArgs) =
+    let Rm (args: RmArgs) =
 
         recipe {
             do! trace Level.Debug "Rm: args=%A" args
@@ -65,18 +65,19 @@ module DelImpl =
             return ()
         }
 
-    type DelArgsBuilder() =
+    type RmArgsBuilder() =
 
-        [<CustomOperation("file")>]    member this.File(a :DelArgs, value) =   {a with file = value }
-        [<CustomOperation("dir")>]     member this.Dir(a :DelArgs, value) =    {a with dir = value}
-        [<CustomOperation("files")>] member this.Fileset(a :DelArgs, value)= {a with files = value}
-        [<CustomOperation("verbose")>] member this.Verbose(a:DelArgs) =        {a with verbose = true}
+        [<CustomOperation("file")>]    member this.File(a :RmArgs, value) =   {a with file = value }
+        [<CustomOperation("dir")>]     member this.Dir(a :RmArgs, value) =    {a with dir = value}
+        [<CustomOperation("files")>] member this.Fileset(a :RmArgs, value) =  {a with files = value}
+        [<CustomOperation("verbose")>] member this.Verbose(a:RmArgs) =        {a with verbose = true}
 
         member this.Bind(x, f) = f x
-        member this.Yield(()) = DelArgs.Default
+        member this.Yield(()) = RmArgs.Default
         member x.For(sq, b) = for e in sq do b e
 
-        member this.Zero() = DelArgs.Default
-        member this.Run(args:DelArgs) = Del args
+        member this.Zero() = RmArgs.Default
+        member this.Run(args:RmArgs) = Rm args
 
-    let del = DelArgsBuilder()
+    let rm = RmArgsBuilder()
+    let del = rm

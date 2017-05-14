@@ -20,7 +20,7 @@ let ``allows delete file``() =
                 execCount := !execCount + 1
                 do! need ["samplefile"]
                 File.Exists "samplefile" |> Assert.True
-                do! del {file "samplefile"}
+                do! rm {file "samplefile"}
             }
 
             "samplefile" ..> writeTextFile "hello world"
@@ -40,7 +40,7 @@ let ``allows delete file by mask``() =
             "main" => action {
                 do! need ["$$1"; "$$2"]
                 File.Exists "$$2" |> Assert.True
-                do! del {file "$$*"}
+                do! rm {file "$$*"}
                 execCount := !execCount + 1
             }
 
@@ -59,8 +59,8 @@ let ``allows to delete by several masks``() =
             "main" => action {
                 do! need ["$aa"; "$bb"]
                 File.Exists ("$bb") |> Assert.True
-                do! del {file "$aa"}
-                do! del {file "$b*"}
+                do! rm {file "$aa"}
+                do! rm {file "$b*"}
             }
 
             "$*" ..> writeTextFile "hello world"
@@ -80,7 +80,7 @@ let ``supports simple file copy``() =
                 do! copyFile "aaa" "aaa-copy"
             }
 
-            "clean" => del {file "aaa-copy"}
+            "clean" => rm {file "aaa-copy"}
             "aaa" ..> writeTextFile "hello world"
         ]
     }

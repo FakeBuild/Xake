@@ -5,9 +5,9 @@ open System.IO
 open Xake.FileTasksImpl
 
 [<AutoOpen>]
-module CopyImpl =
+module CpImpl =
 
-    type CopyArgs = {
+    type CpArgs = {
         dir: string
         file: string
         files: Fileset
@@ -50,7 +50,7 @@ module CopyImpl =
             let basedir = basedir' |> function | None -> projectRoot | Some s -> Path.Combine(projectRoot, s)
             FileInfo(basedir).FullName
 
-    let Copy (args: CopyArgs) = recipe {
+    let Cp (args: CpArgs) = recipe {
         do! trace Level.Debug "Copy: args=%A" args
 
         let! ctx = getCtx()
@@ -129,20 +129,21 @@ module CopyImpl =
 
     type CopyBuilder() =
 
-        [<CustomOperation("file")>]    member this.File(a :CopyArgs, value) =   {a with file = value }
-        [<CustomOperation("dir")>]     member this.Dir(a :CopyArgs, value) =    {a with dir = value}
-        [<CustomOperation("files")>]   member this.Fileset(a :CopyArgs, value)= {a with files = value}
-        [<CustomOperation("todir")>]   member this.ToDir(a :CopyArgs, value)=   {a with todir = value}
-        [<CustomOperation("verbose")>] member this.Verbose(a :CopyArgs) =        {a with verbose = true}
-        [<CustomOperation("overwrite")>] member this.Overwrite(a :CopyArgs) =    {a with overwrite = true}
-        [<CustomOperation("flatten")>] member this.Flatten(a :CopyArgs) =        {a with flatten = true}
-        [<CustomOperation("dryrun")>] member this.Dryrun(a :CopyArgs) =          {a with dryrun = true}
+        [<CustomOperation("file")>]    member this.File(a :CpArgs, value) =   {a with file = value }
+        [<CustomOperation("dir")>]     member this.Dir(a :CpArgs, value) =    {a with dir = value}
+        [<CustomOperation("files")>]   member this.Fileset(a :CpArgs, value)= {a with files = value}
+        [<CustomOperation("todir")>]   member this.ToDir(a :CpArgs, value)=   {a with todir = value}
+        [<CustomOperation("verbose")>] member this.Verbose(a :CpArgs) =        {a with verbose = true}
+        [<CustomOperation("overwrite")>] member this.Overwrite(a :CpArgs) =    {a with overwrite = true}
+        [<CustomOperation("flatten")>] member this.Flatten(a :CpArgs) =        {a with flatten = true}
+        [<CustomOperation("dryrun")>] member this.Dryrun(a :CpArgs) =          {a with dryrun = true}
 
         member this.Bind(x, f) = f x
-        member this.Yield(()) = CopyArgs.Default
+        member this.Yield(()) = CpArgs.Default
         member x.For(sq, b) = for e in sq do b e
 
-        member this.Zero() = CopyArgs.Default
-        member this.Run(args:CopyArgs) = Copy args
+        member this.Zero() = CpArgs.Default
+        member this.Run(args:CpArgs) = Cp args
 
     let copy = CopyBuilder()
+    let cp = copy
