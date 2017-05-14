@@ -3,7 +3,7 @@
 open NUnit.Framework
 
 open Xake
-open Xake.Tasks.File
+open Xake.Tasks
 
 type private File = System.IO.File
 

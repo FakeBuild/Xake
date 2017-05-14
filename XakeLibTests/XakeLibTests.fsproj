@@ -52,6 +52,7 @@
     <Compile Include="XakeScriptTests.fs" />
     <Compile Include="MiscTests.fs" />
     <Compile Include="StorageTests.fs" />
+    <Compile Include="FileTasksCopy.fs" />
     <Compile Include="FileTasksTests.fs" />
     <Compile Include="FileTasksRm.fs" />
     <Compile Include="ProgressTests.fs" />

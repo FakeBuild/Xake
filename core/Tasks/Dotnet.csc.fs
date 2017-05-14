@@ -5,8 +5,6 @@ module CscImpl =
 
     open System.IO
     open Xake
-    open Xake.SystemTasks
-    open DotNetTaskTypes
 
     type CscSettingsType = {
         /// Limits which platforms this code can run on. The default is anycpu.
@@ -143,16 +141,7 @@ module CscImpl =
             do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
             do! trace Debug "Command line: '%s %s'" cscTool (args |> Seq.map Impl.escapeArgument |> String.concat "\r\n\t")
 
-            let options = {
-                ShellOptions.Default with
-                    Command = cscTool
-                    Args = commandLineArgs
-                    LogPrefix = "[CSC] "
-                    StdOutLevel = fun _ -> Level.Verbose
-                    ErrOutLevel = Impl.levelFromString Level.Verbose
-                    EnvVars = fwkInfo.EnvVars
-                }
-            let! exitCode = _system options
+            let! exitCode = Impl._system cscTool commandLineArgs fwkInfo.EnvVars "[CSC] "
 
             do! trace Level.Verbose "Deleting temporary files"
             seq {

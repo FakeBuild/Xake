@@ -3,6 +3,7 @@
 open System.IO
 open System.Resources
 open Xake
+open Xake.ProcessExec
 
 [<AutoOpen>]
 module DotNetTaskTypes =
@@ -124,3 +125,25 @@ module internal Impl =
             (Path.ChangeExtension(res,".resources"),tempfile,true)
         | (res,file) ->
             (res,file,false)
+
+    /// <summary>
+    /// Executes system command. E.g. '_system SystemOptions "dir" []'
+    /// </summary>
+    let _system cmd args envVars logPrefix =
+
+        let StdOutLevel = fun _ -> Level.Verbose
+        let ErrOutLevel = levelFromString Level.Verbose
+        let argsStr = (args |> String.concat " ")
+
+        recipe {
+            let! ctx = getCtx()
+            let log = ctx.Logger.Log
+
+            // do! trace Level.Debug "[_system] settings: '%A'"
+
+            let handleErr s = log (ErrOutLevel s) "%s %s" logPrefix s
+            let handleStd s = log (StdOutLevel s) "%s %s" logPrefix s
+            let workingDir = None
+
+            return pexec handleStd handleErr cmd argsStr envVars workingDir
+        }

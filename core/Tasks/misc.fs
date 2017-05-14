@@ -1,4 +1,4 @@
-﻿namespace Xake.Tasks.File
+﻿namespace Xake.Tasks
 
 open Xake
 open System.IO

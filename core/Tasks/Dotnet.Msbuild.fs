@@ -3,9 +3,7 @@
 [<AutoOpen>]
 module MsbuildImpl =
 
-    open System.IO
     open Xake
-    open Xake.SystemTasks
     open DotNetTaskTypes
 
     // Sln (msbuild/xbuild) task settings
@@ -79,15 +77,9 @@ module MsbuildImpl =
             do! trace Info "%s making '%s' using framework '%s'" pfx settings.BuildFile fwkInfo.Version
             do! trace Debug "Command line: '%A'" args
 
-            let options = {
-                ShellOptions.Default with
-                    Command = fwkInfo.MsbuildTool
-                    Args = args
-                    LogPrefix = pfx
-                    StdOutLevel = fun _ -> Level.Info
-                    ErrOutLevel = Impl.levelFromString Level.Verbose
-                }
-            let! exitCode = _system options
+            let envVars = [] // fwkInfo.EnvVars ?
+            let! exitCode = Impl._system fwkInfo.MsbuildTool args envVars pfx
+
 
             do! trace Info "%s done '%s'" pfx settings.BuildFile
             if exitCode <> 0 then

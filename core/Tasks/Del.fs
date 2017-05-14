@@ -1,10 +1,10 @@
-namespace Xake.Tasks.File
+namespace Xake.Tasks
 
 open Xake
 open System.IO
 
 [<AutoOpen>]
-module RmImpl =
+module DelImpl =
 
     type DelArgs = {
         dir: string

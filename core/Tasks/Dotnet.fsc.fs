@@ -5,8 +5,6 @@ module FscImpl =
 
     open System.IO
     open Xake
-    open Xake.SystemTasks
-    open DotNetTaskTypes
 
     /// <summary>
     /// Fsc (F# compiler) task settings.
@@ -153,16 +151,7 @@ module FscImpl =
             do! trace Info "compiling '%s' using framework '%s'" outFile.Name fwkInfo.Version
             do! trace Debug "Command line: '%s %s'" fsc (args |> String.concat "\r\n\t")
 
-            let options = {
-                ShellOptions.Default with
-                    Command = fsc
-                    Args = args
-                    LogPrefix = "[FSC] "
-                    StdOutLevel = fun _ -> Level.Verbose
-                    ErrOutLevel = Impl.levelFromString Level.Verbose
-                    EnvVars = fwkInfo.EnvVars
-                }
-            let! exitCode = _system options
+            let! exitCode = Impl._system fsc args fwkInfo.EnvVars "[FSC] "
 
             do! trace Verbose "Deleting temporary files"
             seq {

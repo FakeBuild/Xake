@@ -3,7 +3,7 @@
 open NUnit.Framework
 
 open Xake
-open Xake.SystemTasks
+open Xake.Tasks
 
 type private File = System.IO.File
 
@@ -17,11 +17,16 @@ let ``shell``() =
     do xake TestOptions {
         rules [
             "main" => recipe {
+
+                do! Shell {ShellOptions.Default with
+                        Command = "dir"; Args = ["*.*"]
+                        WorkingDir = Some "."; UseClr = true; FailOnErrorLevel = true} |> Action.Ignore
+                
                 let! error = shell {
                     cmd "dir"
-                    useclr
+                    args ["*.*"]
                     failonerror
-                    // workdir "."
+                    workdir "."
                     }
                 Assert.AreEqual (0, error)
             }

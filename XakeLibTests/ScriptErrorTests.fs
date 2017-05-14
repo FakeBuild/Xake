@@ -5,7 +5,7 @@ open System.Collections.Generic
 open NUnit.Framework
 
 open Xake
-open Xake.Tasks.File
+open Xake.Tasks
 
 [<TestFixture>]
 type ``Script error handling``() =

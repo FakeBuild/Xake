@@ -4,7 +4,7 @@ open System.IO
 open NUnit.Framework
 
 open Xake
-open Xake.Tasks.File
+open Xake.Tasks
 open Xake.Tasks.Dotnet
 
 [<Explicit>]

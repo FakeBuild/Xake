@@ -1,17 +1,16 @@
 ﻿namespace Xake
 
 open Xake
+open Xake.ProcessExec
 open System.IO
 
 module (* internal *) pkg_config =
-
-    open SystemTasks
 
     let private pkgcgf args =
         let outp = ref option<string>.None
         let dump s = outp := match !outp with | None -> Some s | s -> s
         try
-            do _pexec dump dump "pkg-config" (args |> String.concat " ") [] None |> ignore
+            do pexec dump dump "pkg-config" (args |> String.concat " ") [] None |> ignore
             match !outp with | None -> "" | Some str -> str
         with _ ->
             ""
@@ -20,7 +19,7 @@ module (* internal *) pkg_config =
     let private pkgcgf_bool args =
         let dump (s : string) = ()
         try
-            0 = _pexec dump dump "pkg-config" (args |> String.concat " ") [] None
+            0 = pexec dump dump "pkg-config" (args |> String.concat " ") [] None
         with _ ->
             false
     /// Gets true if specified package exists

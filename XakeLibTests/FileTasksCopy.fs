@@ -3,7 +3,7 @@ module ``Copy task``
 open NUnit.Framework
 
 open Xake
-open Xake.Tasks.File
+open Xake.Tasks
 
 open System.IO
 
