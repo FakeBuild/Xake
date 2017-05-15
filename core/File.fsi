@@ -15,10 +15,6 @@ module File =
     /// Makes a new File instance by a file pathname.
     val make : string -> File
 
-    /// Gets the file name as it was specified in ctor. Short and user-friendly
-    [<System.Obsolete("The meaning is unclear")>]
-    val getName: File -> string
-
     /// Gets the file name.
     val getFileName: File -> string
 

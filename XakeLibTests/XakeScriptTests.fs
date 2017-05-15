@@ -238,11 +238,12 @@ let ``groups in rule pattern``() =
     let matchedAny = ref false
 
     do xake {XakeOptions with Targets = ["out/abc.ss"]} {
-        rule ("(dir:*)/(file:*).(ext:ss)" %> fun out -> action {
+        rule ("(dir:*)/(file:*).(ext:ss)" ..> recipe {
             
-            Assert.AreEqual("out", out.GetGroup "dir")
-            Assert.AreEqual("abc", out.GetGroup "file")
-            Assert.AreEqual("ss", out.GetGroup "ext")
+            let! groups = getRuleMatches()
+            Assert.AreEqual("out", groups.["dir"])
+            Assert.AreEqual("abc", groups.["file"])
+            Assert.AreEqual("ss",  groups.["ext"])
             matchedAny := true
         })
     }
@@ -309,7 +310,7 @@ let ``target could be a relative2``() =
 
         let pcExeName = "PerformanceComparer.exe"
 
-        let copyToOutputAndRename target src = target *> fun outfile -> copyFile src outfile.FullName
+        let copyToOutputAndRename target src = target ..> copyFrom src
 
         let makeRule runtime =
             let folder = System.Environment.CurrentDirectory </> runtime.Folder

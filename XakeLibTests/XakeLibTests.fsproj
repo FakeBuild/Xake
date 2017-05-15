@@ -45,7 +45,7 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ActionTests.fs" />
+    <Compile Include="RecipeTests.fs" />
     <Compile Include="PathTests.fs" />
     <Compile Include="FilesetTests.fs" />
     <Compile Include="ScriptErrorTests.fs" />

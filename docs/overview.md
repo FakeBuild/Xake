@@ -275,7 +275,7 @@ This option allows to specify the name of the log file and the detailization lev
 
 ## recipe: action computation
 
-Action body is computation expression of type *action*. This computation returns *Action* type and is very similar to
+Recipe body is computation expression of type *action*. This computation returns *Recipe* type and is very similar to
 *async* computation. You could use both regular code (such as assignments/binding, loops and conditional expressions)
 and do! notation within *action* body.
 
@@ -285,7 +285,7 @@ See the functions allowing to access execution context within *action* body.
 
 ### Tasks, `do!` notation
 
-`do!` allows executing both async methods and *tasks*. *Task* is a regular F# function that is an *action* so that it returns *Action* type.
+`do!` allows executing both async methods and *tasks*. *Task* is a regular F# function that is an *action* so that it returns *Recipe* type.
 
 Tasks are very simple:
 
@@ -306,10 +306,10 @@ In case the action returns a value you could consume it using let-bang:
   }
 ```
 
-If the task (action) returns a value which you do not need use Action.Ignore:
+If the task (action) returns a value which you do not need use Recipe.Ignore:
 ```fsharp
   action {
-    do! system "ls" [] |> Action.Ignore
+    do! system "ls" [] |> Recipe.Ignore
   }
 ```
 

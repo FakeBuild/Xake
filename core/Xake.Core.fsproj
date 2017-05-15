@@ -69,8 +69,8 @@
     <Compile Include="Types.fs" />
     <Compile Include="CommonLib.fs" />
     <Compile Include="Database.fs" />
-    <Compile Include="ActionBuilder.fs" />
-    <Compile Include="ActionFunctions.fs" />
+    <Compile Include="RecipeBuilder.fs" />
+    <Compile Include="RecipeFunctions.fs" />
     <Compile Include="WorkerPool.fs" />
     <Compile Include="Progress.fs" />
     <Compile Include="ExecTypes.fs" />
@@ -84,8 +84,8 @@
     <Compile Include="FileTasks.fs" />
     <Compile Include="DotNetFwk.fs" />
     <Compile Include="DotnetTasks.fs" />
-    <Compile Include="Tasks\Copy.fs" />
-    <Compile Include="Tasks\Del.fs" />
+    <Compile Include="Tasks\Cp.fs" />
+    <Compile Include="Tasks\Rm.fs" />
     <Compile Include="Tasks\Shell.fs" />
     <Compile Include="Tasks\Dotnet.csc.fs" />
     <Compile Include="Tasks\Dotnet.fsc.fs" />

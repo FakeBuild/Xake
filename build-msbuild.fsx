@@ -4,7 +4,7 @@
 open Xake
 open Xake.SystemTasks
 
-let runclr cmd args = system (useClr >> checkErrorLevel) cmd args |> Action.Ignore
+let runclr cmd args = system (useClr >> checkErrorLevel) cmd args |> Recipe.Ignore
 
 let build target = action {
     do! alwaysRerun()

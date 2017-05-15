@@ -110,9 +110,6 @@ module ScriptFuncs =
     /// </summary>
     let trace = ExecCore.traceLog
 
-    [<System.Obsolete("Use trace instead")>]
-    let writeLog = ExecCore.traceLog
-
     /// Defines a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
     let (<==) name targets = PhonyRule (name, recipe {
@@ -120,12 +117,6 @@ module ScriptFuncs =
         do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available
     })
     let (==>) = (<==)
-
-    [<System.Obsolete("Use ..> operator and getTargetFile() instead")>]
-    let ( *> ) pattern (fnRule : File -> Action<'ctx,unit>) = FileRule (pattern, action {
-        let! file = getTargetFile()
-        do! fnRule file
-    })
 
     type RuleActionArgs =
         RuleActionArgs of File * Map<string,string>
@@ -139,26 +130,4 @@ module ScriptFuncs =
         member this.GetGroup(key) =
             let (RuleActionArgs (_,groups)) = this in
             groups |> Map.tryFind key |> function |Some v -> v | None -> ""
-
-    /// Contains a methods for accessing RuleActionArgs members.
-    [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
-    module RuleArgs =
-
-        let getFile (args:RuleActionArgs) = args.File
-        let getFullName (RuleActionArgs (file,_)) = File.getFullName file
-
-        /// Gets all matched groups.
-        let getGroups (RuleActionArgs (_,groups)) = groups
-
-        /// Gets group (part of the name) by its name.
-        let getGroup key (args:RuleActionArgs) = args.GetGroup key
-
-    [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
-    let ( %> ) pattern (fnRule : RuleActionArgs -> Action<'ctx,unit>) = FileRule (pattern, recipe {
-        let! file = getTargetFile()
-        let! groups = getRuleMatches()
-
-        let args = RuleActionArgs (file, groups)
-        do! fnRule args
-    })
 

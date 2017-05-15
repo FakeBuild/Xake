@@ -20,7 +20,7 @@ let ``shell``() =
 
                 do! Shell {ShellOptions.Default with
                         Command = "dir"; Args = ["*.*"]
-                        WorkingDir = Some "."; UseClr = true; FailOnErrorLevel = true} |> Action.Ignore
+                        WorkingDir = Some "."; UseClr = true; FailOnErrorLevel = true} |> Recipe.Ignore
                 
                 let! error = shell {
                     cmd "dir"

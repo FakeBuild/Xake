@@ -92,7 +92,7 @@ let ``script exits with errorlevel on script failure``() =
     
     do xake {xakeOptions with Threads = 1; FileLog="exits-with-errorlevel.log"; FileLogLevel = Verbosity.Diag; Targets = ["one"] } {
         rules [
-            "one" => action {
+            "one" => recipe {
                 do! need ["1/script.fsx"]
                 let! ec = shell {cmd fsiApp; args ["1/script.fsx"]}
                 errorCode := ec
@@ -125,8 +125,8 @@ let ``failif is a short circuit for task result``() =
     let excCount = ref 0
     do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
         rules [
-            "main" => (action {
-                do! taskReturn 3 |> FailWhen ((=) 3) "err" |> Action.Ignore
+            "main" => (recipe {
+                do! taskReturn 3 |> FailWhen ((=) 3) "err" |> Recipe.Ignore
             } |> WhenError (fun _ -> excCount := 1))
         ]
     }
@@ -141,21 +141,21 @@ let ``WhenError handler intercepts the error``() =
     // pipe result, and provide fallback value in case of error
     do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
         rules [
-            "main" => action {
+            "main" => recipe {
                 do! taskReturn 3
                     |> FailWhen ((=) 3) "fail"
                     |> WhenError (fun _ -> ex := 1; 0)
-                    |> Action.Ignore
+                    |> Recipe.Ignore
             }
         ]
     }
     // intercept error for resultless action
     do xake {xakeOptions with Threads = 1; FileLog="failf2.log"} {
         rules [
-            "main" => action {
+            "main" => recipe {
                 do! taskReturn 3
                     |> FailWhen ((=) 3) "fail"
-                    |> Action.Ignore
+                    |> Recipe.Ignore
                     |> WhenError (fun _ -> ex := !ex + 1)
             }
         ]
