@@ -202,6 +202,11 @@ module Fileset =
     /// "Materializes" fileset to a filelist
     /// </summary>
     let toFileList = Impl.scan Impl.FileSystem
+    
+    /// <summary>
+    /// "Materializes" file mask to a list of files/paths
+    /// </summary>
+    let listByMask (root:string) = Impl.listFiles Impl.FileSystem [root]
 
     /// <summary>
     /// The same as toFileList but allows to provide file system adapter

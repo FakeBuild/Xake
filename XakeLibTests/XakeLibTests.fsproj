@@ -20,6 +20,11 @@
     <OutputPath>..\bin\Debug</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
+    <StartAction>Program</StartAction>
+    <StartProgram>C:\projects\Xake\packages\NUnit.ConsoleRunner\tools\nunit3-console.exe</StartProgram>
+    <StartWorkingDirectory>C:\projects\Xake\bin\Debug\</StartWorkingDirectory>
+    <StartArguments>--debug XakeLibTests.dll</StartArguments>
+    <EnableUnmanagedDebugging>true</EnableUnmanagedDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -40,18 +45,21 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ActionTests.fs" />
+    <Compile Include="RecipeTests.fs" />
     <Compile Include="PathTests.fs" />
     <Compile Include="FilesetTests.fs" />
     <Compile Include="ScriptErrorTests.fs" />
     <Compile Include="XakeScriptTests.fs" />
     <Compile Include="MiscTests.fs" />
     <Compile Include="StorageTests.fs" />
+    <Compile Include="FileTasksCopy.fs" />
     <Compile Include="FileTasksTests.fs" />
+    <Compile Include="FileTasksRm.fs" />
     <Compile Include="ProgressTests.fs" />
     <Compile Include="CommandLineTests.fs" />
     <Compile Include="ExplicitTests.fs" />
     <None Include="paket.references" />
+    <Compile Include="SystemTaskTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\core\Xake.Core.fsproj">

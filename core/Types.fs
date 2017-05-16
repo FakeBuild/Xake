@@ -57,14 +57,14 @@ module DomainTypes =
           Steps : StepInfo list }
 
     // expression type
-    type Action<'a,'b> = Action of (BuildResult * 'a -> Async<BuildResult * 'b>)
+    type Recipe<'a,'b> = Recipe of (BuildResult * 'a -> Async<BuildResult * 'b>)
 
     /// Data type for action's out parameter. Defined target file and named groups in pattern
 
     type 'ctx Rule =
-        | FileRule of string * Action<'ctx,unit>
-        | PhonyRule of string * Action<'ctx,unit>
-        | FileConditionRule of (string -> bool) * Action<'ctx,unit>
+        | FileRule of string * Recipe<'ctx,unit>
+        | PhonyRule of string * Recipe<'ctx,unit>
+        | FileConditionRule of (string -> bool) *Recipe<'ctx,unit>
     type 'ctx Rules = Rules of 'ctx Rule list
 
     /// Defines common exception type

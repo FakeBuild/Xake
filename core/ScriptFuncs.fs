@@ -8,7 +8,7 @@ module ScriptFuncs =
     /// <summary>
     /// Gets the script options.
     /// </summary>
-    let getCtxOptions () = action {
+    let getCtxOptions () = recipe {
         let! (ctx: ExecContext) = getCtx()
         return ctx.Options
     }
@@ -27,7 +27,7 @@ module ScriptFuncs =
     let needFiles (Filelist files) =
         files |> List.map FileTarget |> ExecCore.need
 
-    let private record d = action {
+    let private record d = recipe {
         let! result = getResult()
         do! setResult { result with Depends = d :: result.Depends }
     }
@@ -35,7 +35,7 @@ module ScriptFuncs =
     /// <summary>
     /// Instructs Xake to rebuild the target even if dependencies are not changed.
     /// </summary>
-    let alwaysRerun() = Dependency.AlwaysRerun |> record
+    let alwaysRerun() = AlwaysRerun |> record
 
     /// <summary>
     /// Gets the environment variable.
@@ -44,7 +44,7 @@ module ScriptFuncs =
     let getEnv variableName =
         let value = Util.getEnvVar variableName
         action {
-            do! Dependency.EnvVar (variableName,value) |> record
+            do! EnvVar (variableName,value) |> record
             return value
         }
 
@@ -52,11 +52,11 @@ module ScriptFuncs =
     /// Gets the global (options) variable.
     /// </summary>
     /// <param name="variableName"></param>
-    let getVar variableName = action {
+    let getVar variableName = recipe {
         let! ctx = getCtx()
         let value = Util.getVar ctx.Options variableName
 
-        do! Dependency.Var (variableName,value) |> record
+        do! Var (variableName,value) |> record
         return value
     }
 
@@ -64,10 +64,10 @@ module ScriptFuncs =
     /// Gets the list of files matching specified fileset.
     /// </summary>
     /// <param name="fileset"></param>
-    let getFiles fileset = action {
+    let getFiles fileset = recipe {
         let! ctx = getCtx()
         let files = fileset |> toFileList ctx.Options.ProjectRoot
-        do! Dependency.GetFiles (fileset,files) |> record
+        do! GetFiles (fileset,files) |> record
 
         return files
     }
@@ -75,7 +75,7 @@ module ScriptFuncs =
     /// <summary>
     /// Gets current target file
     /// </summary>
-    let getTargetFile() = action {
+    let getTargetFile() = recipe {
         let! ctx = getCtx()
         return ctx.Tgt
             |> function
@@ -86,12 +86,12 @@ module ScriptFuncs =
     /// <summary>
     /// Gets current target file name with path
     /// </summary>
-    let getTargetFullName() = action {
+    let getTargetFullName() = recipe {
         let! file = getTargetFile()
         return File.getFullName file
     }
 
-    let getRuleMatches () = action {
+    let getRuleMatches () = recipe {
         let! ctx = getCtx()
         return ctx.RuleMatches
     }
@@ -110,24 +110,14 @@ module ScriptFuncs =
     /// </summary>
     let trace = ExecCore.traceLog
 
-    [<System.Obsolete("Use trace instead")>]
-    let writeLog = ExecCore.traceLog
-
     /// Defines a rule that demands specified targets
     /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
-    let (<==) name targets = PhonyRule (name,action {
+    let (<==) name targets = PhonyRule (name, recipe {
         do! need targets
         do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available
     })
     let (==>) = (<==)
 
-    [<System.Obsolete("Use ..> operator and getTargetFile() instead")>]
-    let ( *> ) pattern (fnRule : File -> Action<'ctx,unit>) = FileRule (pattern, action {
-        let! file = getTargetFile()
-        do! fnRule file
-    })
-
-    [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
     type RuleActionArgs =
         RuleActionArgs of File * Map<string,string>
         with
@@ -140,26 +130,4 @@ module ScriptFuncs =
         member this.GetGroup(key) =
             let (RuleActionArgs (_,groups)) = this in
             groups |> Map.tryFind key |> function |Some v -> v | None -> ""
-
-    /// Contains a methods for accessing RuleActionArgs members.
-    [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
-    module RuleArgs =
-
-        let getFile (args:RuleActionArgs) = args.File
-        let getFullName (RuleActionArgs (file,_)) = File.getFullName file
-
-        /// Gets all matched groups.
-        let getGroups (RuleActionArgs (_,groups)) = groups
-
-        /// Gets group (part of the name) by its name.
-        let getGroup key (args:RuleActionArgs) = args.GetGroup key
-
-    [<System.Obsolete("Use ..> operator and getTargetMatch() instead")>]
-    let ( %> ) pattern (fnRule : RuleActionArgs -> Action<'ctx,unit>) = FileRule (pattern, action {
-        let! file = getTargetFile()
-        let! groups = getRuleMatches()
-
-        let args = RuleActionArgs (file, groups)
-        do! fnRule args
-    })
 

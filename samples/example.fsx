@@ -1,5 +1,7 @@
 #r @"../bin/Xake.Core.dll"
 open Xake
+open Xake.Tasks.Dotnet
+open Xake.Tasks.File
 
 do xakeScript {
     rules [
@@ -14,7 +16,14 @@ do xakeScript {
 
         "(name:*).exe" ..> recipe {
             let! name = getRuleMatch "name"
-            do! csc {src !!(name + ".cs")}
+            do! csc {src (!!(name + ".cs") ++ "ver.cs")}
+        }
+
+        "ver.cs" ..> recipe {
+            let! envver = getEnv "VER"
+            let ver = envver |> function | Some x -> x | _ -> "v0.1"
+
+            do! writeText (sprintf """// static class App {const string Ver = "%s";}""" ver)
         }
     ]
 }

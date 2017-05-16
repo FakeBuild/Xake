@@ -103,7 +103,7 @@ module internal ExecCore =
         match target |> locateRule ctx.Rules ctx.Options.ProjectRoot with
         | Some(rule,groups) ->
             let groupsMap = groups |> Map.ofSeq
-            let (Action action) = rule |> getAction
+            let (Recipe action) = rule |> getAction
             async {
                 let! waitTask = (fun channel -> Run(target, run groupsMap action, channel)) |> ctx.TaskPool.PostAndAsyncReply
                 let! status = waitTask

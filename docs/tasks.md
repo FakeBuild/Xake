@@ -18,7 +18,7 @@ There several predefined functions for passing task settings. Here's the example
 
 ```fsharp
 open Xake.SystemTasks
-do! system (useClr >> checkErrorLevel >> (workingDir "/etc")) "ls" ["-lr"] |> Action.Ignore
+do! system (useClr >> checkErrorLevel >> (workingDir "/etc")) "ls" ["-lr"] |> Recipe.Ignore
 ```
 
 The first sets `UseClr` which instructs system command to run `mono <cmd>` on linux. The second one instructs **system** to fail when command returned non-zero errorlevel. The last one defines working directory.
@@ -31,7 +31,7 @@ These tasks allows to perform various file operations. Using these tasks ensures
 
 * `cp <srcfile> <dest-file-name>` - copies the file
 * `rm <mask list>` - removes the files by mask
-* `writeTextFile <text>` - writes content to target (of recipe)
+* `writeText <text>` - writes content to target (of recipe)
 * `copyFrom <location>` - copies file to target (of recipe)
 
 ### Dotnet tasks

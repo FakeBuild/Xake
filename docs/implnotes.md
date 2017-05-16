@@ -25,7 +25,7 @@ NOTE: it should depend on the context: if fileset defines source files or refere
 Error handling assumes the following system behavior:
 
 * system provide screen and file log for all targets built and other system actions
-* allows to specify detailization level for screen and file separately
+* allows to specify detail level for screen and file separately
 * any uncaught exception in build rule leads to script failure unless FailOnError property is for particular target is set to False (consider "deploy" target with a fallback implementation)
 * failures and stack traces are written to log
 * idea: "onfail" target, "onfail" rule setting
@@ -59,7 +59,7 @@ action {
 
 Intercepts errors (exceptions) and allows to define a custom handler.
 
-```
+```fsharp
   phony "main" (action {
     do! trace Message "The exception thrown below will be silently ignored"
     failwith "some error"
@@ -71,7 +71,7 @@ Intercepts errors (exceptions) and allows to define a custom handler.
 Raises the exception if action's result meet specified condition.
 E.g. the following code raises error in case errorlevel (result of shell command execution) gets non-zero value.
 
-```
+```fsharp
 do! _system [shellcmd] "dir" |> FailWhen ((<>) 0) "Failed to list files in folder"
 // or just
 do! _system [shellcmd] "dir" |> CheckErrorLevel
@@ -80,14 +80,15 @@ do! _system [shellcmd] "dir" |> CheckErrorLevel
 ### Other ideas
 
 // or even that:
-```
+
+```fsharp
 _system [fail_on_error; shellcmd] "dir"
 // where shellcmd and fail_on_error are functions
 ```
 
 Idea #3 (orthogonal): provide an option for _system function to fail in case non-zero errorcode.
 
-```
+```fsharp
 do! _system [fail_on_error; shellcmd; startin "./bin"] "dir"
 // where shellcmd and fail_on_error are functions
 ```
@@ -96,28 +97,30 @@ do! _system [fail_on_error; shellcmd; startin "./bin"] "dir"
 
 Implemented IgnoreErrors.
 
-  * ExecContext option to ignore all errors
-  * fail on system with non zero exit code
-  * fail always try/catch  
+* ExecContext option to ignore all errors
+* fail on system with non zero exit code
+* fail always try/catch  
 
 ## Incremental build
+
 Xake attempts to reduce build time by analyzing results of last build. Build rule is executed if any of these conditions are met:
 
- * any of dependency source files are changed
- * dependency artifact was rebuilt
- * there no dependencies at all (e.g. "clean" task), otherwise with incremental builds it will never rebuild
- * action is marked with alwaysRerun
- * environment variable or script variable the script or any task requests is changed
+* any of dependency source files are changed
+* dependency artifact was rebuilt
+* there no dependencies at all (e.g. "clean" task), otherwise with incremental builds it will never rebuild
+* action is marked with alwaysRerun
+* environment variable or script variable the script or any task requests is changed
 
 ### Implementation: Analyze last run
+
 This option is found in "shake" project. It stores all targets and their dependencies in database. Whenever the target is requested it checks
 whether it needs to be built by analyzing whether any dependencies are changed.
 The benefits of this approach in comparison to option 1 are:
 
- * easier to implement due to more straightforward logic
- * allows to analyze the whole dependencies graph before running any target
- * ... and estimate the build time
- * does not require changes in tasks implementation ("whenNeeded")
+* easier to implement due to more straightforward logic
+* allows to analyze the whole dependencies graph before running any target
+* ... and estimate the build time
+* does not require changes in tasks implementation ("whenNeeded")
 
 The difference is that the decision is made early, before executing target while option 1 does execute the code and makes a decision upon request.
 
@@ -144,10 +147,9 @@ List of valid targets:
     | "mono-40" | "mono-4.0" | "4.0"
     | "mono-45" | "mono-4.5" | "4.5"
 
-Use "2.0".."4.5" targets for mutiplatform environments (will target mono-XXX being run under mono framework).
+Use "2.0".."4.5" targets for multi-platform environments (will target mono-XXX being run under mono framework).
 
-Tasks:
-  * various supported options for csc
+Tasks:* various supported options for csc
 
 ## Variables
 
@@ -165,18 +167,19 @@ where "clean" "build" and "deploy" are target names.
 
 The full list of parameters:
 
- * -h -- displays help screen
- * -t <task count> -- use <task count> simultaneous processes to execute the build tasks. * Default value is the number of processors
- * -r <root path> -- override the root path. All the targets and filesets are resolved relatively to this path. Default is current directory
- * -ll <log level> -- console log level (Silent | Quiet | Normal | Loud | Chatty | Diag)
- * -fl <file log path> -- specifies the name of the log file
- * -fll <log level> -- specifies the logging level to a log file
- * target1 .. targetN -- define the list of targets. Targets are executed in strict order, the second one starts only after the first one is completed.
- * target1;target2;..targetN -- execute the targets simultaneously
- * -d <name>=<value> -- defines a script variable value
- * -nologo -- remove logo string
+* -h -- displays help screen
+* -t <task count> -- use <task count> simultaneous processes to execute the build tasks. * Default value is the number of processors
+* -r <root path> -- override the root path. All the targets and filesets are resolved relatively to this path. Default is current directory
+* -ll <log level> -- console log level (Silent | Quiet | Normal | Loud | Chatty | Diag)
+* -fl <file log path> -- specifies the name of the log file
+* -fll <log level> -- specifies the logging level to a log file
+* target1 .. targetN -- define the list of targets. Targets are executed in strict order, the second one starts only after the first one is completed.
+* target1;target2;..targetN -- execute the targets simultaneously
+* -d <name>=<value> -- defines a script variable value
+* -nologo -- remove logo string
 
 ### Do not allow to override options
+
 Command line arguments override the script options (XakeOptions type) unless you define options.IgnoreCommandLine = true.
 
 ## Propose: named match groups in file or directory masks
@@ -192,7 +195,7 @@ Named groups Mask is defined either for DirectoryMask of FileMask.
 Nested groups are ok too, e.g. `"(filename:(arch:*)-(platform:*)-lld).(ext:*)"` matches the file
 `x86-win-lld.app` and returns map {"filename", "x86-win-lld"; "arch", "x86"; "platform", "win"; "ext", "app"}
 
-```
+```fsharp
 var mask = "(arch:*)-(platform:*)-autoexec.(ext:*)";
 var mask2 = "(filename:(arch:*)-(platform:*)-lld).(ext:*)";
 
@@ -205,41 +208,46 @@ mm.Groups["filename"].Dump();
 
 ## Other
 
-  * file names are cases sensitive now. In the future it's planned to be system-dependent
-  * external libraries has to be copied to target folder. How to accomplish?
-    * csc task option "copy deps to output folder"
-    * manually copy (need tracking which are really needed)
-    * explicit external map of deps: use both
+* file names are cases sensitive now. In the future it's planned to be system-dependent
+* external libraries has to be copied to target folder. How to accomplish?
+  * csc task option "copy deps to output folder"
+  * manually copy (need tracking which are really needed)
+  * explicit external map of deps: use both
 
 ## File/Target and other types
+
 Made File a module with T type which details are hidden. API is exposed as functions within a File module and
 also some widely used properties are available as File.T members.
 
 The reason for 'Name' property is a user-friendly output and I'm going to change it to a relative names.
 Expected the following issues:
 
-  * File functions operate on File.T type which is not usable in user scripts
-  > Resolution: script will not use this type, instead we will expose FileTasks and tell to use System.IO.File
-  * `Csc` and other tasks has an `Out` parameter which got `File.T` type. This is not going to be user friendly. And I should consider changing it to string. However in most cases this value is passed from action parameters
-  so the types should be coherent
+* File functions operate on File.T type which is not usable in user scripts
+> Resolution: script will not use this type, instead we will expose FileTasks and tell to use System.IO.File
+* `Csc` and other tasks has an `Out` parameter which got `File.T` type. This is not going to be user friendly. And I should consider changing it to string. However in most cases this value is passed from action parameters so the types should be coherent
 
 The motivations are:
 
-  * to be more statically typed internally. This is the reason for not using strings.
-  * FileInfo is a poorly collected garbage. I'd use both internally and externally more accurate abstraction
-  * FileInfo is unlikely Unix-friendly and allows comparison and such things
-  * provide more nice operators for end-user, let combine the paths, change extensions and so on
-  * more coupled integration with Path type (WHAT?)
-  * attempt to make abstract `Artifact` entity which would allow to define not only files but say in-memory data streams or byte arrays. In such terms phony actions could be regular rules producing no file.
+* to be more statically typed internally. This is the reason for not using strings.
+* FileInfo is a poorly collected garbage. I'd use both internally and externally more accurate abstraction
+* FileInfo is unlikely Unix-friendly and allows comparison and such things
+* provide more nice operators for end-user, let combine the paths, change extensions and so on
+* more coupled integration with Path type (WHAT?)
+* attempt to make abstract `Artifact` entity which would allow to define not only files but say in-memory data streams or byte arrays. In such terms phony actions could be regular rules producing no file.
 
 The decision points:
 
-  * use File everywhere
-  * Expose the type but primarily for internal use
-  * reconsider out parameter (change to string) - check the pros and cons
+* use File everywhere
+* Expose the type but primarily for internal use
+* reconsider out parameter (change to string) - check the pros and cons
 
 ### Build notes
+
 Release new version by tagging the commit:
 
     git tag v0.3.6
     git push --tags
+
+#### Running particular test from command line
+
+    fsi build.fsx -- test -d "WHERE=test==\"SystemTasksTests.shell\""

@@ -228,7 +228,7 @@ module Path =
 
     // let matches filePattern projectRoot
     let matches filePattern rootPath =
-        // IDEA: make relative path than match to pattern?
+        // IDEA: make relative path then match to pattern?
         // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
 
         matchesPattern <| join (parseDir rootPath) (parse filePattern)

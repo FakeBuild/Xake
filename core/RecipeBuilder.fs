@@ -1,14 +1,14 @@
 ﻿namespace Xake
 
 module internal A =
-    let runAction (Action r) = r
-    let returnF a = Action (fun (s,_) -> async {return (s,a)})
+    let runAction (Recipe r) = r
+    let returnF a = Recipe (fun (s,_) -> async {return (s,a)})
 
-    let bindF m f = Action (fun (s, a) -> async {
+    let bindF m f = Recipe (fun (s, a) -> async {
         let! (s', b) = runAction m (s, a) in
         return! runAction (f b) (s', a)
         })
-    let bindA m f = Action (fun (s, r) -> async {
+    let bindA m f = Recipe (fun (s, r) -> async {
         let! a = m in
         return! runAction (f a) (s, r)
         })
@@ -17,7 +17,7 @@ module internal A =
     let callF f a = bindF (returnF a) f
     let delayF f = callF f ()
 
-    let doneF = Action (fun (s,_) -> async {return (s,())})
+    let doneF = Recipe (fun (s,_) -> async {return (s,())})
 
     let ignoreF p = bindF p (fun _ -> doneF)
     let combineF f g = bindF f (fun _ -> g)
@@ -28,21 +28,21 @@ module internal A =
         else 
             (fun () -> whileF guard prog) |> bindF prog
 
-    let tryWithF body h = // (body:Action<'a,'b>) (h: 'exc -> Action<'a,'b>) : Action<'a,'b> =
+    let tryWithF body h = // (body:Recipe<'a,'b>) (h: 'exc ->Recipe<'a,'b>) : Recipe<'a,'b> =
         fun x -> async {
             try
                 return! runAction body x
             with e ->
                 return! runAction (h e) x
-        } |> Action
+        } |> Recipe
 
-    let tryFinallyF body comp = // (body:Action<'a,'b>) -> (comp: unit -> unit) -> Action<'a,'b> =
+    let tryFinallyF body comp = // (body:Recipe<'a,'b>) -> (comp: unit -> unit) -> Recipe<'a,'b> =
         fun x -> async {
             try
                 return! runAction body x
             finally
                 do comp()
-        } |> Action
+        } |> Recipe
 
     let usingF (r:'T :> System.IDisposable) body =
         tryFinallyF (body r) (fun () -> r.Dispose())
@@ -62,7 +62,7 @@ module internal A =
 [<AutoOpen>]
 module Builder =
     open A
-    type ActionBuilder() =
+    type RecipeBuilder() =
         member this.Return(c) = returnF c
         member this.Zero()    = doneF
         member this.Delay(f)  = delayF f
@@ -79,5 +79,5 @@ module Builder =
         member this.TryFinally(body, compensation) = tryFinallyF (body) compensation
         member this.Using(disposable:#System.IDisposable, body) = usingF disposable body
     
-    let action = ActionBuilder()
-    let recipe = ActionBuilder()
+    let action = RecipeBuilder()
+    let recipe = RecipeBuilder()

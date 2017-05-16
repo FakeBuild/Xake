@@ -57,9 +57,8 @@ module File =
         if String.IsNullOrWhiteSpace n then
             failwith "File name cannot be empty"
 
-        T (n, new System.IO.FileInfo(n))
+        T (n, System.IO.FileInfo n)
 
-    let getName (f:File) = f.Name
     let getFileName (f:File) = f.Name |> Path.GetFileName
     let getFileExt (f:File) = f.Name |> Path.GetExtension
     let getDirName (f:File) = f.FullName |> Path.GetDirectoryName

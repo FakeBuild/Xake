@@ -96,14 +96,14 @@ let ``ignoring result of do! action``() =
     let note = errorlist.Add
 
     let testee t =
-        action {
+        recipe {
             do note t
             return t
         }
     
     do xake DebugOptions {
       phony "main" (action {
-        do! (testee "1") |> Action.Ignore
+        do! (testee "1") |> Ignore
         wasExecuted := true
         do! testee "2" |> Action.Ignore
         do note "3"
@@ -123,7 +123,7 @@ let ``obtaining action result``() =
     let note = errorlist.Add
 
     let testee t =
-        action {
+        recipe {
             return t
         }
     
@@ -146,12 +146,12 @@ let ``ifs within actions``() =
     let note = errorlist.Add
 
     let iif f a b =
-        action {
+        recipe {
             return if f then a else b
         }
     
     do xake DebugOptions {
-      phony "main" (action {
+      phony "main" (recipe {
         if true then
             do note "i1-t"
         else
@@ -163,7 +163,7 @@ let ``ifs within actions``() =
             do note "i2-f"
 
         let! s1 = iif true "2" "2f"
-        let! s1 = if s1 = "2" then iif true "2" "2f" else action {return "2"}
+        let! s1 = if s1 = "2" then iif true "2" "2f" else recipe {return "2"}
         do note s1
         do note "3"
       })
@@ -178,7 +178,7 @@ let ``branching using if without else``() =
     let note = errorlist.Add
 
     let iif f a b =
-        action {
+        recipe {
             return if f then a else b
         }
     
@@ -209,9 +209,9 @@ let ``for and while loops``() =
 
     do xake DebugOptions {
 
-      phony "main" (action {
+      phony "main" (recipe {
 
-        let! s1 = action {return "122"}
+        let! s1 = recipe {return "122"}
         let s2 = s1
         do note "1"
 
@@ -235,13 +235,13 @@ let ``exception handling with 'try finally'``() =
 
     let errorlist = makeStringList()
     let note = errorlist.Add
-    let anote txt = action {
+    let anote txt = recipe {
         do note txt
     }
 
     do xake DebugOptions {
 
-      phony "main" (action {
+      phony "main" (recipe {
         note "before try"
         try
             printfn "Body executed"
@@ -261,13 +261,13 @@ let ``try finally fail``() =
 
     let errorlist = makeStringList()
     let note = errorlist.Add
-    let anote txt = action {
+    let anote txt = recipe {
         do errorlist.Add txt
     }
 
     do xake DebugOptions {
 
-      phony "main" (action {
+      phony "main" (recipe {
         do! anote "before try"
 
         try
@@ -289,13 +289,13 @@ let ``try finally fail``() =
 let ``exception handling with 'try with'``() =
 
     let errorlist = makeStringList()
-    let anote txt = action {
+    let anote txt = recipe {
         do errorlist.Add txt
     }
 
     do xake DebugOptions {
 
-      phony "main" (action {
+      phony "main" (recipe {
         do! anote "before try"
 
         try
@@ -315,7 +315,7 @@ let ``exception handling with 'try with'``() =
 [<Test>]
 let ``WhenError function to handle exceptions within actions``() =
 
-    let taskReturn n = action {
+    let taskReturn n = recipe {
         return n
     }
 
@@ -324,9 +324,9 @@ let ``WhenError function to handle exceptions within actions``() =
         rules [
             "main" => (
                 WhenError (fun _ -> excCount := 1) <|
-                action {
+                recipe {
                     printfn "Some useful job"
-                    do! taskReturn 3 |> FailWhen ((=) 3) "err" |> Action.Ignore
+                    do! taskReturn 3 |> FailWhen ((=) 3) "err" |> Recipe.Ignore
                     printfn "This wont run"
                 })
         ]
@@ -340,7 +340,7 @@ let ``try/with for the whole script body``() =
     do xake DebugOptions {
         rules [
             "main" =>
-            action {
+            recipe {
                 try
                     printfn "Some useful job"
                     do 3/0 |> ignore
@@ -368,7 +368,7 @@ let ``use! for disposable resources``() =
     do xake DebugOptions {
         rules [
             "main" =>
-            action {
+            recipe {
                 try
                     printfn "Some useful job"
                     use a = new DisposeMock(disposeCount)
@@ -386,12 +386,12 @@ let ``use! for disposable resources``() =
     Assert.AreEqual(1, !excCount)
     Assert.AreEqual(1, !disposeCount)
 
-type ActionBuilderPlus() =
-    inherit ActionBuilder()
+type RecipeBuilderPlus() =
+    inherit RecipeBuilder()
     [<CustomOperation("need")>]
     member this.Need(targets) = need targets
 
-let actionPlus = new ActionBuilderPlus()
+let actionPlus = new RecipeBuilderPlus()
 
 [<Test; Explicit>]
 let ``need op``() =

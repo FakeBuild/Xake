@@ -4,6 +4,7 @@ open System.IO
 open NUnit.Framework
 
 open Xake
+open Xake.Tasks
 open Storage
 
 // one thread to avoid simultaneous access to 'wasExecuted'
@@ -58,7 +59,7 @@ let ``executes need only once``() =
             do! need ["hlo.cs"]
             needExecuteCount := !needExecuteCount + 1
             do! Async.Sleep 2000
-            do! writeTextFile ""
+            do! writeText ""
         })
     }
 
@@ -113,7 +114,7 @@ let ``rebuilds when fileset is changed``() =
                 let! files = (!!"hello*.cs") |> getFiles 
                 do! needFiles files
                 needExecuteCount := !needExecuteCount + 1
-                do! writeTextFile ""
+                do! writeText ""
             }
         ]
     }
@@ -145,7 +146,7 @@ let ``rebuilds when env variable is changed``() =
                 do! trace Command "Running inside 'hlo' rule with var:%A" var
                 needExecuteCount := !needExecuteCount + 1
                 do! Async.Sleep 2000
-                do! writeTextFile ""
+                do! writeText ""
             }
         ]
     }
@@ -237,11 +238,12 @@ let ``groups in rule pattern``() =
     let matchedAny = ref false
 
     do xake {XakeOptions with Targets = ["out/abc.ss"]} {
-        rule ("(dir:*)/(file:*).(ext:ss)" %> fun out -> action {
+        rule ("(dir:*)/(file:*).(ext:ss)" ..> recipe {
             
-            Assert.AreEqual("out", out.GetGroup "dir")
-            Assert.AreEqual("abc", out.GetGroup "file")
-            Assert.AreEqual("ss", out.GetGroup "ext")
+            let! groups = getRuleMatches()
+            Assert.AreEqual("out", groups.["dir"])
+            Assert.AreEqual("abc", groups.["file"])
+            Assert.AreEqual("ss",  groups.["ext"])
             matchedAny := true
         })
     }
@@ -308,16 +310,17 @@ let ``target could be a relative2``() =
 
         let pcExeName = "PerformanceComparer.exe"
 
-        let copyToOutputAndRename target src = target *> fun outfile -> cp src outfile.FullName
+        let copyToOutputAndRename target src = target ..> copyFrom src
 
         let makeRule runtime =
             let folder = System.Environment.CurrentDirectory </> runtime.Folder
             [
-            (folder </> pcExeName) *> fun exe -> action {
-                do! need [exe.FullName + ".config"]
+            (folder </> pcExeName) ..> recipe {
+                let! exe = getTargetFullName()
+                do! need [exe + ".config"]
                 needExecuteCount := !needExecuteCount + 1
                 }
-            (runtime.Folder </> pcExeName + ".config") *> fun outfile -> action {()}
+            (runtime.Folder </> pcExeName + ".config") ..> recipe {()}
             ]
 
         do xake {ExecOptions.Default with FileLogLevel=Verbosity.Diag; FileLog = "build.log"} {

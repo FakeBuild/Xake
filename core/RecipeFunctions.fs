@@ -1,7 +1,7 @@
 ﻿namespace Xake
 
 [<AutoOpen>]
-module Action =
+module Recipe =
 
     open Xake
 
@@ -15,25 +15,25 @@ module Action =
     /// <summary>
     /// Gets action context.
     /// </summary>
-    let getCtx()     = Action (fun (r,c) -> async {return (r,c)})
+    let getCtx()     = Recipe (fun (r,c) -> async {return (r,c)})
 
     /// <summary>
     /// Gets current task result.
     /// </summary>
-    let getResult()  = Action (fun (s,_) -> async {return (s,s)})
+    let getResult()  = Recipe (fun (s,_) -> async {return (s,s)})
 
     /// <summary>
     /// Updates the build result
     /// </summary>
     /// <param name="s'"></param>
-    let setResult s' = Action (fun (_,_) -> async {return (s',())})
+    let setResult s' = Recipe (fun (_,_) -> async {return (s',())})
 
     /// <summary>
     /// Finalizes current build step and starts a new one
     /// </summary>
     /// <param name="name">New step name</param>
     let newstep name =
-        Action (fun (r,_) ->
+        Recipe (fun (r,_) ->
             async {
                 let r' = Step.updateTotalDuration r
                 let r'' = {r' with Steps = (Step.start name) :: r'.Steps}
@@ -45,8 +45,8 @@ module Action =
     /// </summary>
     /// <param name="cond"></param>
     /// <param name="act"></param>
-    let FailWhen cond err (act: Action<_,_>) =
-        action {
+    let FailWhen cond err (act: Recipe<_,_>) =
+        recipe {
             let! b = act
             if cond b then failwith err
             return b
@@ -61,16 +61,21 @@ module Action =
     /// Error handler verifying result of system command.
     /// </summary>
     /// <param name="act"></param>
-    let CheckErrorLevel act = act |> FailWhen Not0 "system command returned a non-zero result"
+    let CheckErrorLevel rc = rc |> FailWhen Not0 "system command returned a non-zero result"
 
     /// <summary>
     /// Wraps action so that exceptions occured while executing action are ignored.
     /// </summary>
     /// <param name="act"></param>
-    let WhenError handler (act:Action<_,_>) = 
-        action {
+    let WhenError handler (rc:Recipe<_,_>) = 
+        recipe {
             try
-                let! r = act
+                let! r = rc
                 return r
             with e -> return handler e 
         }
+
+[<System.Obsolete("Use Recipe module instead")>]
+module Action =
+
+    let Ignore = Recipe.Ignore

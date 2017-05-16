@@ -4,7 +4,8 @@ open System.IO
 open NUnit.Framework
 
 open Xake
-open Xake.SystemTasks
+open Xake.Tasks
+open Xake.Tasks.Dotnet
 
 let xakeOptions = ExecOptions.Default
 
@@ -21,25 +22,25 @@ let ``runs csc task (full test)``() =
         want (["hello"])
 
         rules [
-            "hello" *> fun file -> action {
+            "hello" ..> recipe {
                 do! trace Error "Running inside 'hello' rule"
                 do! need ["hello.cs"]
 
                 do! trace Error "Rebuilding..."
                 do! Csc {
                 CscSettings with
-                    Out = file
                     Src = !!"hello.cs"
                 }
             }
-            "hello.cs" *> fun src -> action {
-                do File.WriteAllText (src.FullName, """class Program
+            "hello.cs" ..> action {
+                do! writeText """class Program
                 {
 	                public static void Main()
 	                {
 		                System.Console.WriteLine("Hello world!");
 	                }
-                }""")
+                }"""
+                let! src = getTargetFullName()
                 do! trace Error "Done building 'hello.cs' rule in %A" src
                 needExecuteCount := !needExecuteCount + 1
             }
@@ -91,12 +92,12 @@ let ``script exits with errorlevel on script failure``() =
     
     do xake {xakeOptions with Threads = 1; FileLog="exits-with-errorlevel.log"; FileLogLevel = Verbosity.Diag; Targets = ["one"] } {
         rules [
-            "one" => action {
+            "one" => recipe {
                 do! need ["1/script.fsx"]
-                let! ec = system id fsiApp ["1/script.fsx"]
+                let! ec = shell {cmd fsiApp; args ["1/script.fsx"]}
                 errorCode := ec
             }
-            "1/script.fsx" ..> writeTextFile """
+            "1/script.fsx" ..> writeText """
                 #r "../Xake.Core.dll"
                 open Xake
 
@@ -114,7 +115,7 @@ let ``script exits with errorlevel on script failure``() =
 
     Assert.AreEqual(2, !errorCode)
 
-let taskReturn n = action {
+let taskReturn n = recipe {
     return n
 }
 
@@ -124,8 +125,8 @@ let ``failif is a short circuit for task result``() =
     let excCount = ref 0
     do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
         rules [
-            "main" => (action {
-                do! taskReturn 3 |> FailWhen ((=) 3) "err" |> Action.Ignore
+            "main" => (recipe {
+                do! taskReturn 3 |> FailWhen ((=) 3) "err" |> Recipe.Ignore
             } |> WhenError (fun _ -> excCount := 1))
         ]
     }
@@ -140,21 +141,21 @@ let ``WhenError handler intercepts the error``() =
     // pipe result, and provide fallback value in case of error
     do xake {xakeOptions with Threads = 1; FileLog="failf.log"} {
         rules [
-            "main" => action {
+            "main" => recipe {
                 do! taskReturn 3
                     |> FailWhen ((=) 3) "fail"
                     |> WhenError (fun _ -> ex := 1; 0)
-                    |> Action.Ignore
+                    |> Recipe.Ignore
             }
         ]
     }
     // intercept error for resultless action
     do xake {xakeOptions with Threads = 1; FileLog="failf2.log"} {
         rules [
-            "main" => action {
+            "main" => recipe {
                 do! taskReturn 3
                     |> FailWhen ((=) 3) "fail"
-                    |> Action.Ignore
+                    |> Recipe.Ignore
                     |> WhenError (fun _ -> ex := !ex + 1)
             }
         ]
