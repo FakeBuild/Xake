@@ -33,7 +33,7 @@ let ``runs csc task (full test)``() =
                 }
             }
             "hello.cs" ..> action {
-                do! writeTextFile """class Program
+                do! writeText """class Program
                 {
 	                public static void Main()
 	                {
@@ -97,7 +97,7 @@ let ``script exits with errorlevel on script failure``() =
                 let! ec = shell {cmd fsiApp; args ["1/script.fsx"]}
                 errorCode := ec
             }
-            "1/script.fsx" ..> writeTextFile """
+            "1/script.fsx" ..> writeText """
                 #r "../Xake.Core.dll"
                 open Xake
 

@@ -59,7 +59,7 @@ let ``executes need only once``() =
             do! need ["hlo.cs"]
             needExecuteCount := !needExecuteCount + 1
             do! Async.Sleep 2000
-            do! writeTextFile ""
+            do! writeText ""
         })
     }
 
@@ -114,7 +114,7 @@ let ``rebuilds when fileset is changed``() =
                 let! files = (!!"hello*.cs") |> getFiles 
                 do! needFiles files
                 needExecuteCount := !needExecuteCount + 1
-                do! writeTextFile ""
+                do! writeText ""
             }
         ]
     }
@@ -146,7 +146,7 @@ let ``rebuilds when env variable is changed``() =
                 do! trace Command "Running inside 'hlo' rule with var:%A" var
                 needExecuteCount := !needExecuteCount + 1
                 do! Async.Sleep 2000
-                do! writeTextFile ""
+                do! writeText ""
             }
         ]
     }

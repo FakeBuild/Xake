@@ -23,7 +23,7 @@ let ``allows delete file``() =
                 do! rm {file "samplefile"}
             }
 
-            "samplefile" ..> writeTextFile "hello world"
+            "samplefile" ..> writeText "hello world"
         ]
     }
 
@@ -44,7 +44,7 @@ let ``allows delete file by mask``() =
                 execCount := !execCount + 1
             }
 
-            "$$*" ..> writeTextFile "hello world"
+            "$$*" ..> writeText "hello world"
         ]
     }
 
@@ -63,7 +63,7 @@ let ``allows to delete by several masks``() =
                 do! rm {file "$b*"}
             }
 
-            "$*" ..> writeTextFile "hello world"
+            "$*" ..> writeText "hello world"
         ]
     }
 
@@ -81,7 +81,7 @@ let ``supports simple file copy``() =
             }
 
             "clean" => rm {file "aaa-copy"}
-            "aaa" ..> writeTextFile "hello world"
+            "aaa" ..> writeText "hello world"
         ]
     }
 

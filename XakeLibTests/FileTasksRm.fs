@@ -22,7 +22,7 @@ let ``Rm deletes single file``() =
                 do! rm {file "samplefile"; verbose}
             }
 
-            "samplefile" ..> writeTextFile "hello world"
+            "samplefile" ..> writeText "hello world"
         ]
     }
 
@@ -42,8 +42,8 @@ let ``Rm deletes files by mask``() =
                 do! rm {file "samplefile*"}
             }
 
-            "samplefile" ..> writeTextFile "hello world"
-            "samplefile1" ..> writeTextFile "hello world1"
+            "samplefile" ..> writeText "hello world"
+            "samplefile1" ..> writeText "hello world1"
         ]
     }
 
@@ -63,8 +63,8 @@ let ``Rm deletes dir``() =
                 do! rm {dir "a"}
             }
 
-            "a/samplefile" ..> writeTextFile "hello world"
-            "a/b/samplefile1" ..> writeTextFile "hello world1"
+            "a/samplefile" ..> writeText "hello world"
+            "a/b/samplefile1" ..> writeText "hello world1"
         ]
     }
 
@@ -86,7 +86,7 @@ let ``Rm deletes fileset``() =
                 }
             }
 
-            "samplefile*" ..> writeTextFile "hello world"
+            "samplefile*" ..> writeText "hello world"
         ]
     }
 

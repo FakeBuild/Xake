@@ -22,7 +22,7 @@ let ``copies single file``() =
                 do! Cp {CpArgs.Default with file = "samplefile"; todir = "cptgt"}
             }
 
-            "samplefile" ..> writeTextFile "hello world"
+            "samplefile" ..> writeText "hello world"
         ]
     }
 
@@ -40,7 +40,7 @@ let ``copies folder flatten``() =
                 do! Cp {CpArgs.Default with dir = "cpin"; todir = "cptgt"; flatten = true}
             }
 
-            "cpin/samplefile" ..> writeTextFile "hello world"
+            "cpin/samplefile" ..> writeText "hello world"
         ]
     }
 
@@ -58,7 +58,7 @@ let ``copies folder no flatten``() =
                 do! Cp {CpArgs.Default with dir = "cpin"; todir = "cptgt"; flatten = false}
             }
 
-            "cpin/a/samplefile" ..> writeTextFile "hello world"
+            "cpin/a/samplefile" ..> writeText "hello world"
         ]
     }
 
@@ -80,7 +80,7 @@ let ``copies fileset NO flatten``() =
                     }
             }
 
-            "cpin/a/samplefile" ..> writeTextFile "hello world"
+            "cpin/a/samplefile" ..> writeText "hello world"
         ]
     }
 
@@ -98,7 +98,7 @@ let ``copies fileset flatten``() =
                 do! cp {files !!"cpin/**/*"; todir "cptgt"; flatten}
             }
 
-            "cpin/a/samplefile" ..> writeTextFile "hello world"
+            "cpin/a/samplefile" ..> writeText "hello world"
         ]
     }
 

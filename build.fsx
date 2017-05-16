@@ -76,7 +76,6 @@ do xakeScript {
                 includes "ResourceFileset.fs"
                 includes "ProcessExec.fs"
                 includes "FileTasksImpl.fs"
-                includes "FileTasks.fs"
                 includes "DotNetFwk.fs"
                 includes "DotnetTasks.fs"
                 includes "Tasks/**/*.fs"

@@ -1,7 +1,7 @@
 #r "../bin/Xake.Core.dll"
 
 open Xake
-open Xake.FileTasks
+open Xake.Tasks
 
 do xakeScript {
     rules [
@@ -13,7 +13,7 @@ do xakeScript {
             // do! trace Level.Command "dd: %A" dd
         }
 
-        "a/samplefile" ..> writeTextFile "hello world"
-        "a/b/samplefile1" ..> writeTextFile "hello world1"
+        "a/samplefile" ..> writeText "hello world"
+        "a/b/samplefile1" ..> writeText "hello world1"
     ]
 }

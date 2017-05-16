@@ -2,6 +2,7 @@
 
 open Xake
 open System.IO
+open Xake.FileTasksImpl
 
 [<AutoOpen>]
 module MiscImpl =

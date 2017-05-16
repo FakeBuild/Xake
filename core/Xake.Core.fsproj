@@ -81,7 +81,6 @@
     <Compile Include="ResourceFileset.fs" />
     <Compile Include="ProcessExec.fs" />
     <Compile Include="FileTasksImpl.fs" />
-    <Compile Include="FileTasks.fs" />
     <Compile Include="DotNetFwk.fs" />
     <Compile Include="DotnetTasks.fs" />
     <Compile Include="Tasks\Cp.fs" />
