@@ -1,7 +1,7 @@
 #r @"../bin/Xake.Core.dll"
 open Xake
+open Xake.Tasks
 open Xake.Tasks.Dotnet
-open Xake.Tasks.File
 
 do xakeScript {
     rules [

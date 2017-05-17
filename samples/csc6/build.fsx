@@ -1,6 +1,7 @@
 #r @"../../bin/Xake.Core.dll"
 
 open Xake
+open Xake.Tasks.Dotnet
 
 do xake ExecOptions.Default {
   
@@ -9,9 +10,8 @@ do xake ExecOptions.Default {
 
   rules [
     "main" ==> ["hello.exe"]
-    "hello.exe" *> fun file -> csc {
+    "hello.exe" ..> csc {
       cscpath @"packages\Microsoft.Net.Compilers\tools\csc.exe"
-      out file
       src !! "hello_cs6.cs"
     }
   ]
