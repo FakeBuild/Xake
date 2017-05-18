@@ -11,6 +11,13 @@ module Recipe =
     /// <param name="act"></param>
     let Ignore act = act |> A.ignoreF
 
+    /// <summary>
+    /// Translates the recipe result.
+    /// </summary>
+    let map f (rc: Recipe<_,_>) = recipe {
+        let! r = rc
+        return f r
+    }
 
     /// <summary>
     /// Gets action context.
