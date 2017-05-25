@@ -4,7 +4,8 @@
 //#r @"bin/Debug/Xake.Core.dll"
 
 open Xake
-open Xake.SystemTasks
+open Xake.Tasks
+open Xake.Tasks.Dotnet
 
 let TestsAssembly, CoreAssembly = "bin/XakeLibTests.dll", "bin/Xake.Core.dll"
 let (=?) value deflt = match value with |Some v -> v |None -> deflt
@@ -13,7 +14,15 @@ let makePackageName () = recipe {
     let! ver = getEnv("VER")
     return sprintf "Xake.%s.nupkg" (ver =? "0.0.1")
 }
-let paket args = system (useClr >> checkErrorLevel) ".paket/paket.exe" args |> Action.Ignore
+let paket arglist = recipe {
+    do! shell {
+        useclr
+        cmd ".paket/paket.exe"
+        args arglist
+        failonerror
+        } |> Recipe.Ignore
+}
+
 let nunitConsoleExe = "packages/NUnit.ConsoleRunner/tools/nunit3-console.exe" |> File.make |> File.getFullName
 
 do xakeScript {
@@ -28,7 +37,7 @@ do xakeScript {
             }
 
         "build" <== [TestsAssembly; CoreAssembly]
-        "clean" => rm ["bin/*.*"]
+        "clean" => rm {dir "bin"} // ["bin/*.*"]
 
         "test" => recipe {
             do! alwaysRerun()
@@ -37,12 +46,18 @@ do xakeScript {
             let! where = getVar("WHERE")
             let whereArgs = where |> function | Some clause -> ["--where"; clause] | None -> []
 
-            do! system (useClr >> checkErrorLevel >> workingDir "bin") nunitConsoleExe (["XakeLibTests.dll"] @ whereArgs) |> Action.Ignore
+            do! (shell {
+                useclr
+                cmd nunitConsoleExe
+                args (["XakeLibTests.dll"] @ whereArgs)
+                failonerror
+                workdir "bin"                
+                }) |> Recipe.Ignore
         }
 
         ("bin/FSharp.Core.dll") ..> (WhenError ignore <| recipe {
                 do! copyFrom "packages/FSharp.Core/lib/net40/FSharp.Core.dll"
-                do! copyFiles ["packages/FSharp.Core/lib/net40/FSharp.Core.*data"] "bin"
+                do! copy {todir "bin"; file "packages/FSharp.Core/lib/net40/FSharp.Core.*data"}
             })
 
         ("bin/nunit.framework.dll") ..> copyFrom "packages/NUnit/lib/nunit.framework.dll"

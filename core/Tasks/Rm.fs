@@ -45,6 +45,7 @@ module RmImpl =
             | { file = fileMask } when fileMask <> null ->
                 ctx.Logger.Log Level.Message "[rm] %A" fileMask
                 fileMask |> Path.parse |> Fileset.listByMask projectRoot
+                |> Seq.filter File.Exists
                 // TODO !!fileMask |> (toFileList projectRoot)
                 |> Seq.iter (fun file ->
                     do reportDeleting file
@@ -53,6 +54,7 @@ module RmImpl =
 
             | { dir = dirMask } when dirMask <> null ->
                 dirMask |> Path.parseDir |> Fileset.listByMask projectRoot
+                |> Seq.filter Directory.Exists
                 |> Seq.iter (fun dir ->
                     do reportDeleting dir
                     do Directory.Delete (dir, true)

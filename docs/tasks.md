@@ -62,7 +62,7 @@ List of valid targets:
     | "mono-40" | "mono-4.0" | "4.0"
     | "mono-45" | "mono-4.5" | "4.5"
 
-Use "2.0".."4.5" targets for mutiplatform environments (will target mono-XXX being run under mono framework).
+Use "2.0".."4.5" targets for multiplatform environments (will target mono-XXX being run under mono framework).
 
 The following script compiles application using 4.5 framework (mono or .net depending on running environment).
 

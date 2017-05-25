@@ -15,7 +15,7 @@ Fileset has two major subtypes - either **set of rules** or a **file list**, als
 
 ### Non-existing files
 
-Filesets are used to references both existing files (e.g. project source files) and **targets** which might not exists when fileset is "materialized". In case the file or directory name is treated as a mask, the non-existing file will be omitted from resulting file list and the build will likely fail.
+Filesets are used to reference both existing files (e.g. project source files) and **targets** which might not exist when fileset is "materialized". In case the file or directory name is treated as a mask, the non-existing file will be omitted from resulting file list and the build will likely fail.
 The rule to resolve such inconsistency the rule (part of pattern) without mask is added to resulting file list explicitly.
 
 NOTE: it should depend on the context: if fileset defines source files or references "explicit rule" is ok.
@@ -155,28 +155,6 @@ Tasks:* various supported options for csc
 
  * NETFX - framework version to use for compilation, resources. E.g. "2.0", "3.5", "4.0". Default: highest available on the computer. 
 
-
-## Command line parameters
-
-Script arguments allow to specify execution options, list of targets, logging options and others from command line.
-According to fsi.exe "--" arguments denotes the start of script arguments so in the most common case you will use it as:
-
-  fsi.exe build.fsx -- clean build deploy
-
-where "clean" "build" and "deploy" are target names.
-
-The full list of parameters:
-
-* -h -- displays help screen
-* -t <task count> -- use <task count> simultaneous processes to execute the build tasks. * Default value is the number of processors
-* -r <root path> -- override the root path. All the targets and filesets are resolved relatively to this path. Default is current directory
-* -ll <log level> -- console log level (Silent | Quiet | Normal | Loud | Chatty | Diag)
-* -fl <file log path> -- specifies the name of the log file
-* -fll <log level> -- specifies the logging level to a log file
-* target1 .. targetN -- define the list of targets. Targets are executed in strict order, the second one starts only after the first one is completed.
-* target1;target2;..targetN -- execute the targets simultaneously
-* -d <name>=<value> -- defines a script variable value
-* -nologo -- remove logo string
 
 ### Do not allow to override options
 
