@@ -77,10 +77,18 @@ module ScriptFuncs =
     /// </summary>
     let getTargetFile() = recipe {
         let! ctx = getCtx()
-        return ctx.Tgt
+        return ctx.Targets
             |> function
-            | Some (FileTarget file) -> file
+            | FileTarget file::_ -> file
             | _ -> failwith "getTargetFile is not available for phony actions"
+    }
+
+    /// <summary>
+    /// Gets current target file
+    /// </summary>
+    let getTargetFiles() : Recipe<ExecContext, File list> = recipe {
+        let! ctx = getCtx()
+        return ctx.Targets |> List.collect (function |FileTarget file -> [file] |_ -> failwith "Expected only a file targets"; [])
     }
 
     /// <summary>

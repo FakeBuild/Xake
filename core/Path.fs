@@ -63,12 +63,12 @@ module Path =
         /// </summary>
         let rec normalize = function
             | [] -> []
-            | x::[] -> [x]
+            | [x] -> [x]
             | x::tail ->               
                 match x::(normalize tail) with
                 | Directory _::Parent::t -> t
                 | CurrentDir::t -> t
-                | _ as rest -> rest
+                | rest -> rest
 
         /// <summary>
         /// Maps part of file path to a path part.
@@ -102,6 +102,21 @@ module Path =
         /// supplementary function for parsing file
         /// </summary>
         let isLastPartForFile (parts:_ array) = (=) (parts.Length-1)
+
+        let dirSeparator = string Path.DirectorySeparatorChar
+        let partToString =
+            function
+            | Directory s
+            | FileName s
+            | DirectoryMask s
+            | FileMask s
+                -> s
+            | Parent -> ".."
+            | Part.CurrentDir -> "."
+            | Part.Disk d -> d + dirSeparator
+            | Part.Recurse -> "**"
+            | Part.FsRoot -> dirSeparator
+
 
     module private PicklerImpl =
 
@@ -157,7 +172,7 @@ module Path =
                         if name <> "0" && group.Success then yield name, group.Value] |> Some
                 | _ -> None
 
-        let getMatches (mask:Part) (path:Part) =
+        let matchPart (mask:Part) (path:Part) =
             match mask,path with
             | (FsRoot, FsRoot) -> Some []
             | (Disk mask, Disk d) when eq mask d -> Some []
@@ -179,7 +194,7 @@ module Path =
             | [], [] -> Some groups
             | [], _ | _, [] -> None
 
-            | Directory _::Recurse::Parent::ms, _ -> matchPaths (Recurse::ms) p groups
+            | Directory _::Recurse::Parent::ms, _ -> matchPaths (Recurse::ms) p groups // TODO is it equivalent?
             | Recurse::Parent::ms, _              -> matchPaths (Recurse::ms) p groups    // ignore parent ref
 
             | Recurse::ms, (FileName _)::_ -> matchPaths ms p groups
@@ -188,12 +203,18 @@ module Path =
                 | None -> matchPaths ms p groups
                 | mm -> mm
             | m::ms, x::xs ->
-                getMatches m x |> Option.bind (fun gg -> matchPaths ms xs (groups @ gg))
+                matchPart m x |> Option.bind (fun gg -> matchPaths ms xs (groups @ gg))
 
     // API
     let pickler = PicklerImpl.pattern
 
-    let toFileSystem (PathMask pp) = "" // TODO implement
+    /// <summary>
+    /// Converts path to string representation (platform specific).
+    /// </summary>
+    let toString (PathMask pp) =
+        pp |> List.map impl.partToString
+        |> List.fold (fun s ps -> Path.Combine (s, ps)) ""
+
 
     /// <summary>
     /// Joins two patterns.
@@ -232,6 +253,8 @@ module Path =
         // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
 
         matchesPattern <| join (parseDir rootPath) (parse filePattern)
+
+    let matchPart = matchImpl.matchPart
 
 [<AutoOpen>]
 module PathExt =

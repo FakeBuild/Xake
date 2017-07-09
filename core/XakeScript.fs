@@ -7,6 +7,9 @@ module XakeScript =
     let ( ..?> ) fn fnRule = FileConditionRule (fn, fnRule)
 
     let ( ..> ) pattern actionBody = FileRule (pattern, actionBody)
+    let ( ..>> ) (dirmask, patterns) actionBody =
+        // TODO validate the patterns
+        MultiFileRule (dirmask, patterns, actionBody)
 
     /// Creates phony action (check if I can unify the operator name)
     let (=>) name action = PhonyRule (name, action)

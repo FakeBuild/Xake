@@ -19,8 +19,22 @@ module internal ExecCore =
         }
         Printf.kprintf write fmt
 
-    // Ordinal of the task being added to a task pool
-    let refTaskOrdinal = ref 0
+   
+    /// <summary>
+    /// Extracts base path (full path minus relative one).
+    /// </summary>
+    let extractBasePath fullPath relativePath =
+        let (Path.PathMask targetParts) = Path.parse fullPath
+        let (Path.PathMask patternParts) = Path.parse relativePath
+
+        let rec stripItem = function
+            | a::tail1, b::tail2 when a = b -> (tail1, tail2) |> stripItem
+            | x -> x
+
+        (List.rev targetParts, List.rev patternParts)
+        |> stripItem
+        // |> fun x -> printf "%A" x; x
+        |> function | baseRev, [] -> baseRev |> (List.rev >> Path.PathMask >> Path.toString >>  Some) | _ -> None
 
     // locates the rule
     let locateRule (Rules rules) projectRoot target =
@@ -30,17 +44,35 @@ module internal ExecCore =
             |FileConditionRule (predicate,_), FileTarget file when file |> File.getFullName |> predicate ->
                 //writeLog Level.Debug "Found conditional pattern '%s'" name
                 // TODO let condition rule extracting named groups
-                Some (rule,[])
+                Some (rule,[],[target])
 
             |FileRule (pattern,_), FileTarget file ->
                 file
                 |> File.getFullName
                 |> Path.matches pattern projectRoot
-                |> Option.map (fun groups -> rule,groups)
+                |> Option.map (fun groups -> rule,groups,[target])
+
+            |MultiFileRule (basemask, patterns, _), FileTarget file ->
+                // TODO subefficient
+                let fname = file |> File.getFullName
+                patterns
+                |> List.tryPick(fun pattern ->
+                    Path.matches (basemask </> pattern) projectRoot fname
+                    |> Option.map(fun groups -> groups, pattern)
+                    )
+                |> Option.map (fun (groups, pattern) ->
+                    // get the base path using the pattern that matched
+                    let basePath =
+                        match extractBasePath fname pattern with
+                        | Some path -> path
+                        | _ ->
+                            raise <| XakeException (sprintf "Failed to extract base path for target '%s' matching pattern '%s'" fname pattern)
+                    let targets = patterns |> List.map (fun p -> basePath </> p |> File.make |> FileTarget)
+                    rule, groups, targets)
 
             |PhonyRule (name,_), PhonyAction phony when phony = name ->
                 // writeLog Verbose "Found phony pattern '%s'" name
-                Some (rule, [])
+                Some (rule, [], [target])
 
             | _ -> None
 
@@ -54,58 +86,61 @@ module internal ExecCore =
         do reportError ctx error details
         raise (XakeException(sprintf "Script failed (error code: %A)\n%A" error details))
 
+    // Ordinal of the task being added to a task pool
+    let refTaskOrdinal = ref 0
+
     /// <summary>
     /// Creates a context for a new task
     /// </summary>
-    let newTaskContext target matches ctx =
+    let newTaskContext targets matches ctx =
         let ordinal = System.Threading.Interlocked.Increment(refTaskOrdinal)
         let prefix = ordinal |> sprintf "%i> "
         in
         {ctx with
             Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger
-            Tgt = Some target
+            Targets = targets
             RuleMatches = matches
         }
 
     // executes single artifact
     let rec execOne ctx target =
-
-        let run ruleMatches action =
+        let run ruleMatches action targets =
+            let primaryTarget = targets |> List.head
             async {
-                match ctx.NeedRebuild target with
+                match ctx.NeedRebuild targets with
                 | true ->
-                    let taskContext = newTaskContext target ruleMatches ctx
-                    do ctx.Logger.Log Command "Started %s as task %i" target.ShortName taskContext.Ordinal
+                    let taskContext = newTaskContext targets ruleMatches ctx
+                    do ctx.Logger.Log Command "Started %s as task %i" primaryTarget.ShortName taskContext.Ordinal
 
-                    do Progress.TaskStart target |> ctx.Progress.Post
+                    do Progress.TaskStart primaryTarget |> ctx.Progress.Post
 
-                    let startResult = {BuildLog.makeResult target with Steps = [Step.start "all"]}
+                    let startResult = {BuildLog.makeResult primaryTarget with Steps = [Step.start "all"]}
                     let! (result,_) = action (startResult, taskContext)
                     let result = Step.updateTotalDuration result
 
                     Store result |> ctx.Db.Post
 
-                    do Progress.TaskComplete target |> ctx.Progress.Post
-                    do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" target.ShortName (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
+                    do Progress.TaskComplete primaryTarget |> ctx.Progress.Post
+                    do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" primaryTarget.ShortName (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
                     return ExecStatus.Succeed
                 | false ->
-                    do ctx.Logger.Log Command "Skipped %s (up to date)" target.ShortName
+                    do ctx.Logger.Log Command "Skipped %s (up to date)" primaryTarget.ShortName
                     return ExecStatus.Skipped
             }
 
         let getAction = function
             | FileRule (_, a)
             | FileConditionRule (_, a)
-            | PhonyRule (_, a) ->
-                a
+            | MultiFileRule (_, _, a)
+            | PhonyRule (_, a) -> a
 
         // result expression is...
         match target |> locateRule ctx.Rules ctx.Options.ProjectRoot with
-        | Some(rule,groups) ->
+        | Some(rule,groups,targets) ->
             let groupsMap = groups |> Map.ofSeq
             let (Recipe action) = rule |> getAction
             async {
-                let! waitTask = (fun channel -> Run(target, run groupsMap action, channel)) |> ctx.TaskPool.PostAndAsyncReply
+                let! waitTask = (fun channel -> Run(target, targets, run groupsMap action targets, channel)) |> ctx.TaskPool.PostAndAsyncReply
                 let! status = waitTask
                 return status, ArtifactDep target
             }
@@ -128,13 +163,14 @@ module internal ExecCore =
     /// </returns>
     and execNeed ctx targets : Async<ExecStatus * Dependency list> =
         async {
-            ctx.Tgt |> Option.iter (Progress.TaskSuspend >> ctx.Progress.Post)
+            let primaryTarget = ctx.Targets |> List.head
+            primaryTarget |> (Progress.TaskSuspend >> ctx.Progress.Post)
 
             do ctx.Throttler.Release() |> ignore
             let! statuses = targets |> execParallel ctx
             do! ctx.Throttler.WaitAsync(-1) |> Async.AwaitTask |> Async.Ignore
 
-            ctx.Tgt |> Option.iter (Progress.TaskResume >> ctx.Progress.Post)
+            primaryTarget |> (Progress.TaskResume >> ctx.Progress.Post)
 
             let dependencies = statuses |> Array.map snd |> List.ofArray in
             return statuses
@@ -223,7 +259,7 @@ module internal ExecCore =
         let runTargets ctx options targets =
             let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
             
-            let check_rebuild (target: Target) =
+            let checkRebuild (target: Target) =
                 getDeps >>
                 function
                 | [] -> false, ""
@@ -239,9 +275,11 @@ module internal ExecCore =
                     do ctx.Logger.Log Info "Rebuild %A: %s" target.ShortName reason
                     true
                 <| target
+            let checkRebuildAll (targets: Target list) = targets |> List.exists checkRebuild
+                // todo improve output by printing primary target
 
             let progressSink = Progress.openProgress (getDurationDeps ctx getDeps) options.Threads targets options.Progress
-            let stepCtx = {ctx with NeedRebuild = check_rebuild; Progress = progressSink}
+            let stepCtx = {ctx with NeedRebuild = checkRebuildAll; Progress = progressSink}
 
             try
                 targets |> execParallel stepCtx |> Async.RunSynchronously |> ignore
@@ -283,7 +321,7 @@ module internal ExecCore =
             Logger = logger; RootLogger = logger; Db = db
             Progress = Progress.emptyProgress()
             NeedRebuild = fun _ -> false
-            Tgt = None
+            Targets = []
             RuleMatches = Map.empty
             }
 

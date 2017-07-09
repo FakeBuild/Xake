@@ -134,7 +134,7 @@ module Main =
         if not options.Nologo then
             printf "XAKE build tool %s\n\n" Xake.Const.Version
 
-        new RulesBuilder (options)
+        RulesBuilder options
 
     /// <summary>
     /// Create xake build script using command-line arguments to define script options

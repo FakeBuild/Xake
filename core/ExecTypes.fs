@@ -79,10 +79,10 @@ type ExecContext = {
     Logger: ILogger
     RootLogger: ILogger
     Progress: Agent<Progress.ProgressReport>
-    Tgt: Target option
+    Targets: Target list
     RuleMatches: Map<string,string>
     Ordinal: int
-    NeedRebuild: Target -> bool
+    NeedRebuild: Target list -> bool
 }
 
 module internal Util =
