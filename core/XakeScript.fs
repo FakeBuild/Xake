@@ -11,6 +11,10 @@ module XakeScript =
         // TODO validate the patterns
         MultiFileRule (dirmask, patterns, actionBody)
 
+    let ( ..>.. ) (patterns) actionBody =
+        // TODO validate the patterns
+        MultiFileRule ("", patterns, actionBody)
+
     /// Creates phony action (check if I can unify the operator name)
     let (=>) name action = PhonyRule (name, action)
 

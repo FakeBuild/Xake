@@ -9,7 +9,8 @@ do xakeScript {
         "main" => recipe {
             let! opt = getCtxOptions()
             do! need ["a/file2"]
-            do! need ["a/file2"]
+            do! need ["a/file1"]
+            do! need ["a/subfoldr/file1.exe"]
             do! rm {dir "a"}
         }
 
@@ -23,7 +24,7 @@ do xakeScript {
 
         // group rule
         // challenge: how to identify common part for both names
-        ("a/**", ["file1.exe"; "file2.xml"]) ..>> recipe {
+        ["a/**/bin/*.exe"; "a/**/bin/*.xml"; "a/**/*.txt"] ..>.. recipe {
             let! [target1; target2] = getTargetFiles()
             do! writeText "hello world"
             do File.WriteAllText(target1.FullName, "file1")

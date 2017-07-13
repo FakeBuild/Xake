@@ -49,7 +49,7 @@ module internal ExecCore =
             |FileRule (pattern,_), FileTarget file ->
                 file
                 |> File.getFullName
-                |> Path.matches pattern projectRoot
+                |> Path.matchGroups pattern projectRoot
                 |> Option.map (fun groups -> rule,groups,[target])
 
             |MultiFileRule (basemask, patterns, _), FileTarget file ->
@@ -57,7 +57,7 @@ module internal ExecCore =
                 let fname = file |> File.getFullName
                 patterns
                 |> List.tryPick(fun pattern ->
-                    Path.matches (basemask </> pattern) projectRoot fname
+                    Path.matchGroups (basemask </> pattern) projectRoot fname
                     |> Option.map(fun groups -> groups, pattern)
                     )
                 |> Option.map (fun (groups, pattern) ->

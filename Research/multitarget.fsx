@@ -3,6 +3,7 @@
 open Xake
 open Xake.Tasks
 open System.IO
+open System.Text.RegularExpressions
 
 let masks = ["a/**/file1.exe"; "a/**/file2.xml"]
 let maskPaths = masks |> List.map Path.parse
@@ -76,6 +77,74 @@ let xx1 = Path.parse ("../file1.exe"), Path.parse "c:/a/b/c/d/al/file1.exe"
 // solution: only allow [Directory...]/FileName in pat
 
 
+
+let patterns = ["a/**/bin/*.exe"; "a/**/bin/*.xml"; "a/**/*.txt"]
+// after rule is matched take all wildcards and apply to other patterns
+// - new "match" implementation with wildcards detection
+// - requires all wildcards to match
+// - need duplicating named match groups
+
+let x = processComplexPat patterns
+let common, masks = patterns |> List.map Path.parse |> extractCommonPath []
+
+let wilcard2regexMap =
+   ["**", "(.*)"
+    "*", "([^/\\\\]*)"
+    "?", "([^/\\\\])"
+    ".", "\\."
+    "$", "\\$"
+    "^", "\\^"
+   ] |> dict
+
+let wildcardToRegex (m:Match) =
+    match m.Groups.Item("tag") with
+    | t when not t.Success ->
+        match wilcard2regexMap.TryGetValue(m.Value) with
+        | true, v -> v
+        | _ -> m.Value
+    | t -> "(?<" + t.Value + ">"
+
+let maskToRegex (pattern:string) =
+
+    let pat = Regex.Replace(pattern, @"\((?'tag'\w+?)\:|\*\*|([*.?$^])", wildcardToRegex)
+    in
+    Regex(@"^" + pat + "$", RegexOptions.Compiled + RegexOptions.IgnoreCase)    // TODO ignore case is optional (system-dependent)
+
+System.IO.File.Exists("\\\\d")
+let xx = maskToRegex "\\\\a/bin/*.exe"
+do dump <| xx.Match("a/bin/pc.exe")
+
+// generate for "a/bin/*.txt" -> "a/bin/$1\.txt"
+// generate for "a/(TAG:bin)/*.txt" -> "a/${TAG}/$1\.txt"
+
+let wildcardToPat () =
+    let mutable i = 0    
+    let fn (m:Match) =
+        match m.Groups.Item("tag") with
+        | t when t.Success -> sprintf "${%s}" t.Value
+        | t ->
+            i <- i + 1
+            sprintf "$%i" i
+    fn
+
+let px: Match -> string = wildcardToPat ()
+let pat = Regex.Replace("a?/(TAG:*bin)/*.txt", @"\((?'tag'\w+?)\:[^)]+\)|\*\*|\*|\?", px)
+
+do dump <| (maskToRegex "c:/(f:**)/(fname:*.exe)").Match("c:/b/c/asd.exe")
+do dump <| (maskToRegex "c:/**/(fname:*.exe)").Match("c:/asd.exe")
+
+(maskToRegex "c:/(f:**)/(fname:*.exe)").GetGroupNames() |> Array.filter(fun s -> s.[0] |> System.Char.IsDigit |> not)
+
+
+let dump (m: Match) =
+    if m.Success then
+        printfn "%i groups found'" m.Groups.Count
+        for group in m.Groups do
+            printfn "Group %s: '%A'" group.Name group
+
+
+// TODO match all groups, wildcards and "**" (recurse)
+// TODO apply matches to all other name parts
 
 // idea2: special matches implementation
 

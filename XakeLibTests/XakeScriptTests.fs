@@ -305,8 +305,8 @@ let ``target could be a relative2``() =
     try
         let runtimes =
           [
-            {Ver = "v9"; Folder = @"c:\\!\\aaa\Runtimes\9.1.2134.0"}
-            {Ver = "v10"; Folder = @"c:\\!\\aaa\Runtimes\10.99.5262.0"}]
+            {Ver = "v9"; Folder = @"c:\!\aaa\Runtimes\9.1.2134.0"}
+            {Ver = "v10"; Folder = @"c:\!\aaa\Runtimes\10.99.5262.0"}]
 
         let pcExeName = "PerformanceComparer.exe"
 
@@ -323,7 +323,7 @@ let ``target could be a relative2``() =
             (runtime.Folder </> pcExeName + ".config") ..> recipe {()}
             ]
 
-        do xake {ExecOptions.Default with FileLogLevel=Verbosity.Diag; FileLog = "build.log"} {
+        do xake {ExecOptions.Default with FileLogLevel=Verbosity.Diag; FileLog = "build123.log"} {
 
           rules (runtimes |> List.collect makeRule)
           rule ("main" ==> [for r in runtimes do yield r.Folder </> pcExeName])
