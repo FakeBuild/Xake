@@ -102,7 +102,7 @@ module Fileset =
             // TODO check performance, build function
             let includes src = [startDir] |> (listFiles fileSystem) >> Seq.append src
             let excludes src pat =
-                let matchFile = Path.join startDirPat pat |> Path.matchesPattern >> Option.isSome in
+                let matchFile = Path.join startDirPat pat |> Path.matchesPattern in
                 src |> Seq.filter (matchFile >> not)
 
             let folditem i = function

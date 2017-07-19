@@ -63,8 +63,9 @@ module DomainTypes =
 
     type 'ctx Rule =
         | FileRule of string * Recipe<'ctx,unit>
+        | MultiFileRule of string list * Recipe<'ctx,unit>
         | PhonyRule of string * Recipe<'ctx,unit>
-        | FileConditionRule of (string -> bool) *Recipe<'ctx,unit>
+        | FileConditionRule of (string -> bool) * Recipe<'ctx,unit>
     type 'ctx Rules = Rules of 'ctx Rule list
 
     /// Defines common exception type

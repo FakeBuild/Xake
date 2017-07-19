@@ -8,6 +8,9 @@ module XakeScript =
 
     let ( ..> ) pattern actionBody = FileRule (pattern, actionBody)
 
+    let ( *..> ) (patterns: #seq<string>) actionBody =
+        MultiFileRule (patterns |> List.ofSeq, actionBody)
+
     /// Creates phony action (check if I can unify the operator name)
     let (=>) name action = PhonyRule (name, action)
 

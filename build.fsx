@@ -7,7 +7,7 @@ open Xake
 open Xake.Tasks
 open Xake.Tasks.Dotnet
 
-let TestsAssembly, CoreAssembly = "bin/XakeLibTests.dll", "bin/Xake.Core.dll"
+let TestsAssembly, CoreAssembly = "bin/XakeLibTests.dll", "bin/Xake.dll"
 let (=?) value deflt = match value with |Some v -> v |None -> deflt
 
 let makePackageName () = recipe {
@@ -37,7 +37,7 @@ do xakeScript {
             }
 
         "build" <== [TestsAssembly; CoreAssembly]
-        "clean" => rm {dir "bin"} // ["bin/*.*"]
+        "clean" => rm {file "bin/*.*"}
 
         "test" => recipe {
             do! alwaysRerun()
@@ -65,7 +65,8 @@ do xakeScript {
         CoreAssembly ..> recipe {
 
             // TODO multitarget rule!
-            let xml = "bin/Xake.Core.XML" // file.FullName .- "XML"
+            let! target = getTargetFile()
+            let xml = target.FullName -. "xml"
 
             let sources = fileset {
                 basedir "core"

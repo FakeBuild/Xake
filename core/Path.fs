@@ -24,32 +24,8 @@ module Path =
         | Matches of (string*string) list
         | Nope
 
-
-    //type Path = Path of Part list
-    (*
-      path could be:
-      c:\Windows\             - dir path
-      c:\Windows\paint.exe    - absolute file path
-      \Windows\paint.exe      - relative file path
-      \Windows\               - relative dir path
-
-      \*\paint.exe            - relative file mask
-      c:\*\paint.exe          - absolute file mask
-
-      ops:
-      join: abs + relative      -> abs
-      join: relative + relative -> relative
-      match path mask
-
-      invariants:
-      * paths/masks are normalized
-    *)
-//    type T =
-//        | Path of Part list
-//        | PathMask of Part list
-//        | AbsPath of Part list
-
     module private impl =
+
         let notNullOrEmpty = System.String.IsNullOrEmpty >> not
 
         let driveRegex = Regex(@"^[A-Za-z]:$", RegexOptions.Compiled)
@@ -63,12 +39,12 @@ module Path =
         /// </summary>
         let rec normalize = function
             | [] -> []
-            | x::[] -> [x]
+            | [x] -> [x]
             | x::tail ->               
                 match x::(normalize tail) with
                 | Directory _::Parent::t -> t
                 | CurrentDir::t -> t
-                | _ as rest -> rest
+                | rest -> rest
 
         /// <summary>
         /// Maps part of file path to a path part.
@@ -103,6 +79,21 @@ module Path =
         /// </summary>
         let isLastPartForFile (parts:_ array) = (=) (parts.Length-1)
 
+        let dirSeparator = string Path.DirectorySeparatorChar
+        let partToString =
+            function
+            | Directory s
+            | FileName s
+            | DirectoryMask s
+            | FileMask s
+                -> s
+            | Parent -> ".."
+            | Part.CurrentDir -> "."
+            | Part.Disk d -> d + dirSeparator
+            | Part.Recurse -> "**"
+            | Part.FsRoot -> dirSeparator
+
+
     module private PicklerImpl =
 
         open Pickler
@@ -134,66 +125,66 @@ module Path =
 
         let eq s1 s2 = System.StringComparer.OrdinalIgnoreCase.Equals(s1, s2)
 
-        let wilcard2regex_map = ["*", ".*";  ".", "\\.";  "?", ".";  "$", "\\$"; "^", "\\^"] |> dict
+        let wildcard2regexMap =
+           ["**", "(.*)"
+            "*", """([^/\\]*)"""
+            "?", "([^/\\\\])"
+            ".", "\\."; "$", "\\$"; "^", "\\^"; "[", "\\["; "]", "\\]"
+            "+", "\\+"; "!", "\\!"; "=", "\\="; "{", "\\{"; "}", "\\}"
+           ] |> dict
+           
         let wildcardToRegex (m:Match) =
             match m.Groups.Item("tag") with
-                | t when not t.Success ->
-                    match wilcard2regex_map.TryGetValue(m.Value) with
-                    | true, v -> v
-                    | _ -> m.Value
-                | t -> "(?<" + t.Value + ">"
+            | t when not t.Success ->
+                match wildcard2regexMap.TryGetValue(m.Value) with
+                | true, v -> v
+                | _ -> m.Value
+            | t -> "(?<" + t.Value + ">"
+
+        let normalizeSlashes (pat: string) =
+            pat.Replace('\\', '/')
 
         let maskToRegex (pattern:string) =
-
-            let pat = Regex.Replace(pattern, @"\((?'tag'\w+?)\:|[*.?$^]", wildcardToRegex)
+            let pat = Regex.Replace(pattern |> normalizeSlashes, @"\((?'tag'\w+?)\:|\*\*|([*.?$^+!={}])", wildcardToRegex)
+            // TODO mask with sq brackets
+            let ignoreCase = if Env.isUnix then RegexOptions.None else RegexOptions.IgnoreCase
             in
-            Regex(@"^" + pat + "$", RegexOptions.Compiled + RegexOptions.IgnoreCase)    // TODO ignore case is optional (system-dependent)
+            Regex(@"^" + pat + "$", RegexOptions.Compiled + ignoreCase)
 
-        let matchByMask (rx:Regex) value =
-            match rx.Match(value) with
-                | m when m.Success ->
-                    [for name in rx.GetGroupNames() do
-                        let group = m.Groups.Item(name)
-                        if name <> "0" && group.Success then yield name, group.Value] |> Some
-                | _ -> None
-
-        let getMatches (mask:Part) (path:Part) =
+        let matchPart (mask:Part) (path:Part) =
+            let matchByMask (rx:Regex) value = rx.Match(value).Success
             match mask,path with
-            | (FsRoot, FsRoot) -> Some []
-            | (Disk mask, Disk d) when eq mask d -> Some []
-            | (Directory mask, Directory d) when eq mask d -> Some []
-            | FileName mask, FileName f when eq mask f -> Some []
+            | (FsRoot, FsRoot) -> true
+            | (Disk mask, Disk d) | (Directory mask, Directory d) | FileName mask, FileName d when eq mask d -> true
 
-            | DirectoryMask mask, Directory d ->
-                let rx = maskToRegex mask in
-                matchByMask rx d
+            | DirectoryMask mask, Directory d | FileMask mask, FileName d ->
+                matchByMask (maskToRegex mask) d
 
-            | FileMask mask, FileName f ->
-                let rx = maskToRegex mask in
-                matchByMask rx f
+            | _ -> false
 
-            | _ -> None
-
-        let rec matchPaths (mask:Part list) (p:Part list) groups =
+        let rec matchPaths (mask:Part list) (p:Part list) =
             match mask,p with
-            | [], [] -> Some groups
-            | [], _ | _, [] -> None
+            | [], [] -> true
+            | [], _ | _, [] -> false
 
-            | Directory _::Recurse::Parent::ms, _ -> matchPaths (Recurse::ms) p groups
-            | Recurse::Parent::ms, _              -> matchPaths (Recurse::ms) p groups    // ignore parent ref
+            | Directory _::Recurse::Parent::ms, _ -> matchPaths (Recurse::ms) p
+            | Recurse::Parent::ms, _              -> matchPaths (Recurse::ms) p    // ignore parent ref
 
-            | Recurse::ms, (FileName _)::_ -> matchPaths ms p groups
-            | Recurse::ms, Directory _::xs ->
-                match matchPaths mask xs groups with
-                | None -> matchPaths ms p groups
-                | mm -> mm
+            | Recurse::ms, (FileName _)::_ -> matchPaths ms p
+            | Recurse::ms, Directory _::xs -> (matchPaths mask xs) || (matchPaths ms p)
             | m::ms, x::xs ->
-                getMatches m x |> Option.bind (fun gg -> matchPaths ms xs (groups @ gg))
+                matchPart m x && matchPaths ms xs
 
     // API
     let pickler = PicklerImpl.pattern
 
-    let toFileSystem (PathMask pp) = "" // TODO implement
+    /// <summary>
+    /// Converts path to string representation (platform specific).
+    /// </summary>
+    let toString (PathMask pp) =
+        pp |> List.map impl.partToString
+        |> List.fold (fun s ps -> Path.Combine (s, ps)) ""
+
 
     /// <summary>
     /// Joins two patterns.
@@ -214,17 +205,20 @@ module Path =
     /// </summary>
     let parse = impl.parse impl.isLastPartForFile
 
+(*
     /// <summary>
     /// Returns true if a file name (parsed to p) matches specific file mask.         
     /// </summary>
     /// <param name="mask"></param>
     /// <param name="file"></param>
-    let matchesPattern (PathMask mask) file =
+    let matchesPattern (pattern:string) =
 
-        // TODO alternative implementation, convert pattern to a match function using combinators
-        // TODO refine signature
+        let regex = matchImpl.maskToRegex pattern
+        fun file -> regex.Match(matchImpl.normalizeSlashes file).Success
+*)
+    let matchesPattern (PathMask mask) file =
         let (PathMask fileParts) = file |> impl.parse impl.isLastPartForFile in
-        matchImpl.matchPaths mask fileParts []
+        matchImpl.matchPaths mask fileParts
 
     // let matches filePattern projectRoot
     let matches filePattern rootPath =
@@ -232,6 +226,19 @@ module Path =
         // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
 
         matchesPattern <| join (parseDir rootPath) (parse filePattern)
+
+    /// file name match implementation for rules
+    let matchGroups (pattern:string) rootPath =
+
+        let regex = Path.Combine(rootPath, pattern) |> matchImpl.maskToRegex
+        fun file -> 
+            let m = regex.Match(matchImpl.normalizeSlashes file)
+            if m.Success then
+                [for groupName in regex.GetGroupNames()  do
+                    let group = m.Groups.[groupName]
+                    yield groupName, group.Value] |> Some
+            else
+                None
 
 [<AutoOpen>]
 module PathExt =
