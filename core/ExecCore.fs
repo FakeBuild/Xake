@@ -2,6 +2,7 @@
 
 module internal ExecCore =
 
+    open System.Text.RegularExpressions
     open DependencyAnalysis
 
     /// Default options
@@ -19,29 +20,31 @@ module internal ExecCore =
         }
         Printf.kprintf write fmt
 
-   
-    /// <summary>
-    /// Extracts base path (full path minus relative one).
-    /// </summary>
-    let extractBasePath fullPath relativePath =
-        let (Path.PathMask targetParts) = Path.parse fullPath
-        let (Path.PathMask patternParts) = Path.parse relativePath
+    let wildcardsRegex = Regex(@"\*\*|\*|\?", RegexOptions.Compiled)
+    let patternTagRegex = Regex(@"\((?'tag'\w+?)\:[^)]+\)", RegexOptions.Compiled)
+    let replace (regex:Regex) (evaluator: Match -> string) text = regex.Replace(text, evaluator)
+    let ifNone x = function |Some x -> x | _ -> x
 
-        let rec stripItem = function
-            | a::tail1, b::tail2 when a = b -> (tail1, tail2) |> stripItem
-            | x -> x
-
-        (List.rev targetParts, List.rev patternParts)
-        |> stripItem
-        // |> fun x -> printf "%A" x; x
-        |> function | baseRev, [] -> baseRev |> (List.rev >> Path.PathMask >> Path.toString >>  Some) | _ -> None
-
+    let applyWildcards = function
+        | None -> id
+        | Some matches ->
+            fun pat ->
+                let mutable i = 0
+                let evaluator m =
+                    i <- i + 1
+                    matches |> Map.tryFind (i.ToString()) |> ifNone ""
+                let evaluatorTag (m: Match) =
+                    matches |> (Map.tryFind m.Groups.["tag"].Value) |> ifNone ""
+                pat
+                |> replace wildcardsRegex evaluator
+                |> replace patternTagRegex evaluatorTag
+                
     // locates the rule
     let locateRule (Rules rules) projectRoot target =
         let matchRule rule =
             match rule, target with
 
-            |FileConditionRule (predicate,_), FileTarget file when file |> File.getFullName |> predicate ->
+            |FileConditionRule (meetCondition,_), FileTarget file when file |> File.getFullName |> meetCondition ->
                 //writeLog Level.Debug "Found conditional pattern '%s'" name
                 // TODO let condition rule extracting named groups
                 Some (rule,[],[target])
@@ -52,22 +55,17 @@ module internal ExecCore =
                 |> Path.matchGroups pattern projectRoot
                 |> Option.map (fun groups -> rule,groups,[target])
 
-            |MultiFileRule (basemask, patterns, _), FileTarget file ->
-                // TODO subefficient
+            |MultiFileRule (patterns, _), FileTarget file ->
                 let fname = file |> File.getFullName
                 patterns
                 |> List.tryPick(fun pattern ->
-                    Path.matchGroups (basemask </> pattern) projectRoot fname
+                    Path.matchGroups pattern projectRoot fname
                     |> Option.map(fun groups -> groups, pattern)
                     )
                 |> Option.map (fun (groups, pattern) ->
-                    // get the base path using the pattern that matched
-                    let basePath =
-                        match extractBasePath fname pattern with
-                        | Some path -> path
-                        | _ ->
-                            raise <| XakeException (sprintf "Failed to extract base path for target '%s' matching pattern '%s'" fname pattern)
-                    let targets = patterns |> List.map (fun p -> basePath </> p |> File.make |> FileTarget)
+                    let generateName = applyWildcards (Map.ofList groups |> Some)
+                    
+                    let targets = patterns |> List.map (generateName >> (</>) projectRoot >> File.make >> FileTarget)
                     rule, groups, targets)
 
             |PhonyRule (name,_), PhonyAction phony when phony = name ->
@@ -131,7 +129,7 @@ module internal ExecCore =
         let getAction = function
             | FileRule (_, a)
             | FileConditionRule (_, a)
-            | MultiFileRule (_, _, a)
+            | MultiFileRule (_, a)
             | PhonyRule (_, a) -> a
 
         // result expression is...

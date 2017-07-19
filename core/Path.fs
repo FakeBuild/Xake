@@ -235,9 +235,8 @@ module Path =
             let m = regex.Match(matchImpl.normalizeSlashes file)
             if m.Success then
                 [for groupName in regex.GetGroupNames()  do
-                    if not <| System.Char.IsDigit groupName.[0] then
-                        let group = m.Groups.[groupName]
-                        yield groupName, group.Value] |> Some
+                    let group = m.Groups.[groupName]
+                    yield groupName, group.Value] |> Some
             else
                 None
 

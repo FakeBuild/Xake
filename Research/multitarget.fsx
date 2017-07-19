@@ -127,20 +127,105 @@ let wildcardToPat () =
             sprintf "$%i" i
     fn
 
+let matchWildcardsRegex = Regex(@"\((?'tag'\w+?)\:[^)]+\)|\*\*|\*|\?")
 let px: Match -> string = wildcardToPat ()
-let pat = Regex.Replace("a?/(TAG:*bin)/*.txt", @"\((?'tag'\w+?)\:[^)]+\)|\*\*|\*|\?", px)
+
+let pat1 = "a?/(TAG:*bin)/*.txt"
+let pat2 = "a?/(TAG:*bin)/*.dll"
+let px2: Match -> string = wildcardToPat ()
+let pat = Regex.Replace(pat1, matchWildcardsRegex, (wildcardToPat()))
+let mask2 = Regex.Replace(pat2, matchWildcardsRegex, px2)
+let name2 = Regex.Replace(pat1, matchWildcardsRegex, mask2)
 
 do dump <| (maskToRegex "c:/(f:**)/(fname:*.exe)").Match("c:/b/c/asd.exe")
 do dump <| (maskToRegex "c:/**/(fname:*.exe)").Match("c:/asd.exe")
 
 (maskToRegex "c:/(f:**)/(fname:*.exe)").GetGroupNames() |> Array.filter(fun s -> s.[0] |> System.Char.IsDigit |> not)
 
+let getWildcards pattern =
+    Path.matchGroups ((<>) "0") pattern "" >> Option.map Map.ofList
+
+let results = getWildcards "a?/(TAG:*.*)/*.txt/**/+" "a1/win32-bin.aa/omega.txt/1/2/3/4/+"
+let results = getWildcards "a?/(TAG:*.*)/*.txt" "a1/win32-bin.aa/omega.txt"
+
+let wildcardsRegex = Regex(@"\*\*|\*|\?", RegexOptions.Compiled)
+let patternTagRegex = Regex(@"\((?'tag'\w+?)\:[^)]+\)", RegexOptions.Compiled)
+let applyWildcards (maybeMatches: Map<string,string> option) =
+    let replace (regex:Regex) (evaluator: Match -> string) text = regex.Replace(text, evaluator)
+    match maybeMatches with
+    | None -> id
+    | Some matches ->
+        fun pat ->
+            let mutable i = 0
+            let ifNone x = function |Some x -> x | _ -> x
+            let evaluator m =
+                i <- i + 1
+                matches |> Map.tryFind (i.ToString()) |> ifNone ""
+            let evaluatorTag (m: Match) =
+                let tagValue = m.Groups.["tag"].Value
+                matches |> Map.tryFind tagValue |> ifNone ""
+            pat
+            |> replace wildcardsRegex evaluator
+            |> replace patternTagRegex evaluatorTag
+
+let a = applyWildcards results
+let newStr = a "b?/(TAG:*--*)/*.exe"
+let newStr1 = a "b?/(TAG:*--*)/*.exe"
+
+let c = applyWildcards results "b?/(TAG:_)/*.exe"
+let d = applyWildcards results "b?/*-*/*.exe"
+
+let applyWildcards (matchDict: Map<string,string>) =
+    let mutable i = 0
+    let fn (m:Match) =
+        match m.Groups.Item("tag") with
+        | t when t.Success -> matchDict.[t.Value]
+        | t ->
+            i <- i + 1
+            matchDict.[i.ToString()]
+    fn
+
+
+//
+// wildcards with tags https://regex101.com/r/FA721x/1
+
+let matchWildcardsRegex = Regex(@"(\*\*)|(\*)|(\?)|\((?'tag'\w+?)\:(?:(\*\*)|(\*)|(\?)|[^)])+\)")
+// let matchWildcardsRegex = Regex(@"(\*\*)|(\*)|(\?)|\((\w+?)\:(?:(\*\*|\*|\?)|[^\)])+\)")
+
+
+let mm = matchWildcardsRegex.Matches("**/a/(TAG:x?.*bin/**)/*.dll")
+for m in mm
+  do
+    do printfn "==%A" m
+    do dump m
+
+pat2
+let name2 =
+    let mutable i = 0
+    matchWildcardsRegex.Replace(
+        "a?/(TAG:*bin)/r.dll",
+        (fun m ->
+            printfn "match %s" (m.ToString())
+            match m.Groups.Item("tag") with
+            | t when t.Success -> "tag:" + t.Value
+            | t ->
+                i <- i + 1
+                "i:" + (i.ToString())
+            |> printfn "%s"
+            ""
+        )
+    )
+
+let name3 = Regex.Replace("a?/(TAG:*bin)/*.dll", matchWildcardsRegex, applyWildcards resPat1Dict)
 
 let dump (m: Match) =
     if m.Success then
         printfn "%i groups found'" m.Groups.Count
         for group in m.Groups do
-            printfn "Group %s: '%A'" group.Name group
+            printfn "Group %s: '%A'" group.Name group.Value
+        printfn "%i captures" m.Captures.Count
+        for c in m.Captures do
+            printfn "Capture '%A'" c
 
 
 // TODO match all groups, wildcards and "**" (recurse)

@@ -62,7 +62,7 @@ static member Default =
     DbFileName = ".xake"
     DryRun = false
     DumpDeps = false
-    Progress = false
+    Progress = true
     }
 end
 

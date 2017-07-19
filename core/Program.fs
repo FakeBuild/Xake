@@ -36,6 +36,7 @@ Options:
   --dryrun            - prints dependency graph and estimates the build duration
   --dump              - prints dependency graph based on the last run
   --progress, -p      - display progress indicator
+  --noprogress, -p-   - do not display progress
 
             """
             exit(0)
@@ -59,6 +60,8 @@ Options:
             ({optionsSoFar with DumpDeps = true}, TopLevel)
         | "--progress" | "-p" -> 
             ({optionsSoFar with Progress = true}, TopLevel)
+        | "--noprogress" | "-p-" -> 
+            ({optionsSoFar with Progress = false}, TopLevel)
 
         | x when x.StartsWith("-") || x.StartsWith("/") ->
             printfn "Option '%s' is unrecognized" x

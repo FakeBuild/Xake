@@ -250,41 +250,71 @@ let ``groups in rule pattern``() =
 
     Assert.IsTrue(!matchedAny)
 
-
 [<TestCase("x86-a.ss", "(plat:*)-a.ss", "plat:x86", TestName="Simple case")>]
 [<TestCase("subd1/x86-a.ss", "(dir:*)/(plat:*)-a.ss", "dir:subd1;plat:x86", TestName="groups in various parts")>]
+[<TestCase("subd1/x86-a.ss", "(root:*/*-a).ss", "root:subd1/x86-a", TestName="group across parts")>]
 [<TestCase("x86-a.ss", "(name:(plat:*)-a.ss)", "plat:x86;name:x86-a.ss", TestName="Nested groups")>]
-[<TestCase("(abc.ss", @"[(]*.ss", "", TestName="Escaped brackets")>]
+[<TestCase("(abc.ss", @"(name:[(]*).ss", "name:(abc", TestName="Escaped brackets")>]
 let ``matching groups in rule name``(tgt,mask,expect:string) =
 
-    let map = ref Map.empty
-    let matchedAny = ref false
+    let mutable map = Map.empty
+    let mutable matchedAny = false
 
     do xake {XakeOptions with Targets = [tgt]} {
-        rule (mask ..> action {
+        rule (mask ..> recipe {
             let! groups = getRuleMatches()
-            map := groups; matchedAny := true
+            map <- groups; matchedAny <- true
         })
     }
 
-    Assert.IsTrue(!matchedAny)
+    Assert.IsTrue matchedAny
 
     if System.String.IsNullOrEmpty expect then
-        Assert.IsTrue(!map |> Map.isEmpty)
+        map |> Map.isEmpty |> Assert.IsTrue
     else
         let expected = expect.Split(';') |> Array.map (fun s -> let pp = s.Split(':') in pp.[0],pp.[1])
-        Assert.That(!map |> Map.toArray, Is.EquivalentTo(expected))
+        let leaveNamedGroups (k:string) v = not (System.Char.IsDigit k.[0])
+        Assert.That(map |> Map.filter leaveNamedGroups |> Map.toArray, Is.EquivalentTo(expected))
 
-[<TestCase("x86-a.ss", "(plat:*)-a.ss", ExpectedResult = "x86", TestName="Simple case")>]
-[<TestCase("subd1/x86-a.ss", "*/(plat:*)-a.ss", ExpectedResult = "x86", TestName="groups in various parts")>]
-[<TestCase("(abc.ss", @"[(]*.ss", ExpectedResult = "", TestName="Escaped brackets")>]
-let ``getTargetMatch() matches part``(tgt,mask) =
+[<TestCase("dd/a.dll", "dd/*.dll;dd/*.xml", "dd\\a.dll;dd\\a.xml", TestName="Simple case")>]
+[<TestCase("dd/ff/a.dll", "**/*.dll;**/*.xml", "dd\\ff\\a.dll;dd\\ff\\a.xml", TestName="Recurse mask")>]
+[<TestCase("dd/a.dll", "(pat:**/*).dll;(pat:**/*)/main.xml", "dd\\a.dll;dd\\a\\main.xml", TestName="Masks")>]
+let ``multitarget rule generates names``(tgt,(masksStr: string),expect:string) =
+
+    let masks = masksStr.Split ';'
+    let map = ref Map.empty
+    let mutable matchedAny = false
+    let mutable fileNames = []
+    let mutable root = ""    
+
+    do xake {XakeOptions with Targets = [tgt]} {
+        rule (masks *..> recipe {
+            let! groups = getRuleMatches()
+            let! files = getTargetFiles()
+            let! options = getCtxOptions()
+            root <- options.ProjectRoot
+            fileNames <- (files |> List.map File.getFullName)
+            map := groups; matchedAny <- true
+        })
+    }
+
+    Assert.IsTrue matchedAny
+    Assert.That(fileNames, Is.All.StartsWith root)
+    let relFileNames = fileNames |> List.map (fun s -> s.Substring(root.Length + 1))
+
+    Assert.That(relFileNames, expect.Split(';') |> Is.EquivalentTo)
+
+[<TestCase("x86-a.ss", "(plat:*)-a.ss", "plat", ExpectedResult = "x86", TestName="Simple case")>]
+[<TestCase("subd1/x86-a.ss", "*/(plat:*)-a.ss", "plat", ExpectedResult = "x86", TestName="groups in various parts")>]
+[<TestCase("(abc.ss", @"[(]*.ss", "plat", ExpectedResult = "", TestName="Escaped brackets")>]
+[<TestCase("filename.ss", "*.ss", "1", ExpectedResult = "filename", TestName="Match wildcards")>]
+let ``getRuleMatch() matches part``(tgt,mask,tag) =
 
     let resultValue = ref ""
 
     do xake {XakeOptions with Targets = [tgt]} {
-        rule (mask ..> action {
-            let! value = getRuleMatch "plat"
+        rule (mask ..> recipe {
+            let! value = getRuleMatch tag
             resultValue := value
         })
     }
