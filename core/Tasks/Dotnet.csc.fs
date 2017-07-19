@@ -181,6 +181,8 @@ module CscImpl =
         [<CustomOperation("unsafe")>]    member this.Unsafe(s:CscSettingsType, value) =      {s with Unsafe = value}
         [<CustomOperation("cscpath")>]       member this.CscPath(s:CscSettingsType, value) =   {s with CscPath = Some value}
 
+        [<CustomOperation("args")>]       member this.Args(s:CscSettingsType, args) =   {s with CommandArgs = args}
+
         member this.Bind(x, f) = f x
         member this.Yield(()) = CscSettings
         member this.For(x, f) = f x
