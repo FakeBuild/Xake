@@ -2,6 +2,7 @@
 
 open Xake
 open Xake.Tasks
+open Xake.Tasks.Dotnet
 open System.IO
 
 do xakeScript {
@@ -24,6 +25,15 @@ do xakeScript {
             do File.WriteAllText(target1.FullName, "file1")
             do File.WriteAllText(target2.FullName, "file2")
             do File.WriteAllText(target3.FullName, "file3")
+        }
+
+        ["(src:a/**)/bin/*.exe"; "(src:a/**)/bin/*.xml"] *..> recipe {
+            let! [_; xmlfile] = getTargetFiles()
+            let! srcFolder = getRuleMatch "src"
+            do! csc {
+                src !!(srcFolder </> "*.cs")
+                args ["--doc:" + xmlfile.FullName]
+            }
         }
     ]
 }
