@@ -19,7 +19,6 @@ The simple script looks like:
 open Xake
 
 do xakeScript {
-
   rules [
     "main" ==> ["helloworld.exe"]
 
@@ -27,7 +26,7 @@ do xakeScript {
         let! exe = getTargetFullName()
         do! csc {src !!(exe -. "cs")}
     }
-
+  ]    
 }
 ```
 
