@@ -7,7 +7,7 @@ install:
 script:
 - echo "module Xake.Const [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\"" > ./core/VersionInfo.fs
 - fsharpi build.fsx -- build test
-- fsharpi build.fsx -- nuget-pack --ll Diag
+- fsharpi build.fsx -- nuget-pack -ll Diag
 deploy:
   - provider: releases
     file:
