@@ -276,9 +276,9 @@ let ``matching groups in rule name``(tgt,mask,expect:string) =
         let leaveNamedGroups (k:string) v = not (System.Char.IsDigit k.[0])
         Assert.That(map |> Map.filter leaveNamedGroups |> Map.toArray, Is.EquivalentTo(expected))
 
-[<TestCase("dd/a.dll", "dd/*.dll;dd/*.xml", "dd\\a.dll;dd\\a.xml", TestName="Simple case")>]
-[<TestCase("dd/ff/a.dll", "**/*.dll;**/*.xml", "dd\\ff\\a.dll;dd\\ff\\a.xml", TestName="Recurse mask")>]
-[<TestCase("dd/a.dll", "(pat:**/*).dll;(pat:**/*)/main.xml", "dd\\a.dll;dd\\a\\main.xml", TestName="Masks")>]
+[<TestCase("dd/a.dll", "dd/*.dll;dd/*.xml", "dd/a.dll;dd/a.xml", TestName="Simple case")>]
+[<TestCase("dd/ff/a.dll", "**/*.dll;**/*.xml", "dd/ff/a.dll;dd/ff/a.xml", TestName="Recurse mask")>]
+[<TestCase("dd/a.dll", "(pat:**/*).dll;(pat:**/*)/main.xml", "dd/a.dll;dd/a/main.xml", TestName="Masks")>]
 let ``multitarget rule generates names``(tgt,(masksStr: string),expect:string) =
 
     let masks = masksStr.Split ';'
@@ -300,7 +300,7 @@ let ``multitarget rule generates names``(tgt,(masksStr: string),expect:string) =
 
     Assert.IsTrue matchedAny
     Assert.That(fileNames, Is.All.StartsWith root)
-    let relFileNames = fileNames |> List.map (fun s -> s.Substring(root.Length + 1))
+    let relFileNames = fileNames |> List.map (fun s -> s.Substring(root.Length + 1).Replace("\\", "/"))
 
     Assert.That(relFileNames, expect.Split(';') |> Is.EquivalentTo)
 
