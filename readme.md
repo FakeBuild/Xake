@@ -14,7 +14,7 @@ See [documentation](docs/overview.md) for more details.
 
 The simple script looks like:
 ```fsharp
-#r @"Xake.Core.dll"
+#r @"Xake.dll"
 
 open Xake
 
