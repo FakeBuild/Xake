@@ -65,8 +65,8 @@ do xakeScript {
         CoreAssembly ..> recipe {
 
             // TODO multitarget rule!
-            let! target = getTargetFile()
-            let xml = target.FullName -. "xml"
+            let! targetName = getTargetFullName()
+            let xml = targetName -. "xml"
 
             let sources = fileset {
                 basedir "core"

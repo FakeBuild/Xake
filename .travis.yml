@@ -11,7 +11,7 @@ deploy:
   - provider: releases
     file:
     - "./bin/Xake.dll"
-    - "./bin/Xake.XML"
+    - "./bin/Xake.xml"
     skip_cleanup: true
     on:
       tags: true

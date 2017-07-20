@@ -14,3 +14,4 @@ copyright Copyright 2017
 tags Xake F# Build
 files
     bin/Xake.dll ==> tools
+    bin/Xake.xml ==> tools
