@@ -10,8 +10,8 @@ script:
 deploy:
   - provider: releases
     file:
-    - "./bin/Xake.Core.dll"
-    - "./bin/Xake.Core.XML"
+    - "./bin/Xake.dll"
+    - "./bin/Xake.XML"
     skip_cleanup: true
     on:
       tags: true
