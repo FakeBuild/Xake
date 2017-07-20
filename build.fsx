@@ -1,13 +1,13 @@
 // xake build file
 
-#r @"packages/Xake/tools/Xake.Core.dll"
-//#r @"bin/Debug/Xake.Core.dll"
+#r @"packages/Xake/tools/Xake.dll"
+//#r @"bin/Debug/Xake.dll"
 
 open Xake
 open Xake.Tasks
 open Xake.Tasks.Dotnet
 
-let TestsAssembly, CoreAssembly = "bin/XakeLibTests.dll", "bin/Xake.dll"
+let TestsAssembly, XakeDll, XakeXml = "bin/XakeLibTests.dll", "bin/Xake.dll", "bin/Xake.xml"
 let (=?) value deflt = match value with |Some v -> v |None -> deflt
 
 let makePackageName () = recipe {
@@ -36,7 +36,7 @@ do xakeScript {
             do! need ["test"]
             }
 
-        "build" <== [TestsAssembly; CoreAssembly]
+        "build" <== [TestsAssembly; XakeDll]
         "clean" => rm {file "bin/*.*"}
 
         "test" => recipe {
@@ -55,18 +55,16 @@ do xakeScript {
                 }) |> Recipe.Ignore
         }
 
-        ("bin/FSharp.Core.dll") ..> (WhenError ignore <| recipe {
-                do! copyFrom "packages/FSharp.Core/lib/net40/FSharp.Core.dll"
-                do! copy {todir "bin"; file "packages/FSharp.Core/lib/net40/FSharp.Core.*data"}
-            })
+        ["bin/FSharp.Core.dll"
+         "bin/FSharp.Core.optdata"
+         "bin/FSharp.Core.sigdata"
+        ] *..> copy {todir "bin"; file "packages/FSharp.Core/lib/net40/FSharp.Core.*"}
 
         ("bin/nunit.framework.dll") ..> copyFrom "packages/NUnit/lib/nunit.framework.dll"
 
-        CoreAssembly ..> recipe {
+        [XakeDll; XakeXml] *..> recipe {
 
-            // TODO multitarget rule!
-            let! targetName = getTargetFullName()
-            let xml = targetName -. "xml"
+            let! [_; xmlfile] = getTargetFiles()
 
             let sources = fileset {
                 basedir "core"
@@ -106,7 +104,7 @@ do xakeScript {
                     Ref = !! "bin/FSharp.Core.dll"
                     RefGlobal = ["System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
                     Define = ["TRACE"]
-                    CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"; "--doc:" + xml]
+                    CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"; "--doc:" + xmlfile.FullName]
             }
 
         }
@@ -114,7 +112,7 @@ do xakeScript {
         TestsAssembly ..> Fsc {
             FscSettings with
                 Src = !! "XakeLibTests/*.fs"
-                Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + CoreAssembly
+                Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + XakeDll
                 RefGlobal = ["System.dll"; "System.Core.dll"]
                 Define = ["TRACE"]
         }
@@ -128,7 +126,7 @@ do xakeScript {
         }
 
         "Xake.(ver:*).nupkg" ..> recipe {
-            do! need [CoreAssembly]
+            do! need [XakeDll; XakeXml]
             let! ver = getRuleMatch("ver")
             do! paket ["pack"; "version"; ver; "output"; "." ]
         }

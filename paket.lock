@@ -17,4 +17,4 @@ NUGET
       NUnit.Extension.NUnitV2ResultWriter (>= 3.5)
       NUnit.Extension.TeamCityEventListener (>= 1.0.2)
       NUnit.Extension.VSProjectLoader (>= 3.5)
-    Xake (0.11)
+    Xake (0.12.2)
