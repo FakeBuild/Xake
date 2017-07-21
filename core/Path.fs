@@ -54,7 +54,7 @@ module Path =
             | "**" -> Recurse
             | "." -> CurrentDir
             | ".." -> Parent (* works well now with Path.Combine() *)
-            | a when Env.isWindows && a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
+            | a when a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
             | a when not isLast -> a |> iif isMask DirectoryMask Directory
             | a -> a |> iif isMask FileMask FileName
 
