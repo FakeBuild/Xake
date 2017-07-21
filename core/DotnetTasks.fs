@@ -67,8 +67,8 @@ module internal Impl =
 
     /// Parses the compiler output and returns messageLevel
     let levelFromString defaultLevel (text:string) :Level =
-        if text.IndexOf "): warning " > 0 then Level.Warning
-        else if text.IndexOf "): error " > 0 then Level.Error
+        if text.Contains "): warning " then Level.Warning
+        else if text.Contains "): error " then Level.Error
         else defaultLevel
     let inline coalesce ls = //: 'a option list -> 'a option =
         ls |> List.fold (fun r a -> if Option.isSome r then r else a) None
