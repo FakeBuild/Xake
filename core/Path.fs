@@ -54,7 +54,7 @@ module Path =
             | "**" -> Recurse
             | "." -> CurrentDir
             | ".." -> Parent (* works well now with Path.Combine() *)
-            | a when a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
+            | a when Env.isWindows && a.EndsWith(":") && driveRegex.IsMatch(a) -> Disk(a)
             | a when not isLast -> a |> iif isMask DirectoryMask Directory
             | a -> a |> iif isMask FileMask FileName
 
@@ -181,10 +181,9 @@ module Path =
     /// <summary>
     /// Converts path to string representation (platform specific).
     /// </summary>
-    let toString (PathMask pp) =
-        pp |> List.map impl.partToString
-        |> List.fold (fun s ps -> Path.Combine (s, ps)) ""
-
+    let toString =
+        List.map impl.partToString
+        >> List.fold (fun s ps -> Path.Combine (s, ps)) ""
 
     /// <summary>
     /// Joins two patterns.
@@ -192,8 +191,9 @@ module Path =
     /// <param name="p1"></param>
     /// <param name="p2"></param>
     let join (PathMask p1) (PathMask p2) =
-        if impl.isRoot p2 then PathMask p2
-        else p1 @ p2 |> impl.normalize |> PathMask
+        match impl.isRoot p2 with
+        | true -> PathMask p2
+        | _ -> p1 @ p2 |> impl.normalize |> PathMask
 
     /// <summary>
     /// Converts Ant-style file pattern to a list of parts. Assumes the path specified
@@ -220,7 +220,6 @@ module Path =
         let (PathMask fileParts) = file |> impl.parse impl.isLastPartForFile in
         matchImpl.matchPaths mask fileParts
 
-    // let matches filePattern projectRoot
     let matches filePattern rootPath =
         // IDEA: make relative path then match to pattern?
         // matches "src/**/*.cs" "c:\!\src\a\b\c.cs" -> true
