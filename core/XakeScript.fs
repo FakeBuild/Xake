@@ -57,8 +57,8 @@ module XakeScript =
         //     = updRules script (pattern *> action |> addRule)
         [<CustomOperation("phony")>] member this.Phony(script, name, action)
             = updRules script (name => action |> addRule)
-        [<CustomOperation("rules")>] member this.Rules(script, rules)
-            = (rules |> List.map addRule |> List.fold (>>) id) |> updRules script
+        [<CustomOperation("rules")>] member this.Rules(script, rules: #seq<ExecContext Rule>)
+            = (rules |> Seq.map addRule |> Seq.fold (>>) id) |> updRules script
 
         [<CustomOperation("want")>] member this.Want(script, targets)
             = updTargets script (function |[] -> targets |x -> x)    // Options override script!
