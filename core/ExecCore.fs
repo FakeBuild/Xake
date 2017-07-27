@@ -140,18 +140,18 @@ module internal ExecCore =
             async {
                 let! waitTask = (fun channel -> Run(target, targets, run groupsMap action targets, channel)) |> ctx.TaskPool.PostAndAsyncReply
                 let! status = waitTask
-                return status, ArtifactDep target
+                return target, status, ArtifactDep target
             }
         | None ->
             target |> function
             | FileTarget file when File.exists file ->
-                async {return ExecStatus.JustFile, FileDep (file, File.getLastWriteTime file)}
+                async.Return <| (target, ExecStatus.JustFile, FileDep (file, File.getLastWriteTime file))
             | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" target.FullName) ""
 
     /// <summary>
     /// Executes several artifacts in parallel.
     /// </summary>
-    and execParallel ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
+    and execParallel ctx = List.map (execOne ctx) >> Seq.ofList >> Async.Parallel
 
     /// <summary>
     /// Gets the status of dependency artifacts (obtained from 'need' calls).
@@ -170,10 +170,11 @@ module internal ExecCore =
 
             primaryTarget |> (Progress.TaskResume >> ctx.Progress.Post)
 
-            let dependencies = statuses |> Array.map snd |> List.ofArray in
-            return statuses
-            |> Array.exists (fst >> (=) ExecStatus.Succeed)
-            |> (function |true -> ExecStatus.Succeed |false -> ExecStatus.Skipped), dependencies
+            let dependencies = statuses |> Array.map (fun (_,_,x) -> x) |> List.ofArray in
+            return
+                (match statuses |> Array.exists (fun (_,x,_) -> x = ExecStatus.Succeed) with
+                    |true -> ExecStatus.Succeed
+                    |false -> ExecStatus.Skipped), dependencies
         }
 
     /// <summary>
@@ -194,7 +195,7 @@ module internal ExecCore =
 
         // getPlainDeps getDeps (getExecTime ctx)
         do ctx.Logger.Log Command "Running (dry) targets %A" groups
-        let doneTargets = new System.Collections.Hashtable()
+        let doneTargets = System.Collections.Hashtable()
 
         let print f = ctx.Logger.Log Info f
         let indent i = String.replicate i "  "
@@ -250,14 +251,24 @@ module internal ExecCore =
             | a -> yield a
         }
 
+    let rec runSeq<'r> :Async<'r> list -> Async<'r list> = 
+        List.fold
+            (fun rest i -> async {
+                let! tail = rest
+                let! head = i
+                return head::tail
+            })
+            (async {return []})
+
+    let asyncMap f c = async.Bind(c, f >> async.Return)
+
     /// Runs the build (main function of xake)
     let runBuild ctx options groups =
-        let start = System.DateTime.Now
 
         let runTargets ctx options targets =
             let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
             
-            let checkRebuild (target: Target) =
+            let needRebuild (target: Target) =
                 getDeps >>
                 function
                 | [] -> false, ""
@@ -273,30 +284,24 @@ module internal ExecCore =
                     do ctx.Logger.Log Info "Rebuild %A: %s" target.ShortName reason
                     true
                 <| target
-            let checkRebuildAll (targets: Target list) = targets |> List.exists checkRebuild
                 // todo improve output by printing primary target
 
             let progressSink = Progress.openProgress (getDurationDeps ctx getDeps) options.Threads targets options.Progress
-            let stepCtx = {ctx with NeedRebuild = checkRebuildAll; Progress = progressSink}
+            let stepCtx = {ctx with NeedRebuild = List.exists needRebuild; Progress = progressSink}
 
-            try
-                targets |> execParallel stepCtx |> Async.RunSynchronously |> ignore
-            finally
-                do Progress.Finish |> progressSink.Post
+            async {
+                do ctx.Logger.Log Info "Build target list %A" targets
 
-        try
-            groups |> List.iter (
-                List.map (makeTarget ctx) >> (runTargets ctx options)
-            )
-            // some long text (looks awkward) to remove progress message. I do not think it worth spending another half an hour to design proper solution
-            ctx.Logger.Log Message "                                     \n\n    Build completed in %A\n" (System.DateTime.Now - start)
-        with
-            | exn ->
-                let th = if options.FailOnError then raiseError else reportError
-                let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
-                th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
-                ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
-                exit 2
+                try
+                    return! targets |> execParallel stepCtx
+                finally
+                    do Progress.Finish |> progressSink.Post
+            }
+
+        groups |> List.map
+            (List.map (makeTarget ctx) >> (runTargets ctx options))
+        |> runSeq
+        |> asyncMap (Array.concat >> List.ofArray)
 
     /// Executes the build script
     let runScript options rules =
@@ -341,14 +346,22 @@ module internal ExecCore =
             else if options.DryRun then
                 targetLists |> (dryRun ctx options)
             else
-                targetLists |> (runBuild ctx options)
+                let start = System.DateTime.Now
+                try
+                    targetLists |> (runBuild ctx options) |> Async.RunSynchronously |> ignore
+                    // some long text (looks awkward) to remove progress message. I do not think it worth spending another half an hour to design proper solution
+                    ctx.Logger.Log Message "\n\n    Build completed in %A\n" (System.DateTime.Now - start)
+                with | exn ->
+                    let th = if options.FailOnError then raiseError else reportError
+                    let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
+                    th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
+                    ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
+                    exit 2
         finally
             db.PostAndReply Storage.CloseWait
             Logging.FlushLogs()
 
-    /// <summary>
     /// "need" implementation
-    /// </summary>
     let need targets =
         action {
             let startTime = System.DateTime.Now
