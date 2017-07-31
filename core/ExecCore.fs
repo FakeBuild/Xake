@@ -25,6 +25,12 @@ module internal ExecCore =
     let replace (regex:Regex) (evaluator: Match -> string) text = regex.Replace(text, evaluator)
     let ifNone x = function |Some x -> x | _ -> x
 
+    let (|Dump|Dryrun|Run|) (opts:ExecOptions) =
+        match opts with
+        | _ when opts.DumpDeps -> Dump
+        | _ when opts.DryRun -> Dryrun
+        | _ -> Run
+
     let applyWildcards = function
         | None -> id
         | Some matches ->
@@ -102,6 +108,7 @@ module internal ExecCore =
 
     // executes single artifact
     let rec execOne ctx target =
+
         let run ruleMatches action targets =
             let primaryTarget = targets |> List.head
             async {
@@ -177,17 +184,14 @@ module internal ExecCore =
                     |false -> ExecStatus.Skipped), dependencies
         }
 
-    /// <summary>
     /// phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
-    /// </summary>
-    /// <param name="ctx"></param>
-    /// <param name="name"></param>
     let makeTarget ctx name =
-        let (Rules rr) = ctx.Rules
-        if rr |> List.exists (function |PhonyRule (n,_) when n = name -> true | _ -> false) then
-            PhonyAction name
-        else
-            ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
+        let (Rules rules) = ctx.Rules
+        let isPhonyRule nm = function |PhonyRule (n,_) when n = nm -> true | _ -> false
+        in
+        match rules |> List.exists (isPhonyRule name) with
+        | true -> PhonyAction name
+        | _ -> ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
 
     /// Implementation of "dry run"
     let dryRun ctx options (groups: string list list) =
@@ -286,11 +290,11 @@ module internal ExecCore =
                 <| target
                 // todo improve output by printing primary target
 
-            let progressSink = Progress.openProgress (getDurationDeps ctx getDeps) options.Threads targets options.Progress
-            let stepCtx = {ctx with NeedRebuild = List.exists needRebuild; Progress = progressSink}
-
             async {
                 do ctx.Logger.Log Info "Build target list %A" targets
+
+                let progressSink = Progress.openProgress (getDurationDeps ctx getDeps) options.Threads targets options.Progress
+                let stepCtx = {ctx with NeedRebuild = List.exists needRebuild; Progress = progressSink}
 
                 try
                     return! targets |> execParallel stepCtx
@@ -339,13 +343,15 @@ module internal ExecCore =
                 [["main"]]
             | tt ->
                 tt |> List.map (fun (s: string) -> s.Split(';', '|') |> List.ofArray)
+
         try
-            if options.DumpDeps then
+            match options with
+            | Dump ->
                 do logger.Log Level.Command "Dumping dependencies for targets %A" targetLists
                 targetLists |> List.iter (List.map (makeTarget ctx) >> (dumpDeps ctx))
-            else if options.DryRun then
+            | Dryrun ->
                 targetLists |> (dryRun ctx options)
-            else
+            | _ ->
                 let start = System.DateTime.Now
                 try
                     targetLists |> (runBuild ctx options) |> Async.RunSynchronously |> ignore
