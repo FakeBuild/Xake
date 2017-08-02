@@ -474,7 +474,7 @@ let ``writes dependencies to a build database``() =
     try
         match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test"), ch) with
         | Some {
-                BuildResult.Result = PhonyAction "test"
+                BuildResult.Targets = [PhonyAction "test"]
                 Depends = [
                             ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
                             FileDep (fileDep, depDate)
@@ -487,8 +487,8 @@ let ``writes dependencies to a build database``() =
 
         match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test1"), ch) with
         | Some {
-                BuildResult.Result = PhonyAction "test1"
-                BuildResult.Depends = [ArtifactDep (PhonyAction "aaa")]
+                Targets = [PhonyAction "test1"]
+                Depends = [ArtifactDep (PhonyAction "aaa")]
                 //BuildResult.Steps = []
             } -> true
         | _ -> false

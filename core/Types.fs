@@ -51,7 +51,7 @@ module DomainTypes =
         with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); OwnTime = 0<ms>; WaitTime = 0<ms>}
 
     type BuildResult =
-        { Result : Target
+        { Targets : Target list
           Built : Timestamp
           Depends : Dependency list
           Steps : StepInfo list }

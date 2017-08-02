@@ -97,6 +97,8 @@ module CpImpl =
 
         do! trace Level.Debug "[copy] materializing fileset %A at folder %s" fileset projectRoot
         let (Filelist files) = fileset |> (toFileList projectRoot)
+        
+        do! needFiles (Filelist files)
 
         for file in files do
             copyFile targetDir getRelativePath file
