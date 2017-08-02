@@ -195,7 +195,7 @@ module internal ExecCore =
 
     /// Implementation of "dry run"
     let dryRun ctx options (groups: string list list) =
-        let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
+        let getDeps = getChangeReasons ctx |> memoizeRec
 
         // getPlainDeps getDeps (getExecTime ctx)
         do ctx.Logger.Log Command "Running (dry) targets %A" groups
@@ -270,7 +270,7 @@ module internal ExecCore =
     let runBuild ctx options groups =
 
         let runTargets ctx options targets =
-            let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
+            let getDeps = getChangeReasons ctx |> memoizeRec
             
             let needRebuild (target: Target) =
                 getDeps >>
