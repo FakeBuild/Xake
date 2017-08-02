@@ -31,9 +31,9 @@ module private impl =
     let logger = ConsoleLogger Verbosity.Diag
 
     let createResult name =
-        { (name
+        { ([name
            |> File.make
-           |> FileTarget
+           |> FileTarget]
            |> makeResult) with Depends =
                                    [ "abc.c" |> mkFileTarget |> ArtifactDep
                                      Var("DEBUG", Some "false") ]
@@ -55,7 +55,7 @@ let Setup() =
 [<Test>]
 let ``persists simple data``() =
 
-    let testee = makeResult <| (mkFileTarget "abc.exe")
+    let testee = makeResult <| [mkFileTarget "abc.exe"]
 
     let testee =
         { testee with

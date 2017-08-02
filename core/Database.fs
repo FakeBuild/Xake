@@ -4,7 +4,7 @@ module BuildLog =
     open Xake
     open System
     
-    let XakeDbVersion = "0.3"
+    let XakeDbVersion = "0.4"
     
     type Database = { Status : Map<Target, BuildResult> }
     
@@ -12,7 +12,7 @@ module BuildLog =
 
     /// Creates a new build result
     let makeResult target = 
-        { Result = target
+        { Targets = target
           Built = DateTime.Now
           Depends = []
           Steps = [] }
@@ -21,8 +21,8 @@ module BuildLog =
     let newDatabase() = { Database.Status = Map.empty }
     
     /// Adds result to a database
-    let internal addResult db result = 
-        { db with Status = db.Status |> Map.add (result.Result) result }
+    let internal addResult db result =
+        { db with Status = result.Targets |> List.fold (fun m i -> Map.add i result m) db.Status }
 
 type 't Agent = 't MailboxProcessor
 
@@ -72,12 +72,12 @@ module Storage =
         let result = 
             wrap 
                 ((fun (r, built, deps, steps) -> 
-                 { Result = r
+                 { Targets = r
                    Built = built
                    Depends = deps
                    Steps = steps }), 
-                 fun r -> (r.Result, r.Built, r.Depends, r.Steps)) 
-                (quad target date (list dependency) (list step))
+                 fun r -> (r.Targets, r.Built, r.Depends, r.Steps)) 
+                (quad (list target) date (list dependency) (list step))
         
         let dbHeader = 
             wrap 

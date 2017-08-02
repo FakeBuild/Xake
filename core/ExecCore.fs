@@ -119,7 +119,7 @@ module internal ExecCore =
 
                     do Progress.TaskStart primaryTarget |> ctx.Progress.Post
 
-                    let startResult = {BuildLog.makeResult primaryTarget with Steps = [Step.start "all"]}
+                    let startResult = {BuildLog.makeResult targets with Steps = [Step.start "all"]}
                     let! (result,_) = action (startResult, taskContext)
                     let result = Step.updateTotalDuration result
 
@@ -233,7 +233,7 @@ module internal ExecCore =
                     deps |> List.iter (showDepStatus (ii+1))
                     deps |> List.iter (displayNestedDeps (ii+1))
 
-        let targetGroups = groups |> List.map (List.map (makeTarget ctx)) in 
+        let targetGroups = makeTarget ctx |> List.map |> List.map <| groups in 
         let toSec v = float (v / 1<ms>) * 0.001
         let endTime = Progress.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targetGroups |> toSec
 
@@ -355,7 +355,6 @@ module internal ExecCore =
                 let start = System.DateTime.Now
                 try
                     targetLists |> (runBuild ctx options) |> Async.RunSynchronously |> ignore
-                    // some long text (looks awkward) to remove progress message. I do not think it worth spending another half an hour to design proper solution
                     ctx.Logger.Log Message "\n\n    Build completed in %A\n" (System.DateTime.Now - start)
                 with | exn ->
                     let th = if options.FailOnError then raiseError else reportError

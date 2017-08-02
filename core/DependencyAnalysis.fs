@@ -85,7 +85,7 @@ let getChangeReasons ctx getTargetDeps target =
     | Some {BuildResult.Depends = []} ->
         [ChangeReason.Other "No dependencies", Some "It means target is not \"pure\" and depends on something beyond our control (oracle)"]
 
-    | Some {BuildResult.Depends = depends; Result = result} ->
+    | Some {BuildResult.Depends = depends; Targets = result} ->
         let depState = getDepState (Util.getVar ctx.Options) (toFileList ctx.Options.ProjectRoot) getTargetDeps
 
         depends
@@ -95,7 +95,7 @@ let getChangeReasons ctx getTargetDeps target =
             |> function
             | [] ->
                 match result with
-                | FileTarget file when not (File.exists file) ->
+                | targetList when targetList |> List.exists (function | FileTarget file when not (File.exists file) -> true | _ -> false) ->
                     [ChangeReason.Other "target file does not exist", Some "The file has to be rebuilt regardless all its dependencies were not changed"]
                 | _ -> []
             | ls -> ls
