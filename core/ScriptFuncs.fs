@@ -124,7 +124,17 @@ module ScriptFuncs =
         do! need targets
         do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available
     })
+    
+    [<System.Obsolete("Use <== instead")>]
     let (==>) = (<==)
+
+    /// Defines a rule which demands the other targets to be sequentially built.
+    /// Unlike '<==' operator, this one waits the completion of one before issuing another rule.
+    let (<<<) name targets = PhonyRule (name, recipe {
+        for t in targets do
+            do! need [t]
+        do! alwaysRerun()
+    })
 
     type RuleActionArgs =
         RuleActionArgs of File * Map<string,string>

@@ -136,23 +136,32 @@ module private ConsoleSink =
 
                     Console.ResetColor()
                 | None -> ()
+            let renderLineWithInfo (color, textColor) level (txt: string) =
+                Console.ForegroundColor <- color
+                Console.Write (sprintf "\r[%s] " level)
+
+                Console.ForegroundColor <- textColor
+                System.Console.Write txt
+                wipeProgressMessage()
+                System.Console.WriteLine()
 
             async { 
                 let! msg = mbox.Receive()
                 match msg with
                 | Message(level, text) ->
                     match level |> levelToColor with
-                    | Some (color, textColor) ->
+                    | Some colors ->
                         // in case of CRLF in the string make sure we washed out the progress message
+                        let rec writeLines = function
+                        | [] -> fun _ -> ()
+                        | (txt: string)::tail ->
+                            function
+                            | true ->
+                                renderLineWithInfo colors (LevelToString level) txt
+                                do writeLines tail false
+                            | false -> System.Console.WriteLine txt; do writeLines tail false
 
-                        Console.ForegroundColor <- color
-                        Console.Write (sprintf "\r[%s] " (LevelToString level))
-
-                        Console.ForegroundColor <- textColor
-                        text |> System.Console.Write
-
-                        wipeProgressMessage()
-                        System.Console.WriteLine()
+                        writeLines (text.Split('\n') |> List.ofArray) true
                         renderProgress progressMessage
 
                     | _ -> ()

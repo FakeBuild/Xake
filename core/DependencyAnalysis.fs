@@ -85,17 +85,17 @@ let getChangeReasons ctx getTargetDeps target =
     | Some {BuildResult.Depends = []} ->
         [ChangeReason.Other "No dependencies", Some "It means target is not \"pure\" and depends on something beyond our control (oracle)"]
 
-    | Some {BuildResult.Depends = depends; Result = result} ->
-        let dep_state = getDepState (Util.getVar ctx.Options) (toFileList ctx.Options.ProjectRoot) getTargetDeps
+    | Some {BuildResult.Depends = depends; Targets = result} ->
+        let depState = getDepState (Util.getVar ctx.Options) (toFileList ctx.Options.ProjectRoot) getTargetDeps
 
         depends
-            |> List.map dep_state
+            |> List.map depState
             |> List.filter (fst >> (<>) ChangeReason.NotChanged)
             |> collapseFilesChanged
             |> function
             | [] ->
                 match result with
-                | FileTarget file when not (File.exists file) ->
+                | targetList when targetList |> List.exists (function | FileTarget file when not (File.exists file) -> true | _ -> false) ->
                     [ChangeReason.Other "target file does not exist", Some "The file has to be rebuilt regardless all its dependencies were not changed"]
                 | _ -> []
             | ls -> ls
@@ -118,8 +118,9 @@ let getDurationDeps ctx getDeps t =
 /// Dumps all dependencies for particular target
 let dumpDeps (ctx: ExecContext) (target: Target list) =
 
-    let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
-    let doneTargets = new System.Collections.Hashtable()
+    let getDeps = getChangeReasons ctx |> memoizeRec
+
+    let doneTargets = System.Collections.Hashtable()
     let indent i = String.replicate i "  "
 
     let rec displayNestedDeps ii =

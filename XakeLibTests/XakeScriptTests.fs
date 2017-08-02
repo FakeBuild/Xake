@@ -385,6 +385,56 @@ let ``executes several dependent rules``() =
     Assert.AreEqual(11, !count)
 
 [<Test>]
+let ``executes in parallel``() =
+
+    let steps = System.Collections.Generic.List<int>()
+    
+    do xake { XakeOptions with Threads = 4 } {
+        rules [
+            "main" <== ["rule1"; "rule2"; "rule3"]
+            "rule1" => action {
+                do! Async.Sleep(40)
+                steps.Add 1
+            }
+            "rule2" => action {
+                do! Async.Sleep(20)
+                steps.Add 2
+            }
+            "rule3" => action {
+                do! Async.Sleep(10)
+                steps.Add 3
+            }
+        ]
+    }
+
+    Assert.That(steps, Is.EqualTo([3; 2; 1] |> List.toArray))
+
+[<Test>]
+let ``op <<< executes one by one``() =
+
+    let steps = System.Collections.Generic.List<int>()
+    
+    do xake { XakeOptions with Threads = 4 } {
+        rules [
+            "main" <<< ["rule1"; "rule2"; "rule3"]
+            "rule1" => action {
+                do! Async.Sleep(40)
+                steps.Add 1
+            }
+            "rule2" => action {
+                do! Async.Sleep(20)
+                steps.Add 2
+            }
+            "rule3" => action {
+                do! Async.Sleep(10)
+                steps.Add 3
+            }
+        ]
+    }
+
+    Assert.AreEqual(steps, [1; 2; 3] |> List.toArray)
+
+[<Test>]
 let ``writes dependencies to a build database``() =
 
     let cdate = System.DateTime(2014, 1, 2, 3, 40, 50)
@@ -424,7 +474,7 @@ let ``writes dependencies to a build database``() =
     try
         match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test"), ch) with
         | Some {
-                BuildResult.Result = PhonyAction "test"
+                BuildResult.Targets = [PhonyAction "test"]
                 Depends = [
                             ArtifactDep (PhonyAction "aaa"); ArtifactDep (PhonyAction "deeplyNested");
                             FileDep (fileDep, depDate)
@@ -437,8 +487,8 @@ let ``writes dependencies to a build database``() =
 
         match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test1"), ch) with
         | Some {
-                BuildResult.Result = PhonyAction "test1"
-                BuildResult.Depends = [ArtifactDep (PhonyAction "aaa")]
+                Targets = [PhonyAction "test1"]
+                Depends = [ArtifactDep (PhonyAction "aaa")]
                 //BuildResult.Steps = []
             } -> true
         | _ -> false

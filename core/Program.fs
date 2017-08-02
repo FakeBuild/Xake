@@ -8,12 +8,12 @@ module internal ParseArgs = begin
         | String of string*('t -> string -> 't)
         | KeyValue of string*('t -> string -> string -> 't)
 
-    let get_args = System.Environment.GetCommandLineArgs >> List.ofArray
+    let getArgs = System.Environment.GetCommandLineArgs >> List.ofArray
 
-    let rec get_script_args = function
+    let rec getScriptArgs = function
     | [] -> []
     | "--" :: rest -> rest
-    | _ :: tail -> get_script_args tail
+    | _ :: tail -> getScriptArgs tail
 
     let parseTopLevel (arg:string) optionsSoFar = 
         match arg.ToLowerInvariant() with 
@@ -146,8 +146,11 @@ module Main =
     /// Define option IgnoreCommandLine=true to ignore command line arguments
     /// </param>
     let xake options =
-        let args = get_args() |> get_script_args in
+        let args = getArgs() |> getScriptArgs in
         xakeArgs args options
 
     let xakeScript =
         xake ExecOptions.Default
+
+    /// Runs the set of rules - need a function accepting target list and rules
+    // let run = ExecCore.runScript

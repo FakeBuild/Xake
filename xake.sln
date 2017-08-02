@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26228.10
+VisualStudioVersion = 15.0.26430.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{C5FB2DCA-B737-43D0-92F3-4D2CE03CD022}"
 	ProjectSection(SolutionItems) = preProject
@@ -50,7 +50,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project files", "Project fi
 		core\inner-examples.fsx = core\inner-examples.fsx
 	EndProjectSection
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Xake.Core", "core\Xake.Core.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Xake", "core\Xake.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
 EndProject

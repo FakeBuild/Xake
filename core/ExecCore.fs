@@ -25,6 +25,12 @@ module internal ExecCore =
     let replace (regex:Regex) (evaluator: Match -> string) text = regex.Replace(text, evaluator)
     let ifNone x = function |Some x -> x | _ -> x
 
+    let (|Dump|Dryrun|Run|) (opts:ExecOptions) =
+        match opts with
+        | _ when opts.DumpDeps -> Dump
+        | _ when opts.DryRun -> Dryrun
+        | _ -> Run
+
     let applyWildcards = function
         | None -> id
         | Some matches ->
@@ -102,6 +108,7 @@ module internal ExecCore =
 
     // executes single artifact
     let rec execOne ctx target =
+
         let run ruleMatches action targets =
             let primaryTarget = targets |> List.head
             async {
@@ -112,7 +119,7 @@ module internal ExecCore =
 
                     do Progress.TaskStart primaryTarget |> ctx.Progress.Post
 
-                    let startResult = {BuildLog.makeResult primaryTarget with Steps = [Step.start "all"]}
+                    let startResult = {BuildLog.makeResult targets with Steps = [Step.start "all"]}
                     let! (result,_) = action (startResult, taskContext)
                     let result = Step.updateTotalDuration result
 
@@ -140,18 +147,18 @@ module internal ExecCore =
             async {
                 let! waitTask = (fun channel -> Run(target, targets, run groupsMap action targets, channel)) |> ctx.TaskPool.PostAndAsyncReply
                 let! status = waitTask
-                return status, ArtifactDep target
+                return target, status, ArtifactDep target
             }
         | None ->
             target |> function
             | FileTarget file when File.exists file ->
-                async {return ExecStatus.JustFile, FileDep (file, File.getLastWriteTime file)}
+                async.Return <| (target, ExecStatus.JustFile, FileDep (file, File.getLastWriteTime file))
             | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" target.FullName) ""
 
     /// <summary>
     /// Executes several artifacts in parallel.
     /// </summary>
-    and execParallel ctx = Seq.ofList >> Seq.map (execOne ctx) >> Async.Parallel
+    and execParallel ctx = List.map (execOne ctx) >> Seq.ofList >> Async.Parallel
 
     /// <summary>
     /// Gets the status of dependency artifacts (obtained from 'need' calls).
@@ -170,31 +177,29 @@ module internal ExecCore =
 
             primaryTarget |> (Progress.TaskResume >> ctx.Progress.Post)
 
-            let dependencies = statuses |> Array.map snd |> List.ofArray in
-            return statuses
-            |> Array.exists (fst >> (=) ExecStatus.Succeed)
-            |> (function |true -> ExecStatus.Succeed |false -> ExecStatus.Skipped), dependencies
+            let dependencies = statuses |> Array.map (fun (_,_,x) -> x) |> List.ofArray in
+            return
+                (match statuses |> Array.exists (fun (_,x,_) -> x = ExecStatus.Succeed) with
+                    |true -> ExecStatus.Succeed
+                    |false -> ExecStatus.Skipped), dependencies
         }
 
-    /// <summary>
     /// phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
-    /// </summary>
-    /// <param name="ctx"></param>
-    /// <param name="name"></param>
     let makeTarget ctx name =
-        let (Rules rr) = ctx.Rules
-        if rr |> List.exists (function |PhonyRule (n,_) when n = name -> true | _ -> false) then
-            PhonyAction name
-        else
-            ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
+        let (Rules rules) = ctx.Rules
+        let isPhonyRule nm = function |PhonyRule (n,_) when n = nm -> true | _ -> false
+        in
+        match rules |> List.exists (isPhonyRule name) with
+        | true -> PhonyAction name
+        | _ -> ctx.Options.ProjectRoot </> name |> File.make |> FileTarget
 
     /// Implementation of "dry run"
     let dryRun ctx options (groups: string list list) =
-        let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
+        let getDeps = getChangeReasons ctx |> memoizeRec
 
         // getPlainDeps getDeps (getExecTime ctx)
         do ctx.Logger.Log Command "Running (dry) targets %A" groups
-        let doneTargets = new System.Collections.Hashtable()
+        let doneTargets = System.Collections.Hashtable()
 
         let print f = ctx.Logger.Log Info f
         let indent i = String.replicate i "  "
@@ -228,7 +233,7 @@ module internal ExecCore =
                     deps |> List.iter (showDepStatus (ii+1))
                     deps |> List.iter (displayNestedDeps (ii+1))
 
-        let targetGroups = groups |> List.map (List.map (makeTarget ctx)) in 
+        let targetGroups = makeTarget ctx |> List.map |> List.map <| groups in 
         let toSec v = float (v / 1<ms>) * 0.001
         let endTime = Progress.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targetGroups |> toSec
 
@@ -250,14 +255,24 @@ module internal ExecCore =
             | a -> yield a
         }
 
+    let rec runSeq<'r> :Async<'r> list -> Async<'r list> = 
+        List.fold
+            (fun rest i -> async {
+                let! tail = rest
+                let! head = i
+                return head::tail
+            })
+            (async {return []})
+
+    let asyncMap f c = async.Bind(c, f >> async.Return)
+
     /// Runs the build (main function of xake)
     let runBuild ctx options groups =
-        let start = System.DateTime.Now
 
         let runTargets ctx options targets =
-            let rec getDeps = getChangeReasons ctx (fun x -> getDeps x) |> memoize
+            let getDeps = getChangeReasons ctx |> memoizeRec
             
-            let checkRebuild (target: Target) =
+            let needRebuild (target: Target) =
                 getDeps >>
                 function
                 | [] -> false, ""
@@ -273,30 +288,24 @@ module internal ExecCore =
                     do ctx.Logger.Log Info "Rebuild %A: %s" target.ShortName reason
                     true
                 <| target
-            let checkRebuildAll (targets: Target list) = targets |> List.exists checkRebuild
                 // todo improve output by printing primary target
 
-            let progressSink = Progress.openProgress (getDurationDeps ctx getDeps) options.Threads targets options.Progress
-            let stepCtx = {ctx with NeedRebuild = checkRebuildAll; Progress = progressSink}
+            async {
+                do ctx.Logger.Log Info "Build target list %A" targets
 
-            try
-                targets |> execParallel stepCtx |> Async.RunSynchronously |> ignore
-            finally
-                do Progress.Finish |> progressSink.Post
+                let progressSink = Progress.openProgress (getDurationDeps ctx getDeps) options.Threads targets options.Progress
+                let stepCtx = {ctx with NeedRebuild = List.exists needRebuild; Progress = progressSink}
 
-        try
-            groups |> List.iter (
-                List.map (makeTarget ctx) >> (runTargets ctx options)
-            )
-            // some long text (looks awkward) to remove progress message. I do not think it worth spending another half an hour to design proper solution
-            ctx.Logger.Log Message "                                     \n\n    Build completed in %A\n" (System.DateTime.Now - start)
-        with
-            | exn ->
-                let th = if options.FailOnError then raiseError else reportError
-                let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
-                th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
-                ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
-                exit 2
+                try
+                    return! targets |> execParallel stepCtx
+                finally
+                    do Progress.Finish |> progressSink.Post
+            }
+
+        groups |> List.map
+            (List.map (makeTarget ctx) >> (runTargets ctx options))
+        |> runSeq
+        |> asyncMap (Array.concat >> List.ofArray)
 
     /// Executes the build script
     let runScript options rules =
@@ -334,21 +343,30 @@ module internal ExecCore =
                 [["main"]]
             | tt ->
                 tt |> List.map (fun (s: string) -> s.Split(';', '|') |> List.ofArray)
+
         try
-            if options.DumpDeps then
+            match options with
+            | Dump ->
                 do logger.Log Level.Command "Dumping dependencies for targets %A" targetLists
                 targetLists |> List.iter (List.map (makeTarget ctx) >> (dumpDeps ctx))
-            else if options.DryRun then
+            | Dryrun ->
                 targetLists |> (dryRun ctx options)
-            else
-                targetLists |> (runBuild ctx options)
+            | _ ->
+                let start = System.DateTime.Now
+                try
+                    targetLists |> (runBuild ctx options) |> Async.RunSynchronously |> ignore
+                    ctx.Logger.Log Message "\n\n    Build completed in %A\n" (System.DateTime.Now - start)
+                with | exn ->
+                    let th = if options.FailOnError then raiseError else reportError
+                    let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
+                    th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
+                    ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
+                    exit 2
         finally
             db.PostAndReply Storage.CloseWait
             Logging.FlushLogs()
 
-    /// <summary>
     /// "need" implementation
-    /// </summary>
     let need targets =
         action {
             let startTime = System.DateTime.Now

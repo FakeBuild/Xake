@@ -40,14 +40,12 @@ module internal Impl =
     let getRelative (root:string) (path:string) =
 
         // TODO reimplement and test
-
-        if isEmpty root then path
-        elif path.ToLowerInvariant().StartsWith (root.ToLowerInvariant()) then
-            // cut the trailing "\"
-            let d = if root.Length < path.Length then 1 else 0
-            path.Substring(root.Length + d)
-        else
+        match true with
+        | _ when isEmpty root ->
             path
+        | _ when path.ToLowerInvariant().StartsWith (root.ToLowerInvariant()) ->
+            path.Substring(root.Length).TrimStart('/', '\\')
+        | _ -> path
 
     let endsWith e (str:string) = str.EndsWith (e, System.StringComparison.OrdinalIgnoreCase)
     let (|EndsWith|_|) e str = if endsWith e str then Some () else None
@@ -67,8 +65,8 @@ module internal Impl =
 
     /// Parses the compiler output and returns messageLevel
     let levelFromString defaultLevel (text:string) :Level =
-        if text.IndexOf "): warning " > 0 then Level.Warning
-        else if text.IndexOf "): error " > 0 then Level.Error
+        if text.Contains "): warning " then Level.Warning
+        else if text.Contains "): error " then Level.Error
         else defaultLevel
     let inline coalesce ls = //: 'a option list -> 'a option =
         ls |> List.fold (fun r a -> if Option.isSome r then r else a) None

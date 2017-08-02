@@ -172,13 +172,13 @@ let emptyProgress () =
 /// Gets estimated execution time for several target groups. Each group start when previous group is completed and runs in parallel.
 /// </summary>
 let estimateEndTime getDurationDeps threadCount groups =
-    let machine_state = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
+    let machineState = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
 
     groups |> List.fold (fun (state, _) group -> 
         let newState, endTime = execMany state getDurationDeps group
         let newState = {newState with Cpu = newState.Cpu |> List.map (fun _ -> BusyUntil endTime)}
         newState, endTime
-        ) (machine_state, 0<ms>)
+        ) (machineState, 0<ms>)
     |> snd
 
 /// <summary>
@@ -190,16 +190,16 @@ let estimateEndTime getDurationDeps threadCount groups =
 let openProgress getDurationDeps threadCount goals toConsole = 
 
     let progressBar = WindowsProgress.createTaskbarIndicator() |> Impl.ignoreFailures
-    let machine_state = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
+    let machineState = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
 
-    let _,endTime = execMany machine_state getDurationDeps goals
+    let _,endTime = execMany machineState getDurationDeps goals
 
     let startTime = System.DateTime.Now
     progressBar <| ProgressMessage.Begin (System.TimeSpan.FromMilliseconds (float endTime))
 
     /// We track currently running tasks and subtract already passed time from task duration
-    let getDuration2 running_tasks t =
-        match running_tasks |> Map.tryFind t with
+    let getDuration2 runningTasks t =
+        match runningTasks |> Map.tryFind t with
         | Some(runningTime,_) ->
             let originalDuration,deps = getDurationDeps t
             //do printf "\nestimate %A: %A\n" t timeToComplete
@@ -208,9 +208,9 @@ let openProgress getDurationDeps threadCount goals toConsole =
         | _ ->
             getDurationDeps t
 
-    let reportProgress (state, running_tasks) =
+    let reportProgress (state, runningTasks) =
         let timePassed = 1<ms> * int (System.DateTime.Now - startTime).TotalMilliseconds in
-        let _,leftTime = execMany state (getDuration2 running_tasks) goals
+        let _,leftTime = execMany state (getDuration2 runningTasks) goals
         //printf "progress %A to %A " timePassed endTime
         let percentDone = timePassed * 100 / (timePassed + leftTime) |> int
         let progressData = System.TimeSpan.FromMilliseconds (leftTime/1<ms> |> float), percentDone
@@ -229,26 +229,26 @@ let openProgress getDurationDeps threadCount goals toConsole =
                 (ncpu,isRunning)
                 )
 
-    let suspend target t (cpu,is_running) = (cpu,is_running && t <> target)
-    let resume  target t (cpu,is_running) = (cpu,is_running || t = target)
+    let suspend target t (cpu,isRunning) = (cpu,isRunning && t <> target)
+    let resume  target t (cpu,isRunning) = (cpu,isRunning || t = target)
 
     MailboxProcessor.Start(fun mbox -> 
-        let rec loop (state,running_tasks) = 
+        let rec loop (state,runningTasks) = 
             async {
                 try
                     let! msg = mbox.Receive(1000)
-                    let running_tasks = running_tasks |> advanceRunningTime
+                    let runningTasks = runningTasks |> advanceRunningTime
 
                     match msg with
-                    | TaskStart target ->    return! loop (state, running_tasks |> Map.add target (0<ms>, true))
-                    | TaskSuspend target ->  return! loop (state, running_tasks |> Map.map (suspend target))
-                    | TaskResume target ->   return! loop (state, running_tasks |> Map.map (resume target))
+                    | TaskStart target ->    return! loop (state, runningTasks |> Map.add target (0<ms>, true))
+                    | TaskSuspend target ->  return! loop (state, runningTasks |> Map.map (suspend target))
+                    | TaskResume target ->   return! loop (state, runningTasks |> Map.map (resume target))
                     | Refresh _ ->
-                        reportProgress (state, running_tasks)
-                        return! loop (state,running_tasks)
+                        reportProgress (state, runningTasks)
+                        return! loop (state,runningTasks)
 
                     | TaskComplete target ->
-                        let newState = ({state with Tasks = state.Tasks |> Map.add target 0<ms>}, running_tasks |> Map.remove target)
+                        let newState = ({state with Tasks = state.Tasks |> Map.add target 0<ms>}, runningTasks |> Map.remove target)
                         reportProgress newState
                         return! loop newState
 
@@ -257,6 +257,6 @@ let openProgress getDurationDeps threadCount goals toConsole =
                         return ()
                 with _ ->
                     mbox.Post Refresh
-                    return! loop (state,running_tasks)
+                    return! loop (state,runningTasks)
             }
-        loop (machine_state, Map.empty))
+        loop (machineState, Map.empty))
