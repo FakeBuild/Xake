@@ -58,13 +58,6 @@
     <None Include="paket.references" />
     <Compile Include="SystemTaskTests.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\core\Xake.Core.fsproj">
-      <Name>Xake.Core</Name>
-      <Project>{6b39c22f-6741-428d-b21a-33580af7bd8e}</Project>
-      <Private>True</Private>
-    </ProjectReference>
-  </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
   </PropertyGroup>
@@ -105,5 +98,12 @@
       <Private>True</Private>
       <Paket>True</Paket>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\core\Xake.fsproj">
+      <Name>Xake</Name>
+      <Project>{6b39c22f-6741-428d-b21a-33580af7bd8e}</Project>
+      <Private>True</Private>
+    </ProjectReference>
   </ItemGroup>
 </Project>

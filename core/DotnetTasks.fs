@@ -40,14 +40,12 @@ module internal Impl =
     let getRelative (root:string) (path:string) =
 
         // TODO reimplement and test
-
-        if isEmpty root then path
-        elif path.ToLowerInvariant().StartsWith (root.ToLowerInvariant()) then
-            // cut the trailing "\"
-            let d = if root.Length < path.Length then 1 else 0
-            path.Substring(root.Length + d)
-        else
+        match true with
+        | _ when isEmpty root ->
             path
+        | _ when path.ToLowerInvariant().StartsWith (root.ToLowerInvariant()) ->
+            path.Substring(root.Length).TrimStart('/', '\\')
+        | _ -> path
 
     let endsWith e (str:string) = str.EndsWith (e, System.StringComparison.OrdinalIgnoreCase)
     let (|EndsWith|_|) e str = if endsWith e str then Some () else None

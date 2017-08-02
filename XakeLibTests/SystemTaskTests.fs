@@ -18,7 +18,8 @@ let ``shell``() =
         rules [
             "main" => recipe {
 
-                do! Shell {ShellOptions.Default with
+                do! Shell {
+                    ShellOptions.Default with
                         Command = "dir"; Args = ["*.*"]
                         WorkingDir = Some "."; UseClr = true; FailOnErrorLevel = true} |> Recipe.Ignore
                 

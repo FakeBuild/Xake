@@ -1,10 +1,7 @@
 ## TODOs and ideas
 
-  * put the rule's target file to ExecContext so that target could be get as let! target = getTarget()
   * change the first page to a tutorial with script and usage examples
 
-  * <<< for running tasks one by one. Current one runs in parallel only.
-  * rules should accept #seq not just the list
   * switch development to mono under windows
   * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question. (we have got it out of the box, need more info)
   * accept filemasks in 'need' parameters (WHY I added it here?, the use case is very unclear)
@@ -12,10 +9,6 @@
   * dependencies tracking mode: automatically rebuild when dependency is changed, execute triggers allowing to start/stop the processes which lock/hold artifacts
   * in-memory artifact (string or stream). Say in Gulp file is processed in-memory
   * can the rules be abstract over artifacts
-
-### Tasks
-
-* complete copyFiles method
 
 ### Refactorings
 
@@ -36,6 +29,10 @@
 
 ## Done (top is recent)
 
+ * rules should accept #seq not just the list
+ * <<< for running tasks one by one. Current one runs in parallel only.
+ * complete copyFiles method
+ * put the rule's target file to ExecContext so that target could be get as let! target = getTarget()
  * CscPath setting (cscpath in csc builder) allowing to define compiler path
  * allow to specify F# compiler version
  * overriding .xake database file name by options.DbFileName which defines relative db file name

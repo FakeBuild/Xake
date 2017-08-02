@@ -34,7 +34,7 @@ type File = T of string * System.IO.FileInfo with
         | :? File as y -> 0 = compareNames x.FullName y.FullName
         | _ -> false
     override x.GetHashCode() =
-        x |> (function |undefined -> "" |x -> x.FullName) |> getFileHash
+        x |> (function |undefined -> "" |_ -> x.FullName) |> getFileHash
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module File =
@@ -51,7 +51,6 @@ module File =
     *)
 
     type private BclFile = System.IO.File
-
 
     let make n =
         if String.IsNullOrWhiteSpace n then
