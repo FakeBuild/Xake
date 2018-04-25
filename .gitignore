@@ -30,6 +30,7 @@ packages
 *.swp
 TestResult.*
 .xake
+.fake
 .vs/
 samples/**/*.exe
 samples/**/*.dll

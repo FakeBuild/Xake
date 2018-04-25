@@ -1,8 +1,24 @@
-framework: 40
-source https://www.nuget.org/api/v2/
+source https://api.nuget.org/v3/index.json
+storage: none
 
-nuget FSharp.Core 3.1.2.5
-nuget NUnit.Runners
-nuget Nuget.CommandLine
-nuget nunit 2.6.3
-nuget Xake 0.12.2
+nuget FSharp.Core ~> 4.1 redirects: force
+
+clitool dotnet-fake
+
+group tests
+    source https://www.nuget.org/api/v2/
+    storage: none
+
+    nuget NUnit.Runners
+    nuget nunit
+
+group tools
+    source https://www.nuget.org/api/v2/
+
+    nuget Nuget.CommandLine
+    nuget Xake ~> 0.13.0
+
+group FakeBuild
+    source https://api.nuget.org/v3/index.json
+    storage: none
+    nuget Fake.Core.Target
