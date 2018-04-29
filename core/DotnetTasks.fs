@@ -101,9 +101,6 @@ module internal Impl =
             l |> List.map mapFile
 
     let compileResx (resxfile:File) (rcfile:File) =
-        use resxreader = new System.Resources.ResXResourceReader (resxfile.FullName)
-        resxreader.BasePath <- File.getDirName resxfile
-
         use writer = new ResourceWriter (rcfile.FullName)
 
         // TODO here we have deal with types somehow because we are running conversion under framework 4.5 but target could be 2.0
@@ -111,9 +108,16 @@ module internal Impl =
             fun(t:System.Type) ->
                 t.AssemblyQualifiedName.Replace("4.0.0.0", "2.0.0.0")
 
+#if NET46
+        use resxreader = new System.Resources.ResXResourceReader (resxfile.FullName)
+        resxreader.BasePath <- File.getDirName resxfile
+
         let reader = resxreader.GetEnumerator()
         while reader.MoveNext() do
             writer.AddResource (reader.Key :?> string, reader.Value)
+#else
+        failwith "ERROR: resx compilation is not supported under netstandard target"
+#endif
         writer.Generate()
 
     let compileResxFiles = function

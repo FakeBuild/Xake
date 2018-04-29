@@ -4,7 +4,12 @@
     <AssemblyName>Xake.Core</AssemblyName>
     <OutputType>Library</OutputType>
     <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
+
+    <Copyright>(c) OlegZee 2014-1018</Copyright>
+    <RepositoryUrl>https://github.com/OlegZee/Xake</RepositoryUrl>
+    <Description>Xake build tool</Description>
   </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="Logging.fs" />
     <Compile Include="Pickler.fs" />
@@ -28,18 +33,26 @@
     <Compile Include="ResourceFileset.fs" />
     <Compile Include="ProcessExec.fs" />
     <Compile Include="FileTasksImpl.fs" />
-    <!-- <Compile Include="DotNetFwk.fs" />
-    <Compile Include="DotnetTasks.fs" /> -->
+    <Compile Include="DotNetFwk.fs" />
+    <Compile Include="DotnetTasks.fs" />
     <Compile Include="Tasks\Cp.fs" />
     <Compile Include="Tasks\Rm.fs" />
     <Compile Include="Tasks\Shell.fs" />
-    <!-- <Compile Include="Tasks\Dotnet.csc.fs" />
+    <Compile Include="Tasks\Dotnet.csc.fs" />
     <Compile Include="Tasks\Dotnet.fsc.fs" />
     <Compile Include="Tasks\Dotnet.resgen.fs" />
-    <Compile Include="Tasks\Dotnet.Msbuild.fs" /> -->
+    <Compile Include="Tasks\Dotnet.Msbuild.fs" />
     <Compile Include="Tasks\misc.fs" />
     <Compile Include="VersionInfo.fs" />
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Win32.Registry" Version="4.4.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
+      <Reference Include="System.Windows.Forms.dll" />
   </ItemGroup>
 </Project>

@@ -135,7 +135,12 @@ module Main =
             else args |> List.fold foldFunction (initialOptions, TopLevel) |> fst
         
         if not options.Nologo then
-            printf "XAKE build tool %s\n\n" Xake.Const.Version
+            let ver = typeof<ExecOptions>.Assembly.GetName().Version.ToString()
+            printf "XAKE build tool %s\n\n" ver
+
+            printfn ""
+            printfn "assembly name %A" <| typeof<ExecOptions>.Assembly.GetName()
+            printfn "assembly version %A" <| typeof<ExecOptions>.Assembly.GetName().Version.ToString()
 
         RulesBuilder options
 

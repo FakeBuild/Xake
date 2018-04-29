@@ -7,10 +7,10 @@
   <ItemGroup>
     <Compile Include="Program.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.3.4" />
-  </ItemGroup>
-  <ItemGroup>
+  <!-- <ItemGroup>
     <ProjectReference Include="..\..\core\Xake.fsproj" />
+  </ItemGroup> -->
+  <ItemGroup>
+    <Reference Include="..\..\core\bin\Debug\netstandard2.0\Xake.Core.dll"/>
   </ItemGroup>
 </Project>

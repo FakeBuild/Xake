@@ -29,11 +29,6 @@ module ResgenImpl =
 
         // TODO rewrite everything, it's just demo code
         let resgen baseDir (options:ResourceSetOptions) (resxfile:string) =
-            use resxreader = new ResXResourceReader (resxfile)
-
-            if settings.UseSourcePath then
-                resxreader.BasePath <- Path.GetDirectoryName (resxfile)
-
             let rcfile =
                 Path.Combine(
                     settings.TargetDir.FullName,
@@ -41,10 +36,16 @@ module ResgenImpl =
 
             use writer = new ResourceWriter (rcfile)
 
+#if NET46
+            use resxreader = new ResXResourceReader (resxfile)
+
+            if settings.UseSourcePath then
+                resxreader.BasePath <- Path.GetDirectoryName (resxfile)
+
             let reader = resxreader.GetEnumerator()
             while reader.MoveNext() do
                 writer.AddResource (reader.Key :?> string, reader.Value)
-
+#endif
             rcfile
 
         recipe {
