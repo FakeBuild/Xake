@@ -34,3 +34,4 @@ TestResult.*
 .vs/
 samples/**/*.exe
 samples/**/*.dll
+samples/**/*.fsx.lock
