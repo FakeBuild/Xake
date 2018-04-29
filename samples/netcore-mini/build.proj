@@ -4,6 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
-  <Import Project="../../.paket/Paket.Restore.targets" />
-
+  <ItemGroup>
+    <DotNetCliToolReference Include="dotnet-fake" Version="5.0.0-*" />
+  </ItemGroup>
 </Project>

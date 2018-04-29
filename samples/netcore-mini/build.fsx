@@ -1,7 +1,9 @@
 #r "paket:
-nuget FSharp.Core >= 4.3.4 //"
-
-#r "c:/projects/xake/core/bin/Debug/netstandard2.0/Xake.Core.dll"
+source https://api.nuget.org/v3/index.json
+source ../../core/bin/Debug
+framework: netstandard2.0
+nuget Xake.Core //"
+#load "./.fake/build.fsx/intellisense.fsx"
 
 open Xake
 
