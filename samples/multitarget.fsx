@@ -1,4 +1,5 @@
-#r "../bin/Xake.dll"
+// #r "../bin/Xake.dll"
+#r "../core/bin/Debug/net46/Xake.dll"
 
 open Xake
 open Xake.Tasks

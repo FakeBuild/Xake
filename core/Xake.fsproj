@@ -1,15 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>Xake.Core</AssemblyName>
+    <AssemblyName>Xake</AssemblyName>
     <OutputType>Library</OutputType>
     <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
-
     <Copyright>(c) OlegZee 2014-1018</Copyright>
     <RepositoryUrl>https://github.com/OlegZee/Xake</RepositoryUrl>
     <Description>Xake build tool</Description>
   </PropertyGroup>
-
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <OutputPath>..\bin</OutputPath>
+    <DocumentationFile>..\bin\Xake.xml</DocumentationFile>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="Logging.fs" />
     <Compile Include="Pickler.fs" />
@@ -47,12 +49,11 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-
-  <ItemGroup>
+  <ItemGroup  Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="Microsoft.Win32.Registry" Version="4.4.0" />
   </ItemGroup>
-
   <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
-      <Reference Include="System.Windows.Forms.dll" />
+    <PackageReference Include="FSharp.Core" Version="3.1.2.5" />
+    <Reference Include="System.Windows.Forms.dll" />
   </ItemGroup>
 </Project>

@@ -138,10 +138,6 @@ module Main =
             let ver = typeof<ExecOptions>.Assembly.GetName().Version.ToString()
             printf "XAKE build tool %s\n\n" ver
 
-            printfn ""
-            printfn "assembly name %A" <| typeof<ExecOptions>.Assembly.GetName()
-            printfn "assembly version %A" <| typeof<ExecOptions>.Assembly.GetName().Version.ToString()
-
         RulesBuilder options
 
     /// <summary>

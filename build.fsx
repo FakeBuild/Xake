@@ -1,13 +1,14 @@
 // xake build file
 
-#r @"packages/Xake/tools/Xake.dll"
+//#r @"packages/Xake/tools/Xake.dll"
 //#r @"bin/Debug/Xake.dll"
+#r "core/bin/Release/net46/Xake.dll"
 
 open Xake
 open Xake.Tasks
 open Xake.Tasks.Dotnet
 
-let TestsAssembly, XakeDll, XakeXml = "bin/XakeLibTests.dll", "bin/Xake.dll", "bin/Xake.xml"
+let TestsAssembly, XakeDll, XakeXml = "bin/XakeLibTests.dll", "bin/netstandard2.0/Xake.dll", "bin/netstandard2.0/Xake.xml"
 let (=?) value deflt = match value with |Some v -> v |None -> deflt
 
 let makePackageName () = recipe {
@@ -23,7 +24,21 @@ let paket arglist = recipe {
         } |> Recipe.Ignore
 }
 
+let dotnet arglist = recipe {
+    do! shell {
+        cmd "dotnet"
+        args arglist
+        failonerror
+        } |> Recipe.Ignore
+}
+
 let nunitConsoleExe = "packages/NUnit.ConsoleRunner/tools/nunit3-console.exe" |> File.make |> File.getFullName
+let sourceFiles =
+    fileset {
+        basedir "Core"
+        includes "VersionInfo.fs"
+        includes "**/*.fs"; includes "Xake.fsproj"
+    }
 
 do xakeScript {
     var "NETFX-TARGET" "4.5"
@@ -33,7 +48,7 @@ do xakeScript {
     rules [
         "main"  => recipe {
             do! need ["build"]
-            do! need ["test"]
+            // do! need ["test"]
             }
 
         "build" <== [TestsAssembly; XakeDll]
@@ -55,58 +70,19 @@ do xakeScript {
                 }) |> Recipe.Ignore
         }
 
-        ["bin/FSharp.Core.dll"
-         "bin/FSharp.Core.optdata"
-         "bin/FSharp.Core.sigdata"
-        ] *..> copy {todir "bin"; file "packages/FSharp.Core/lib/net40/FSharp.Core.*"}
+        // ["bin/FSharp.Core.dll"
+        //  "bin/FSharp.Core.optdata"
+        //  "bin/FSharp.Core.sigdata"
+        // ] *..> copy {todir "bin"; file "packages/FSharp.Core/lib/net40/FSharp.Core.*"}
 
-        ("bin/nunit.framework.dll") ..> copyFrom "packages/NUnit/lib/nunit.framework.dll"
+        // ("bin/nunit.framework.dll") ..> copyFrom "packages/NUnit/lib/nunit.framework.dll"
 
         [XakeDll; XakeXml] *..> recipe {
 
-            let! [_; xmlfile] = getTargetFiles()
+            let! allFiles = getFiles sourceFiles
+            do! needFiles allFiles
 
-            let sources = fileset {
-                basedir "core"
-                includes "Logging.fs"
-                includes "Pickler.fs"
-                includes "Env.fs"
-                includes "Path.fs"
-                includes "File.fsi"
-                includes "File.fs"
-                includes "Fileset.fs"
-                includes "Types.fs"
-                includes "CommonLib.fs"
-                includes "Database.fs"
-                includes "RecipeBuilder.fs"
-                includes "RecipeFunctions.fs"
-                includes "WorkerPool.fs"
-                includes "Progress.fs"
-                includes "ExecTypes.fs"
-                includes "DependencyAnalysis.fs"
-                includes "ExecCore.fs"
-                includes "XakeScript.fs"
-                includes "ScriptFuncs.fs"
-                includes "ResourceFileset.fs"
-                includes "ProcessExec.fs"
-                includes "FileTasksImpl.fs"
-                includes "DotNetFwk.fs"
-                includes "DotnetTasks.fs"
-                includes "Tasks/**/*.fs"
-                includes "VersionInfo.fs"
-                includes "AssemblyInfo.fs"
-                includes "Program.fs"
-            }
-
-            do! Fsc {
-                FscSettings with
-                    Src = sources
-                    Ref = !! "bin/FSharp.Core.dll"
-                    RefGlobal = ["System.dll"; "System.Core.dll"; "System.Windows.Forms.dll"]
-                    Define = ["TRACE"]
-                    CommandArgs = ["--optimize+"; "--warn:3"; "--warnaserror:76"; "--utf8output"; "--doc:" + xmlfile.FullName]
-            }
-
+            do! dotnet ["build"; "Core"; "-c"; "Release"]
         }
 
         TestsAssembly ..> Fsc {
@@ -140,9 +116,9 @@ do xakeScript {
             do! paket
                   [
                     "push"
-                    "url"; "https://www.nuget.org/api/v2/package"
-                    "file"; package_name
-                    "apikey"; nuget_key =? ""
+                    "--url"; "https://www.nuget.org/api/v2/package"
+                    package_name
+                    "--api-key"; nuget_key =? ""
                   ]
         }
     ]

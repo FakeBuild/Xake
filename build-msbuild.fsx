@@ -1,8 +1,10 @@
 // xake build file body
-#r @"packages/Xake/tools/Xake.Core.dll"
+//#r @"packages/Xake/tools/Xake.Core.dll"
+#r "core/bin/Debug/net46/Xake.dll"
 
 open Xake
-open Xake.SystemTasks
+open Xake.Tasks
+open Xake.Tasks.Dotnet
 
 let runclr cmd args = system (useClr >> checkErrorLevel) cmd args |> Recipe.Ignore
 
