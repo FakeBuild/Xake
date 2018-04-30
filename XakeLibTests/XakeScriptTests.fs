@@ -329,7 +329,7 @@ let ``target could be a relative2``() =
     let needExecuteCount = ref 0
 
     let subdir = Directory.CreateDirectory "subd1"
-    let preserve_dir = System.Environment.CurrentDirectory
+    let preserveDir = System.Environment.CurrentDirectory
     System.Environment.CurrentDirectory <- subdir.FullName
 
     try
@@ -356,14 +356,14 @@ let ``target could be a relative2``() =
         do xake {ExecOptions.Default with FileLogLevel=Verbosity.Diag; FileLog = "build123.log"} {
 
           rules (runtimes |> List.collect makeRule)
-          rule ("main" ==> [for r in runtimes do yield r.Folder </> pcExeName])
+          rule ("main" <== [for r in runtimes do yield r.Folder </> pcExeName])
 
         }
 
         Assert.AreEqual(2, !needExecuteCount)
 
     finally
-        System.Environment.CurrentDirectory <- preserve_dir
+        System.Environment.CurrentDirectory <- preserveDir
 
 [<Test>]
 let ``executes several dependent rules``() =
@@ -373,10 +373,10 @@ let ``executes several dependent rules``() =
     do xake XakeOptions {
         rules [
             "main" <== ["rule1"; "rule2"]
-            "rule1" => action {
+            "rule1" ..> recipe {
                 count := !count + 1
             }
-            "rule2" => action {
+            "rule2" ..> recipe {
                 count := !count + 10
             }
         ]

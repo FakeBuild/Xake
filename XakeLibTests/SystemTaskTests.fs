@@ -10,9 +10,9 @@ type private File = System.IO.File
 let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Diag; FileLogLevel = Silent}
 
 
-[<Test; Platform("windows")>]
+[<Test; Platform("Win")>]
 let ``shell``() =
-    "." </> ".xake" |> File.Delete
+    File.Delete("." </> ".xake")
 
     do xake TestOptions {
         rules [

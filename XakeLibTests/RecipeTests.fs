@@ -102,10 +102,10 @@ let ``ignoring result of do! action``() =
         }
     
     do xake DebugOptions {
-      phony "main" (action {
+      phony "main" (recipe {
         do! (testee "1") |> Ignore
         wasExecuted := true
-        do! testee "2" |> Action.Ignore
+        do! testee "2" |> Recipe.Ignore
         do note "3"
       })
     }

@@ -1,13 +1,13 @@
 module ``Copy task``
 
+open System.IO
 open NUnit.Framework
 
 open Xake
 open Xake.Tasks
 
-open System.IO
-
 let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Diag; FileLogLevel = Silent}
+let assertTrue: bool -> unit = Assert.True
 
 [<Test>]
 let ``copies single file``() =
@@ -26,12 +26,12 @@ let ``copies single file``() =
         ]
     }
 
-    Assert.True <| File.Exists ("cptgt" </> "samplefile")
+    assertTrue <| File.Exists ("cptgt" </> "samplefile")
 
 [<Test>]
 let ``copies folder flatten``() =
     "." </> ".xake" |> File.Delete
-    ["cptgt"; "cpin"] |> List.map (fun d -> if Directory.Exists d then Directory.Delete (d, true))
+    ["cptgt"; "cpin"] |> List.iter (fun d -> if Directory.Exists d then Directory.Delete (d, true))
 
     do xake TestOptions {
         rules [
@@ -44,12 +44,12 @@ let ``copies folder flatten``() =
         ]
     }
 
-    Assert.True <| File.Exists ("cptgt" </> "samplefile")
+    (File.Exists >> Assert.True) ("cptgt" </> "samplefile")
 
 [<Test>]
 let ``copies folder no flatten``() =
     "." </> ".xake" |> File.Delete
-    ["cptgt"; "cpin"] |> List.map (fun d -> if Directory.Exists d then Directory.Delete (d, true))
+    ["cptgt"; "cpin"] |> List.iter (fun d -> if Directory.Exists d then Directory.Delete (d, true))
 
     do xake TestOptions {
         rules [
@@ -62,18 +62,19 @@ let ``copies folder no flatten``() =
         ]
     }
 
-    Assert.True <| File.Exists ("cptgt" </> "cpin" </> "a" </> "samplefile")
+    assertTrue <| File.Exists ("cptgt" </> "cpin" </> "a" </> "samplefile")
 
 [<Test>]
 let ``copies fileset NO flatten``() =
     "." </> ".xake" |> File.Delete
-    ["cptgt"; "cpin"] |> List.map (fun d -> if Directory.Exists d then Directory.Delete (d, true))
+    ["cptgt"; "cpin"] |> List.iter (fun d -> if Directory.Exists d then Directory.Delete (d, true))
 
     do xake TestOptions {
         rules [
             "main" => action {
                 do! need ["cpin/a/samplefile"]
-                do! Cp {CpArgs.Default with
+                do! Cp {
+                  CpArgs.Default with
                     files = (fileset {basedir "cpin"; includes "**/*"})
                     todir = "cptgt"
                     flatten = false
@@ -84,12 +85,12 @@ let ``copies fileset NO flatten``() =
         ]
     }
 
-    Assert.True <| File.Exists ("cptgt" </> "a" </> "samplefile")
+    assertTrue <| File.Exists ("cptgt" </> "a" </> "samplefile")
 
 [<Test>]
 let ``copies fileset flatten``() =
     "." </> ".xake" |> File.Delete
-    ["cptgt"; "cpin"] |> List.map (fun d -> if Directory.Exists d then Directory.Delete (d, true))
+    ["cptgt"; "cpin"] |> List.iter (fun d -> if Directory.Exists d then Directory.Delete (d, true))
 
     do xake TestOptions {
         rules [
@@ -102,4 +103,4 @@ let ``copies fileset flatten``() =
         ]
     }
 
-    Assert.True <| File.Exists ("cptgt" </> "samplefile")
+    assertTrue <| File.Exists ("cptgt" </> "samplefile")

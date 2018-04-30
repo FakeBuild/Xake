@@ -98,7 +98,7 @@ let ``script exits with errorlevel on script failure``() =
                 errorCode := ec
             }
             "1/script.fsx" ..> writeText """
-                #r "../Xake.dll"
+                #r "../bin/Debug/net46/Xake.dll"
                 open Xake
 
                 do xake {ExecOptions.Default with DbFileName=".1err"; Threads = 4 } {
@@ -108,8 +108,7 @@ let ``script exits with errorlevel on script failure``() =
                     failwith "error-text"
                     })
 
-                }
-            """
+                }"""
         ]
     }
 
