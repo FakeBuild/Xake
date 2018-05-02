@@ -28,3 +28,11 @@ git checkout master
 git tag -v v1.0
 git push --tags
 ```
+
+## Publishing
+
+```
+dotnet pack -c Release /p:PackageVersion=1.2.3 --version-suffix alpha4
+paket push --url https://www.nuget.org/api/v2/package <package_name> --api-key <nuget_key>
+
+```

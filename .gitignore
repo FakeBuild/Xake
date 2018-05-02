@@ -36,3 +36,5 @@ samples/**/*.exe
 samples/**/*.dll
 samples/**/*.fsx.lock
 .idea
+temp
+~testdata~

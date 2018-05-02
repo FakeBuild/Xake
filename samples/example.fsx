@@ -29,7 +29,7 @@ do xakeScript {
             let! opts = getCtxOptions()
             let rootPath = opts.ProjectRoot
 
-            let! isDebug = getVar "DEBUG" |> Recipe.map (function | Some x -> x | _ -> "0")
+            let! isDebug = getVar "DEBUG" |> Recipe.map (Option.defaultValue "0")
 
             let! result = asyncFn 3
             return ()
@@ -42,7 +42,7 @@ do xakeScript {
 
         "ver.cs" ..> recipe {
             let! envver = getEnv "VER"
-            let ver = envver |> function | Some x -> x | _ -> "v0.1"
+            let ver = envver |> Option.defaultValue "v0.1"
             do! writeText (sprintf """// static class App {const string Ver = "%s";}""" ver)
         }
     ]
