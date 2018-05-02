@@ -29,6 +29,13 @@ git tag -v v1.0
 git push --tags
 ```
 
+## Tests
+
+Example of selective test run:
+```
+dotnet test -f:net46 --filter Name~"Rm deletes"
+```
+
 ## Publishing
 
 ```

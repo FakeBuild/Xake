@@ -1,4 +1,4 @@
 FSharp.Core
+NUnit
 
-group tests
-    NUnit
+Microsoft.DotNet.Watcher.Tools

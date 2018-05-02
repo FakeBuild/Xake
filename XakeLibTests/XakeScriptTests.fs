@@ -7,12 +7,24 @@ open Xake
 open Xake.Tasks
 open Storage
 
-// one thread to avoid simultaneous access to 'wasExecuted'
-let XakeOptions = {ExecOptions.Default with FileLog = ""; Threads = 1}
+let private rememberDir = Directory.GetCurrentDirectory()
+let private outFolder = rememberDir </> "~testdata~" </> "rm"
+
+[<OneTimeSetUp>]
+let setup () =
+    Directory.CreateDirectory outFolder |> ignore
+    Directory.SetCurrentDirectory outFolder
+
+[<OneTimeTearDown>]
+let teardown () =
+    Directory.SetCurrentDirectory rememberDir
 
 [<SetUp>]
-let Setup() =
-    try File.Delete("." </> ".xake") with _ -> ()
+let setupTest () =
+    "." </> ".xake" |> File.Delete
+
+// one thread to avoid simultaneous access to 'wasExecuted'
+let XakeOptions = {ExecOptions.Default with FileLog = ""; Threads = 1; ProjectRoot = outFolder}
 
 [<Test>]
 let ``executes dependent rules (once)``() =

@@ -11,10 +11,17 @@ open Xake.Tasks.Dotnet
 let TestsAssembly, XakeDll, XakeXml = "bin/XakeLibTests.dll", "bin/netstandard2.0/Xake.dll", "bin/netstandard2.0/Xake.xml"
 let (=?) value deflt = match value with |Some v -> v |None -> deflt
 
-let makePackageName () = recipe {
+let getVer () = recipe {
+    let! verVar = getVar("VER")
     let! ver = getEnv("VER")
-    return sprintf "Xake.%s.nupkg" (ver =? "0.0.1")
+    return verVar =? (ver =? "0.0.1")
 }
+
+let makePackageName () = recipe {
+    let! ver = getVer()
+    return sprintf "Xake.%s.nupkg" ver
+}
+
 let paket arglist = recipe {
     do! shell {
         useclr
@@ -32,7 +39,6 @@ let dotnet arglist = recipe {
         } |> Recipe.Ignore
 }
 
-let nunitConsoleExe = "packages/NUnit.ConsoleRunner/tools/nunit3-console.exe" |> File.make |> File.getFullName
 let sourceFiles =
     fileset {
         basedir "Core"
@@ -41,7 +47,6 @@ let sourceFiles =
     }
 
 do xakeScript {
-    var "NETFX-TARGET" "4.5"
     filelog "build.log" Verbosity.Diag
     // consolelog Verbosity.Normal
 
@@ -92,19 +97,29 @@ do xakeScript {
                 RefGlobal = ["System.dll"; "System.Core.dll"]
                 Define = ["TRACE"]
         }
+
+        "core/VersionInfo.cs" ..> recipe {
+            
+            let! version = getVer()
+            do! writeText <| sprintf "module Xake.Const [<Literal>]  let internal Version = \"%s\"" version
+        }
     ]
 
     (* Nuget publishing rules *)
     rules [
         "nuget-pack" => recipe {
             let! package_name = makePackageName ()
-            do! need [package_name]
+            do! need ["bin" </> package_name]
         }
 
-        "Xake.(ver:*).nupkg" ..> recipe {
+        "bin/Xake.(ver:*).nupkg" ..> recipe {
             do! need [XakeDll; XakeXml]
             let! ver = getRuleMatch("ver")
-            do! paket ["pack"; "version"; ver; "output"; "." ]
+
+            // "module Xake.Const [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\"" >./core/VersionInfo.fs
+
+            // TODO set version in assembly-info
+            do! dotnet ["pack"; "-c"; "Release"; "/p:Version=" + ver ]
         }
 
         "nuget-push" => recipe {

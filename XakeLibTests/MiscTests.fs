@@ -7,11 +7,23 @@ open Xake
 open Xake.Tasks
 open Xake.Tasks.Dotnet
 
-let xakeOptions = ExecOptions.Default
+let private rememberDir = Directory.GetCurrentDirectory()
+let private outFolder = rememberDir </> "~testdata~" </> "misc"
+
+[<OneTimeSetUp>]
+let setup () =
+    Directory.CreateDirectory outFolder |> ignore
+    Directory.SetCurrentDirectory outFolder
+
+[<OneTimeTearDown>]
+let teardown () =
+    Directory.SetCurrentDirectory rememberDir
 
 [<SetUp>]
-let Setup() =
+let setupTest () =
     try File.Delete("." </> ".xake") with _ -> ()
+
+let xakeOptions = { ExecOptions.Default with ProjectRoot = outFolder }
 
 [<Test>]
 let ``runs csc task (full test)``() =
@@ -98,7 +110,7 @@ let ``script exits with errorlevel on script failure``() =
                 errorCode := ec
             }
             "1/script.fsx" ..> writeText """
-                #r "../bin/Debug/net46/Xake.dll"
+                #r "../../../bin/Debug/net46/Xake.dll"
                 open Xake
 
                 do xake {ExecOptions.Default with DbFileName=".1err"; Threads = 4 } {

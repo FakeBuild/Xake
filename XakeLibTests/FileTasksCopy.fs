@@ -6,12 +6,33 @@ open NUnit.Framework
 open Xake
 open Xake.Tasks
 
-let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Diag; FileLogLevel = Silent}
 let assertTrue: bool -> unit = Assert.True
+
+let private rememberDir = Directory.GetCurrentDirectory()
+let private outFolder = rememberDir </> "~testdata~" </> "cp"
+
+let TestOptions = {
+      ExecOptions.Default with
+        Threads = 1; Targets = ["main"]; ConLogLevel = Diag; FileLogLevel = Silent
+        ProjectRoot = outFolder
+    }
+
+[<OneTimeSetUp>]
+let setup () =
+    Directory.CreateDirectory outFolder |> ignore
+    Directory.SetCurrentDirectory outFolder
+
+[<OneTimeTearDown>]
+let teardown () =
+    Directory.SetCurrentDirectory rememberDir
+
+[<SetUp>]
+let setupTest () =
+    "." </> ".xake" |> File.Delete
 
 [<Test>]
 let ``copies single file``() =
-    "." </> ".xake" |> File.Delete
+
     if Directory.Exists "cptgt" then
         Directory.Delete ("cptgt", true)
 
@@ -30,7 +51,6 @@ let ``copies single file``() =
 
 [<Test>]
 let ``copies folder flatten``() =
-    "." </> ".xake" |> File.Delete
     ["cptgt"; "cpin"] |> List.iter (fun d -> if Directory.Exists d then Directory.Delete (d, true))
 
     do xake TestOptions {
@@ -48,7 +68,6 @@ let ``copies folder flatten``() =
 
 [<Test>]
 let ``copies folder no flatten``() =
-    "." </> ".xake" |> File.Delete
     ["cptgt"; "cpin"] |> List.iter (fun d -> if Directory.Exists d then Directory.Delete (d, true))
 
     do xake TestOptions {
@@ -66,7 +85,6 @@ let ``copies folder no flatten``() =
 
 [<Test>]
 let ``copies fileset NO flatten``() =
-    "." </> ".xake" |> File.Delete
     ["cptgt"; "cpin"] |> List.iter (fun d -> if Directory.Exists d then Directory.Delete (d, true))
 
     do xake TestOptions {
@@ -89,7 +107,6 @@ let ``copies fileset NO flatten``() =
 
 [<Test>]
 let ``copies fileset flatten``() =
-    "." </> ".xake" |> File.Delete
     ["cptgt"; "cpin"] |> List.iter (fun d -> if Directory.Exists d then Directory.Delete (d, true))
 
     do xake TestOptions {

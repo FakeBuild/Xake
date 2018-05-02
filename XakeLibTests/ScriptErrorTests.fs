@@ -10,8 +10,20 @@ open Xake.Tasks
 [<TestFixture>]
 type ``Script error handling``() =
 
-  let MakeDebugOptions (errorlist:List<string>) =
-    {ExecOptions.Default with FailOnError = true; CustomLogger = CustomLogger ((=) Level.Error) errorlist.Add; FileLog = ""}
+  let rememberDir = Directory.GetCurrentDirectory()
+  let outFolder = rememberDir </> "~testdata~" </> "scripterr"
+
+  let makeDebugOptions (errorlist:List<string>) =
+    {ExecOptions.Default with FailOnError = true; CustomLogger = CustomLogger ((=) Level.Error) errorlist.Add; FileLog = ""; ProjectRoot = outFolder}
+
+  [<OneTimeSetUp>]
+  member __.OneTimeSetup () =
+      Directory.CreateDirectory outFolder |> ignore
+      Directory.SetCurrentDirectory outFolder
+
+  [<OneTimeTearDown>]
+  member __.Teardown () =
+      Directory.SetCurrentDirectory rememberDir
 
   [<SetUp>]
   member __.Setup() =
@@ -38,7 +50,7 @@ type ``Script error handling``() =
     let errorlist = new System.Collections.Generic.List<string>()
 
     Assert.Throws<XakeException> (fun () ->
-      do xake (MakeDebugOptions errorlist) {
+      do xake (makeDebugOptions errorlist) {
         want (["test"])
         phony "test" (action {
           do! trace Info "Running inside 'test' rule"
@@ -54,7 +66,7 @@ type ``Script error handling``() =
     let errorlist = new System.Collections.Generic.List<string>()
 
     Assert.Throws<XakeException> (fun () ->
-      do xake (MakeDebugOptions errorlist) {
+      do xake (makeDebugOptions errorlist) {
         want (["test"])
         phony "test" (action {
           do! trace Info "Running inside 'test' rule"
@@ -74,7 +86,7 @@ type ``Script error handling``() =
     let errorlist = new List<string>()
 
     Assert.Throws<XakeException> (fun () ->
-      do xake (MakeDebugOptions errorlist) {
+      do xake (makeDebugOptions errorlist) {
         want (["test"])
         phony "clean" (action {
           do! trace Info "Running inside 'clean' rule"
@@ -91,7 +103,7 @@ type ``Script error handling``() =
     let errorlist = new List<string>()
 
     Assert.DoesNotThrow (fun () ->
-        do xake (MakeDebugOptions errorlist) {
+        do xake (makeDebugOptions errorlist) {
             want (["clean"; "make"])
             phony "clean" (recipe {
               do! rm {file "*.failbroken"}

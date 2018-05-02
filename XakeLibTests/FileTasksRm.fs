@@ -1,18 +1,37 @@
 ﻿module ``Del(rm) task``
 
+open System.IO
 open NUnit.Framework
 
 open Xake
 open Xake.Tasks
 
-type private File = System.IO.File
+let private rememberDir = Directory.GetCurrentDirectory()
+let private outFolder = rememberDir </> "~testdata~" </> "rm"
 
-let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Diag; FileLogLevel = Silent}
+let TestOptions = {
+    ExecOptions.Default with
+        Threads = 1
+        Targets = ["main"]
+        ConLogLevel = Diag; FileLogLevel = Silent
+        ProjectRoot = outFolder
+    }
 
+[<OneTimeSetUp>]
+let setup () =
+    Directory.CreateDirectory outFolder |> ignore
+    Directory.SetCurrentDirectory outFolder
+
+[<OneTimeTearDown>]
+let teardown () =
+    Directory.SetCurrentDirectory rememberDir
+
+[<SetUp>]
+let setupTest () =
+    "." </> ".xake" |> File.Delete
 
 [<Test>]
 let ``Rm deletes single file``() =
-    "." </> ".xake" |> File.Delete
 
     do xake TestOptions {
         rules [
@@ -26,18 +45,18 @@ let ``Rm deletes single file``() =
         ]
     }
 
-    File.Exists "samplefile" |> Assert.False
+    (File.Exists >> Assert.False) "samplefile"
 
 [<Test>]
 let ``Rm deletes files by mask``() =
-    "." </> ".xake" |> File.Delete
 
     do xake TestOptions {
+        filelog "c:\\!\\logggg" Diag
         rules [
             "main" => action {
                 do! need ["samplefile"; "samplefile1"]
-                File.Exists "samplefile" |> Assert.True
-                File.Exists "samplefile1" |> Assert.True
+                (File.Exists >> Assert.True) "samplefile"
+                (File.Exists >> Assert.True) "samplefile1"
 
                 do! rm {file "samplefile*"}
             }
@@ -47,13 +66,11 @@ let ``Rm deletes files by mask``() =
         ]
     }
 
-    File.Exists "samplefile" |> Assert.False
-    File.Exists "samplefile1" |> Assert.False
+    (File.Exists >> Assert.False) "samplefile"
+    (File.Exists >> Assert.False) "samplefile1"
 
 [<Test>]
 let ``Rm deletes dir``() =
-    "." </> ".xake" |> File.Delete
-
     do xake TestOptions {
         rules [
             "main" => recipe {
@@ -68,12 +85,11 @@ let ``Rm deletes dir``() =
         ]
     }
 
-    System.IO.Directory.Exists "a" |> Assert.False
+    (Directory.Exists >> Assert.False) "a"
 
 
 [<Test>]
 let ``Rm deletes fileset``() =
-    "." </> ".xake" |> File.Delete
 
     do xake TestOptions {
         rules [
@@ -90,5 +106,5 @@ let ``Rm deletes fileset``() =
         ]
     }
 
-    File.Exists "samplefile" |> Assert.False
-    File.Exists "samplefile1" |> Assert.False
+    (File.Exists >> Assert.False) "samplefile"
+    (File.Exists >> Assert.False) "samplefile1"

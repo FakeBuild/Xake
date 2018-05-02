@@ -1,17 +1,31 @@
 ﻿module ``File tasks module``
 
+open System.IO
 open NUnit.Framework
 
 open Xake
 open Xake.Tasks
 
-type private File = System.IO.File
+let private rememberDir = Directory.GetCurrentDirectory()
+let private outFolder = rememberDir </> "~testdata~" </> "files"
 
-let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Chatty; FileLogLevel = Silent}
+[<OneTimeSetUp>]
+let setup () =
+    Directory.CreateDirectory outFolder |> ignore
+    Directory.SetCurrentDirectory outFolder
+
+[<OneTimeTearDown>]
+let teardown () =
+    Directory.SetCurrentDirectory rememberDir
+
+[<SetUp>]
+let setupTest () =
+    try File.Delete("." </> ".xake") with _ -> ()
+
+let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Chatty; FileLogLevel = Silent; ProjectRoot = outFolder}
 
 [<Test>]
 let ``allows delete file``() =
-    "." </> ".xake" |> File.Delete
 
     let execCount = ref 0
     do xake TestOptions {
@@ -23,7 +37,7 @@ let ``allows delete file``() =
                 do! rm {file "samplefile"}
             }
 
-            "samplefile" ..> writeText "hello world"
+            "samplefile" ..> writeText "hello world del"
         ]
     }
 
@@ -32,7 +46,6 @@ let ``allows delete file``() =
 
 [<Test>]
 let ``allows delete file by mask``() =
-    "." </> ".xake" |> File.Delete
     let execCount = ref 0
     
     do xake TestOptions {
@@ -53,7 +66,6 @@ let ``allows delete file by mask``() =
 
 [<Test>]
 let ``allows to delete by several masks``() =
-    "." </> ".xake" |> File.Delete
     do xake TestOptions {
         rules [
             "main" => action {
@@ -71,7 +83,6 @@ let ``allows to delete by several masks``() =
 
 [<Test>]
 let ``supports simple file copy``() =
-    "." </> ".xake" |> File.Delete
     do xake TestOptions {
         rules [
             "main" => action {
