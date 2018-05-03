@@ -38,3 +38,4 @@ samples/**/*.fsx.lock
 .idea
 temp
 ~testdata~
+paket-files/

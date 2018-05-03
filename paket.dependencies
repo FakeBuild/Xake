@@ -2,6 +2,7 @@ source https://api.nuget.org/v3/index.json
 storage: none
 
 nuget FSharp.Core ~> 4.1 redirects: force
+nuget Microsoft.NET.Test.Sdk
 nuget NUnit.Runners
 nuget nunit
 

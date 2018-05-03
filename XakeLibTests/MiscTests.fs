@@ -95,6 +95,10 @@ let ``resource set instantiation``() =
     printfn "%A" resset
     ()
 
+#if !NETCOREAPP2_0
+// this test requires different assembly refs for netcore, and also different way to start
+// I suppose it should be another test for netcore/FAKE 5 env
+
 [<Test>]
 let ``script exits with errorlevel on script failure``() =
 
@@ -125,6 +129,7 @@ let ``script exits with errorlevel on script failure``() =
     }
 
     Assert.AreEqual(2, !errorCode)
+#endif
 
 let taskReturn n = recipe {
     return n

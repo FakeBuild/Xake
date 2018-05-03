@@ -1,4 +1,4 @@
 FSharp.Core
 NUnit
-
 Microsoft.DotNet.Watcher.Tools
+Microsoft.NET.Test.Sdk
