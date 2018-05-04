@@ -1,16 +1,11 @@
 source https://api.nuget.org/v3/index.json
 storage: none
+framework: netstandard2.0, net46
 
 nuget FSharp.Core ~> 4.1 redirects: force
 nuget Microsoft.NET.Test.Sdk
-nuget NUnit.Runners
 nuget nunit
+nuget NUnit.Runners
+nuget NUnit3TestAdapter
 
-clitool dotnet-fake
 clitool Microsoft.DotNet.Watcher.Tools
-
-group tools
-    source https://www.nuget.org/api/v2/
-
-    nuget Nuget.CommandLine
-    nuget Xake ~> 0.13.0

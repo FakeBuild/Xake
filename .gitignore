@@ -37,5 +37,6 @@ samples/**/*.dll
 samples/**/*.fsx.lock
 .idea
 temp
-~testdata~
+~testout~
 paket-files/
+/out

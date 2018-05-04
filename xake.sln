@@ -25,11 +25,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csc", "csc", "{4A657E43-9D0
 		samples\csc\hwmono.fsx = samples\csc\hwmono.fsx
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ar", "ar", "{B8F979DC-5E33-4025-AF54-973BC401C30F}"
-	ProjectSection(SolutionItems) = preProject
-		samples\ar\build.fsx = samples\ar\build.fsx
-	EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "msbuild", "msbuild", "{217A4EC0-6FF7-40E9-9E0C-12B0DF1B8BA7}"
 	ProjectSection(SolutionItems) = preProject
 		samples\msbuild\build.fsx = samples\msbuild\build.fsx
@@ -50,9 +45,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project files", "Project fi
 		core\inner-examples.fsx = core\inner-examples.fsx
 	EndProjectSection
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Xake", "core\Xake.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Xake", "src\core\Xake.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLibTests", "XakeLibTests\XakeLibTests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLibTests", "src\tests\tests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

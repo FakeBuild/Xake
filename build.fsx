@@ -1,14 +1,14 @@
-// xake build file
+#r "paket:
+    nuget Xake ~> 1.0 prerelease //"
 
-//#r @"packages/Xake/tools/Xake.dll"
-//#r @"bin/Debug/Xake.dll"
-#r "core/bin/Release/net46/Xake.dll"
+#if !FAKE
+#load ".fake/build.fsx/intellisense.fsx"
+#endif
 
 open Xake
 open Xake.Tasks
-open Xake.Tasks.Dotnet
 
-let TestsAssembly, XakeDll, XakeXml = "bin/XakeLibTests.dll", "bin/netstandard2.0/Xake.dll", "bin/netstandard2.0/Xake.xml"
+let XakeDll, XakeXml = "out/netstandard2.0/Xake.dll", "out/netstandard2.0/Xake.xml"
 let (=?) value deflt = match value with |Some v -> v |None -> deflt
 
 let getVer () = recipe {
@@ -39,13 +39,6 @@ let dotnet arglist = recipe {
         } |> Recipe.Ignore
 }
 
-let sourceFiles =
-    fileset {
-        basedir "Core"
-        includes "VersionInfo.fs"
-        includes "**/*.fs"; includes "Xake.fsproj"
-    }
-
 do xakeScript {
     filelog "build.log" Verbosity.Diag
     // consolelog Verbosity.Normal
@@ -53,52 +46,39 @@ do xakeScript {
     rules [
         "main"  => recipe {
             do! need ["build"]
-            // do! need ["test"]
+            do! need ["test"]
             }
 
-        "build" <== [TestsAssembly; XakeDll]
-        "clean" => rm {file "bin/*.*"}
+        "build" <== [XakeDll; XakeXml]
+        "clean" => rm {file "out/*.*"}
 
         "test" => recipe {
             do! alwaysRerun()
-            do! need[TestsAssembly]
 
-            let! where = getVar("WHERE")
-            let whereArgs = where |> function | Some clause -> ["--where"; clause] | None -> []
+            // let! where = getVar("WHERE")
+            // let whereArgs = where |> function | Some clause -> ["--filter"; clause] | None -> []
+            // TODO filters            
 
-            do! (shell {
-                useclr
-                cmd nunitConsoleExe
-                args (["XakeLibTests.dll"] @ whereArgs)
-                failonerror
-                workdir "bin"                
-                }) |> Recipe.Ignore
+            do! dotnet ["test"; "src/tests"; "-c"; "Release"]
         }
-
-        // ["bin/FSharp.Core.dll"
-        //  "bin/FSharp.Core.optdata"
-        //  "bin/FSharp.Core.sigdata"
-        // ] *..> copy {todir "bin"; file "packages/FSharp.Core/lib/net40/FSharp.Core.*"}
-
-        // ("bin/nunit.framework.dll") ..> copyFrom "packages/NUnit/lib/nunit.framework.dll"
 
         [XakeDll; XakeXml] *..> recipe {
 
-            let! allFiles = getFiles sourceFiles
+            let! allFiles
+                = getFiles <| fileset {
+                    basedir "src/core"
+                    includes "Xake.fsproj"
+                    includes "VersionInfo.fs"
+                    includes "**/*.fs"
+                }
+
             do! needFiles allFiles
 
-            do! dotnet ["build"; "Core"; "-c"; "Release"]
+            // todo set output folder from script (in here) to increase cohesion
+            do! dotnet ["build"; "src/core"; "-c"; "Release"]
         }
 
-        TestsAssembly ..> Fsc {
-            FscSettings with
-                Src = !! "XakeLibTests/*.fs"
-                Ref = !! "bin/FSharp.Core.dll" + "bin/nunit.framework.dll" + XakeDll
-                RefGlobal = ["System.dll"; "System.Core.dll"]
-                Define = ["TRACE"]
-        }
-
-        "core/VersionInfo.cs" ..> recipe {
+        "src/core/VersionInfo.fs" ..> recipe {
             
             let! version = getVer()
             do! writeText <| sprintf "module Xake.Const [<Literal>]  let internal Version = \"%s\"" version
@@ -112,7 +92,7 @@ do xakeScript {
             do! need ["bin" </> package_name]
         }
 
-        "bin/Xake.(ver:*).nupkg" ..> recipe {
+        "out/Xake.(ver:*).nupkg" ..> recipe {
             do! need [XakeDll; XakeXml]
             let! ver = getRuleMatch("ver")
 

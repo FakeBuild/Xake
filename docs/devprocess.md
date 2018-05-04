@@ -31,7 +31,14 @@ git push --tags
 
 ## Tests
 
+Running tests on netstandard target:
+
+```
+dotnet test -f:netcoreapp2.0
+```
+
 Example of selective test run:
+
 ```
 dotnet test -f:net46 --filter Name~"Rm deletes"
 ```
@@ -39,6 +46,7 @@ dotnet test -f:net46 --filter Name~"Rm deletes"
 ## Publishing
 
 ```
+dotnet fake run build.fsx -- build -d VER=1.2.3
 dotnet pack -c Release /p:PackageVersion=1.2.3 --version-suffix alpha4
 paket push --url https://www.nuget.org/api/v2/package <package_name> --api-key <nuget_key>
 

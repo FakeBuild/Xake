@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net46;netcoreapp2.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Common.fs" />
+    <Compile Include="RecipeTests.fs" />
+    <Compile Include="PathTests.fs" />
+    <Compile Include="FilesetTests.fs" />
+    <Compile Include="ScriptErrorTests.fs" />
+    <Compile Include="XakeScriptTests.fs" />
+    <Compile Include="MiscTests.fs" />
+    <Compile Include="StorageTests.fs" />
+    <Compile Include="FileTasksCopy.fs" />
+    <Compile Include="FileTasksTests.fs" />
+    <Compile Include="FileTasksRm.fs" />
+    <Compile Include="ProgressTests.fs" />
+    <Compile Include="CommandLineTests.fs" />
+    <Compile Include="ExplicitTests.fs" />
+    <Compile Include="SystemTaskTests.fs" />
+    <None Include="paket.references" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\core\Xake.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.10.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.7" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.10.0" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
+    <PackageReference Include="FSharp.Core" Version="3.1.2.5" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

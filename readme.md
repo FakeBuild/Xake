@@ -48,8 +48,8 @@ Follow the steps to compile binaries and get familiar with scripts:
 1. Build the xake.core dll (to xake/bin folder):
 
     ```
-    cd xake
-    fsharpi build.fsx -- get-deps build
+    dotnet restore build.proj
+    dotnet fake run build.fsx -- build test
     ```
 1. Now compile the C# "Hello world" application:
 
