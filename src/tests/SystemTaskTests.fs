@@ -10,7 +10,8 @@ type private File = System.IO.File
 let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Diag; FileLogLevel = Silent}
 
 
-[<Test; Platform("Win")>]
+// TODO make correct test
+[<Test; Platform("Win"); Explicit("Windows specific")>]
 let ``shell``() =
     File.Delete("." </> ".xake")
 

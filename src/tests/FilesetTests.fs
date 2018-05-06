@@ -41,13 +41,13 @@ let ``could list a files in folder by wildcard``() =
     let files = ls "a*" |> getFiles1 root1 @"c:\rpt"
     Assert.That (files |> List.map File.getFileName, Is.EquivalentTo (List.toSeq ["a.rdl"]))
 
-[<Test; Platform("Win")>]
+[<Test; Platform("Win"); Explicit("Platform specific")>]
 let ``follows weird DOS (on Windows platform) behavior when looking for files by '*.txt' mask``() =
 
     let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
     Assert.That (files |> List.map File.getFileName, Is.EquivalentTo (List.toSeq ["a.rdl"; "b.rdl"; "c.rdlx"; "c1.rdlx"]))
 
-[<Test; Platform("Unix")>]
+[<Test; Platform("Unix"); Explicit("Platform specific")>]
 let ``does NOT follow weird DOS (on Windows platform) behavior when looking for files by '*.txt' mask``() =
 
     let files = ls "*.rdl" |> getFiles1 root1 @"c:\rpt"
