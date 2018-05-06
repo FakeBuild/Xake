@@ -1,23 +1,14 @@
 language: csharp
 mono: latest
 dotnet: 2.1.105
-env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}; else echo 0.0.0; fi;)
+env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}.${TRAVIS_BUILD_NUMBER}; else echo 1.0.0.${TRAVIS_BUILD_NUMBER}; fi;)
 install:
   - dotnet restore build.proj
 script:
   - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5-api/
-  - dotnet fake run build.fsx -- build test pack -ll Diag
+  - dotnet fake run build.fsx -- build test
+  - dotnet fake run build.fsx -- pack push -ll Diag
 deploy:
-  - provider: releases
-    file:
-    - "./bin/Xake.dll"
-    - "./bin/Xake.xml"
-    skip_cleanup: true
-    on:
-      tags: true
-      condition: "${TRAVIS_TAG:0:1} = v"
-    api-key:
-      secure: GcNd0L3Kdyv9vTeKqDXHAfxQne8a6guWQYCiiEvQWtLwNss4foV2dD6PQ8W+J7l+ay8wLC+P3ZKxO0GiKbn5cglXTbBI9WlrHk+nrSQ/JWmaqqjZhGUlAvlek0Ko4walGfRQJPIaZ9pbnX4L4Mj+jrwQWrI1IyzZXbSBL2i2Tgo=
   - provider: script
     script: fsharpi build.fsx -- nuget-push
     skip_cleanup: true

@@ -194,36 +194,31 @@ type ``XakeScript tests``() =
         Assert.AreEqual(0, !mainCount)
         Assert.AreEqual(1, !xxxCount)
 
-    // [<Test; Platform("Win"); Explicit("Won't run on linux")>]
-    // member x.``target could be a relative``() =
+    [<Test; Platform("Win"); Explicit("Won't run on linux")>]
+    member x.``target could be a relative``() =
 
-    //     let needExecuteCount = ref 0
+        let needExecuteCount = ref 0
 
-    //     let subdir = Directory.CreateDirectory "subd1"
-    //     let preserve_dir = System.Environment.CurrentDirectory
-    //     System.Environment.CurrentDirectory <- subdir.FullName
+        let subdir = Directory.CreateDirectory "subd1"
+        let preserveDir = Directory.GetCurrentDirectory()
+        Directory.SetCurrentDirectory subdir.FullName
 
-    //     try
-    //         Directory.EnumerateFiles(".", "hello*.cs") |> Seq.iter File.Delete
+        try
+            do xake x.TestOptions {
+                rules [
+                    "main" <== ["../subd1/a.ss"]
+                    "../subd1/a.ss" ..> action {
+                        do! trace Error "Running inside 'a.ss' rule"
+                        needExecuteCount := !needExecuteCount + 1
+                        do! writeText "ss"
+                    }
+                ]
+            }
 
-    //         File.WriteAllText("hello.cs", "empty file")
-        
-    //         do xake x.TestOptions {
-    //             rules [
-    //                 "main" <== ["../subd1/a.ss"]
-    //                 "../subd1/a.ss" ..> action {
-    //                     let! outName = getTargetFullName()
-    //                     do! trace Error "Running inside 'a.ss' rule"
-    //                     needExecuteCount := !needExecuteCount + 1
-    //                     File.WriteAllText(outName, "ss")
-    //                 }
-    //             ]
-    //         }
+            Assert.AreEqual(1, !needExecuteCount)
 
-    //         Assert.AreEqual(1, !needExecuteCount)
-
-    //     finally
-    //         System.Environment.CurrentDirectory <- preserve_dir
+        finally
+            Directory.SetCurrentDirectory preserveDir
 
     [<Test()>]
     member x.``groups in rule pattern``() =
