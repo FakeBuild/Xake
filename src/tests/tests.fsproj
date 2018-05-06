@@ -7,12 +7,13 @@
   <ItemGroup>
     <Compile Include="Common.fs" />
     <Compile Include="XakeTestBase.fs" />
-    <!-- <Compile Include="RecipeTests.fs" />
+    <Compile Include="RecipeTests.fs" />
+    <!--
     <Compile Include="PathTests.fs" />
     <Compile Include="FilesetTests.fs" />
     <Compile Include="ScriptErrorTests.fs" />
-    <Compile Include="XakeScriptTests.fs" />
-    <Compile Include="MiscTests.fs" /> -->
+    <Compile Include="XakeScriptTests.fs" /> -->
+    <Compile Include="MiscTests.fs" />
     <Compile Include="StorageTests.fs" />
     <Compile Include="FileTasksCopy.fs" />
     <Compile Include="FileTasksTests.fs" />
