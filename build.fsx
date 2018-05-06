@@ -109,7 +109,14 @@ do xakeScript {
 
         "out/Xake.(ver:*).nupkg" ..> recipe {
             let! ver = getRuleMatch("ver")
-            do! dotnet ["pack"; "src/core"; "-c"; "Release"; "/p:Version=" + ver ]
+            do! dotnet
+                  [
+                      "pack"; "src/core"
+                      "-c"; "Release"
+                      "/p:Version=" + ver
+                      "--output"; "../../out/"
+                      "/p:DocumentationFile=Xake.xml"
+                  ]
         }
 
         // push need pack to be explicitly called in advance

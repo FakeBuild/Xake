@@ -6,7 +6,7 @@ install:
   - dotnet restore build.proj
 script:
   - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5-api/
-  - dotnet fake run build.fsx -- build test
+  - dotnet fake run build.fsx -- build test -ll Diag
   - dotnet fake run build.fsx -- pack push -ll Diag
 deploy:
   - provider: script
