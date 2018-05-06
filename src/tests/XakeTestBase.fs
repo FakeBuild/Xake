@@ -35,4 +35,4 @@ type XakeTestBase(folder) =
 
     [<SetUp>]
     member __.SetupTest () =
-        "." </> ".xake" |> File.Delete
+        try File.Delete("." </> ".xake") with _ -> ()
