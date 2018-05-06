@@ -11,7 +11,7 @@ let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; Con
 
 
 // TODO make correct test
-[<Test; Platform("Win"); Explicit("Windows specific")>]
+[<Test; Platform("Win")>]
 let ``shell``() =
     File.Delete("." </> ".xake")
 

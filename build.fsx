@@ -63,7 +63,10 @@ do xakeScript {
               getVar("FILTER")
               |> Recipe.map (function |Some clause -> ["--filter"; sprintf "Name~\"%s\"" clause] | None -> [])
 
-            do! dotnet <| ["test"; "src/tests"; "-c"; "Release"] @ where
+            // in case of travis only run tests for standard runtime, eventually will add more
+            let! limitFwk = getEnv("TRAVIS") |> Recipe.map (function | Some _ -> ["-f:netcoreapp2.0"] | _ -> [])
+
+            do! dotnet <| ["test"; "src/tests"; "-c"; "Release"] @ where @ limitFwk
         }
 
         libtargets *..> recipe {
