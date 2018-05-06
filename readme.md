@@ -54,12 +54,12 @@ Make sure dotnet SDK 2.0+ is installed.
 
 Once you cloned the repository you are ready to compile and test the binaries:
 
-    ```
-    dotnet restore build.proj
-    dotnet fake run build.fsx -- build test
-    ```
+```
+dotnet restore build.proj
+dotnet fake run build.fsx -- build test
+```
 
-    ... or use `build.cmd` (`build.sh`) in the root folder
+... or use `build.cmd` (`build.sh`) in the root folder
 
 ## Getting started for Mono on Linux/OSX
 

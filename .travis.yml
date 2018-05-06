@@ -1,12 +1,11 @@
 language: csharp
 mono: latest
 dotnet: 2.1.105
-env:
-  - VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}; else echo 0.0.0; fi;)
-  - FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5-api/
+env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}; else echo 0.0.0; fi;)
 install:
   - dotnet restore build.proj
 script:
+  - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5-api/
   - dotnet fake run build.fsx -- build test pack -ll Diag
 deploy:
   - provider: releases
