@@ -1,10 +1,9 @@
 language: csharp
-solution: xake.sln
 dotnet: 2.1.105
-env: VERSION=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}; else echo 0.0.0; fi;)
+env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}; else echo 0.0.0; fi;)
 script:
   - dotnet restore build.proj
-  - dotnet fake run build.fsx -- build test pack -d VER=${VERSION}
+  - dotnet fake run build.fsx -- build test pack -ll Diag
 deploy:
   - provider: releases
     file:
