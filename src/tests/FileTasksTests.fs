@@ -1,4 +1,4 @@
-﻿module ``File tasks module``
+﻿namespace Tests
 
 open System.IO
 open NUnit.Framework
@@ -6,94 +6,80 @@ open NUnit.Framework
 open Xake
 open Xake.Tasks
 
-let private rememberDir = Directory.GetCurrentDirectory()
-let private outFolder = rememberDir </> "~testout~" </> "files"
+[<TestFixture>]
+type ``File tasks module``() =
+    inherit XakeTestBase("files")
 
-[<OneTimeSetUp>]
-let setup () =
-    Directory.CreateDirectory outFolder |> ignore
-    Directory.SetCurrentDirectory outFolder
+    [<Test>]
+    member x.``allows delete file``() =
 
-[<OneTimeTearDown>]
-let teardown () =
-    Directory.SetCurrentDirectory rememberDir
+        let execCount = ref 0
+        do xake x.TestOptions {
+            rules [
+                "main" => action {
+                    execCount := !execCount + 1
+                    do! need ["samplefile"]
+                    File.Exists "samplefile" |> Assert.True
+                    do! rm {file "samplefile"}
+                }
 
-[<SetUp>]
-let setupTest () =
-    try File.Delete("." </> ".xake") with _ -> ()
+                "samplefile" ..> writeText "hello world del"
+            ]
+        }
 
-let TestOptions = {ExecOptions.Default with Threads = 1; Targets = ["main"]; ConLogLevel = Chatty; FileLogLevel = Silent; ProjectRoot = outFolder}
+        Assert.AreEqual(1, !execCount)
+        File.Exists "samplefile" |> Assert.False
 
-[<Test>]
-let ``allows delete file``() =
+    [<Test>]
+    member x.``allows delete file by mask``() =
+        let execCount = ref 0
+        
+        do xake x.TestOptions {
+            rules [
+                "main" => action {
+                    do! need ["$$1"; "$$2"]
+                    File.Exists "$$2" |> Assert.True
+                    do! rm {file "$$*"}
+                    execCount := !execCount + 1
+                }
 
-    let execCount = ref 0
-    do xake TestOptions {
-        rules [
-            "main" => action {
-                execCount := !execCount + 1
-                do! need ["samplefile"]
-                File.Exists "samplefile" |> Assert.True
-                do! rm {file "samplefile"}
-            }
+                "$$*" ..> writeText "hello world"
+            ]
+        }
 
-            "samplefile" ..> writeText "hello world del"
-        ]
-    }
+        Assert.AreEqual(1, !execCount)
+        ["$$1"; "$$2"] |> List.iter (File.Exists >> Assert.False)
 
-    Assert.AreEqual(1, !execCount)
-    File.Exists "samplefile" |> Assert.False
+    [<Test>]
+    member x.``allows to delete by several masks``() =
+        do xake x.TestOptions {
+            rules [
+                "main" => action {
+                    do! need ["$aa"; "$bb"]
+                    File.Exists ("$bb") |> Assert.True
+                    do! rm {file "$aa"}
+                    do! rm {file "$b*"}
+                }
 
-[<Test>]
-let ``allows delete file by mask``() =
-    let execCount = ref 0
-    
-    do xake TestOptions {
-        rules [
-            "main" => action {
-                do! need ["$$1"; "$$2"]
-                File.Exists "$$2" |> Assert.True
-                do! rm {file "$$*"}
-                execCount := !execCount + 1
-            }
+                "$*" ..> writeText "hello world"
+            ]
+        }
 
-            "$$*" ..> writeText "hello world"
-        ]
-    }
+        ["$aa"; "$bb"] |> List.iter (File.Exists >> Assert.False)
 
-    Assert.AreEqual(1, !execCount)
-    ["$$1"; "$$2"] |> List.iter (File.Exists >> Assert.False)
+    [<Test>]
+    member x.``supports simple file copy``() =
+        do xake x.TestOptions {
+            rules [
+                "main" => action {
+                    do! trace Error "Running inside 'main' rule"
+                    do! need ["aaa"; "clean"]
+                    do! copyFile "aaa" "aaa-copy"
+                }
 
-[<Test>]
-let ``allows to delete by several masks``() =
-    do xake TestOptions {
-        rules [
-            "main" => action {
-                do! need ["$aa"; "$bb"]
-                File.Exists ("$bb") |> Assert.True
-                do! rm {file "$aa"}
-                do! rm {file "$b*"}
-            }
+                "clean" => rm {file "aaa-copy"}
+                "aaa" ..> writeText "hello world"
+            ]
+        }
 
-            "$*" ..> writeText "hello world"
-        ]
-    }
-
-    ["$aa"; "$bb"] |> List.iter (File.Exists >> Assert.False)
-
-[<Test>]
-let ``supports simple file copy``() =
-    do xake TestOptions {
-        rules [
-            "main" => action {
-                do! trace Error "Running inside 'main' rule"
-                do! need ["aaa"; "clean"]
-                do! copyFile "aaa" "aaa-copy"
-            }
-
-            "clean" => rm {file "aaa-copy"}
-            "aaa" ..> writeText "hello world"
-        ]
-    }
-
-    File.Exists "aaa-copy" |> Assert.True
+        File.Exists "aaa-copy" |> Assert.True
