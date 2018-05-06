@@ -1,4 +1,3 @@
 #!/bin/bash
-mono .paket/paket.bootstrapper.exe
-mono .paket/paket.exe install
-fsharpi build.fsx $*
+dotnet restore build.proj
+dotnet fake run build.fsx -- build

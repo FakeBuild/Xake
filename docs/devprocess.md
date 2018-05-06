@@ -41,13 +41,27 @@ Example of selective test run:
 
 ```
 dotnet test -f:net46 --filter Name~"Rm deletes"
+dotnet fake run build.fsx -- test -d FILTER=Rm
 ```
 
 ## Publishing
 
+The commands below assume you've defined `NUGET_KEY` in environment variables.
+
 ```
-dotnet fake run build.fsx -- build -d VER=1.2.3
-dotnet pack -c Release /p:PackageVersion=1.2.3 --version-suffix alpha4
-paket push --url https://www.nuget.org/api/v2/package <package_name> --api-key <nuget_key>
+dotnet fake run build.fsx -- pack -d VER=1.2.3
+dotnet fake run build.fsx -- push -d VER=1.2.3
+```
+
+> Define `SUFFIX` variable set to empty for final releases. Otherwise it defaults to `-alpha`
+
+### Not using build.fsx
+
+Here're the commands issues by a build script.
+> Do not use for publishing. This is just for reference.
+
+```
+dotnet pack -c Release /p:Version=1.2.3-alpha4
+dotnet nuget push out\Xake.1.0.6.344-alpha.nupkg --source https://www.nuget.org/api/v2/package --api-key %NUGET_KEY%
 
 ```

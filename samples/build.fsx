@@ -1,6 +1,9 @@
 #r "paket:
     nuget Xake ~> 1.0 prerelease //"
-#load "./.fake/build.fsx/intellisense.fsx"
+
+#if !FAKE
+#load ".fake/build.fsx/intellisense.fsx"
+#endif
 
 // This a sample Xake script to show off some features.
 //

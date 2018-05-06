@@ -8,27 +8,31 @@
 open Xake
 open Xake.Tasks
 
-let XakeDll, XakeXml = "out/netstandard2.0/Xake.dll", "out/netstandard2.0/Xake.xml"
-let (=?) value deflt = match value with |Some v -> v |None -> deflt
+let frameworks = ["netstandard2.0"; "net46"]
+let libtargets =
+    [ for t in frameworks do
+      for e in ["dll"; "xml"]
+        -> sprintf "out/%s/Xake.%s" t e
+    ]
 
-let getVer () = recipe {
+let getVersion () = recipe {
     let! verVar = getVar("VER")
     let! ver = getEnv("VER")
-    return verVar =? (ver =? "0.0.1")
+    return verVar |> Option.defaultValue (ver |> Option.defaultValue "0.0.1")
 }
 
 let makePackageName () = recipe {
-    let! ver = getVer()
-    return sprintf "Xake.%s.nupkg" ver
-}
+    let! ver = getVersion()
+    let! verSuffix =
+        getVar("SUFFIX")
+        |> Recipe.map (
+            function
+            | None -> "-alpha"
+            | Some "" -> "" // this is release!
+            | Some s -> "-" + s
+            )
 
-let paket arglist = recipe {
-    do! shell {
-        useclr
-        cmd ".paket/paket.exe"
-        args arglist
-        failonerror
-        } |> Recipe.Ignore
+    return sprintf "Xake.%s%s.nupkg" ver verSuffix
 }
 
 let dotnet arglist = recipe {
@@ -49,20 +53,20 @@ do xakeScript {
             do! need ["test"]
             }
 
-        "build" <== [XakeDll; XakeXml]
-        "clean" => rm {file "out/*.*"}
+        "build" <== libtargets
+        "clean" => rm {dir "out"}
 
         "test" => recipe {
             do! alwaysRerun()
 
-            // let! where = getVar("WHERE")
-            // let whereArgs = where |> function | Some clause -> ["--filter"; clause] | None -> []
-            // TODO filters            
+            let! where =
+              getVar("FILTER")
+              |> Recipe.map (function |Some clause -> ["--filter"; sprintf "Name~\"%s\"" clause] | None -> [])
 
-            do! dotnet ["test"; "src/tests"; "-c"; "Release"]
+            do! dotnet <| ["test"; "src/tests"; "-c"; "Release"] @ where
         }
 
-        [XakeDll; XakeXml] *..> recipe {
+        libtargets *..> recipe {
 
             let! allFiles
                 = getFiles <| fileset {
@@ -74,46 +78,49 @@ do xakeScript {
 
             do! needFiles allFiles
 
-            // todo set output folder from script (in here) to increase cohesion
-            do! dotnet ["build"; "src/core"; "-c"; "Release"]
+            for framework in frameworks do
+                do! dotnet
+                        [
+                            "build"
+                            "src/core"
+                            "--configuration"; "Release"
+                            "--framework"; framework
+                            "--output"; "../../out/" + framework
+                            "/p:DocumentationFile=Xake.xml"
+                        ]
         }
 
         "src/core/VersionInfo.fs" ..> recipe {
             
-            let! version = getVer()
+            let! version = getVersion()
             do! writeText <| sprintf "module Xake.Const [<Literal>]  let internal Version = \"%s\"" version
         }
     ]
 
     (* Nuget publishing rules *)
     rules [
-        "nuget-pack" => recipe {
+        "pack" => recipe {
             let! package_name = makePackageName ()
-            do! need ["bin" </> package_name]
+            do! need ["out" </> package_name]
         }
 
         "out/Xake.(ver:*).nupkg" ..> recipe {
-            do! need [XakeDll; XakeXml]
             let! ver = getRuleMatch("ver")
-
-            // "module Xake.Const [<Literal>]  let internal Version = \"$VER.$TRAVIS_BUILD_NUMBER\"" >./core/VersionInfo.fs
-
-            // TODO set version in assembly-info
-            do! dotnet ["pack"; "-c"; "Release"; "/p:Version=" + ver ]
+            do! dotnet ["pack"; "src/core"; "-c"; "Release"; "/p:Version=" + ver ]
         }
 
-        "nuget-push" => recipe {
+        // push need pack to be explicitly called in advance
+        "push" => recipe {
 
             let! package_name = makePackageName ()
-            do! need [package_name]
 
             let! nuget_key = getEnv("NUGET_KEY")
-            do! paket
+            do! dotnet
                   [
-                    "push"
-                    "--url"; "https://www.nuget.org/api/v2/package"
-                    package_name
-                    "--api-key"; nuget_key =? ""
+                    "nuget"; "push"
+                    "out" </> package_name
+                    "--source"; "https://www.nuget.org/api/v2/package"
+                    "--api-key"; nuget_key |> Option.defaultValue ""
                   ]
         }
     ]

@@ -13,6 +13,7 @@ See [documentation](docs/overview.md) for more details.
 ## The script
 
 The simple script looks like:
+
 ```fsharp
 #r @"Xake.dll"
 
@@ -26,44 +27,50 @@ do xakeScript {
         let! exe = getTargetFullName()
         do! csc {src !!(exe -. "cs")}
     }
-  ]    
+  ]
 }
 ```
 
 This script compiles helloworld assembly from helloworld.cs file.
 
-## Getting started (Mono on Linux/OSX)
+## Getting started
 
-Make sure mono with F# is installed and root certificates are imported:
-```
-sudo apt-get install mono-complete
-sudo mozroots --import --sync
-```
-
-Follow the steps to compile binaries and get familiar with scripts:
+Make sure dotnet SDK 2.0+ is installed.
 
 1. Clone the project:
 
-    `git clone http://github.com/olegzee/xake`
-1. Build the xake.core dll (to xake/bin folder):
+    ```
+    git clone http://github.com/olegzee/xake
+    ```
+1. Run the "Hello world" build sctipt:
+
+    ```
+    cd samples
+    dotnet restore dotnet-fake.csproj
+    dotnet fake run build.fsx
+    ```
+
+## Build the project
+
+Once you cloned the repository you are ready to compile and test the binaries:
 
     ```
     dotnet restore build.proj
     dotnet fake run build.fsx -- build test
     ```
-1. Now compile the C# "Hello world" application:
 
-    ```
-    cd samples/csc
-    fsharpi helloworld.fsx
-    ```
+    ... or use `build.cmd` (`build.sh`) in the root folder
 
-## Getting started (Windows)
-The build steps for **Windows** are similar to Mono's with a couple differences:
+## Getting started for Mono on Linux/OSX
 
-  * open "Developer Command Prompt for VS..." console (so that path points to .NET tool directory)
-  * change slashes to a backslashes
-  * use `fsi` instead of `fsharpi` to run f# scripts
+Make sure mono with F# is installed and root certificates are imported:
+
+```
+sudo apt-get install mono-complete
+sudo mozroots --import --sync
+```
+
+TBD
 
 ## Documentation
 
@@ -71,10 +78,11 @@ See [documentation](docs/overview.md) for more details.
 
 ## References
 
-  * [implementation notes](docs/implnotes.md)
-  * [Shake manual](https://github.com/ndmitchell/shake/blob/master/docs/Manual.md)
+* [implementation notes](docs/implnotes.md)
+* [Shake manual](https://github.com/ndmitchell/shake/blob/master/docs/Manual.md)
 
 ## Mono on OSX troubleshooting
+
 Xake requires 'pkg-config' to locate mono runtime. Pkg-config utility is deployed with mono, but it's not included in
 $PATH. The options available are described on [monobjc mailing list](http://www.mail-archive.com/users@lists.monobjc.net/msg00235.html)
 
