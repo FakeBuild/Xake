@@ -379,8 +379,6 @@ let ``target could be a relative2``() =
     finally
         System.Environment.CurrentDirectory <- preserveDir
 
-#endif
-
 [<Test>]
 let ``executes several dependent rules``() =
 
