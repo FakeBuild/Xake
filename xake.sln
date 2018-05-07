@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.14
+VisualStudioVersion = 15.0.26730.10
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{C5FB2DCA-B737-43D0-92F3-4D2CE03CD022}"
 	ProjectSection(SolutionItems) = preProject
@@ -9,25 +9,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{C5FB2D
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5DF9487A-79E1-412A-BF67-5F02999A1988}"
 	ProjectSection(SolutionItems) = preProject
-		samples\bootstrap-build.fsx = samples\bootstrap-build.fsx
 		samples\build-parms.fsx = samples\build-parms.fsx
 		samples\build.fsx = samples\build.fsx
 		samples\catch_errors.fsx = samples\catch_errors.fsx
-		samples\colors.fsx = samples\colors.fsx
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "csc", "csc", "{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD}"
-	ProjectSection(SolutionItems) = preProject
-		samples\csc\a.cs = samples\csc\a.cs
-		samples\csc\build.fsx = samples\csc\build.fsx
-		samples\csc\helloworld.fsx = samples\csc\helloworld.fsx
-		samples\csc\hw-net2-net4.fsx = samples\csc\hw-net2-net4.fsx
-		samples\csc\hwmono.fsx = samples\csc\hwmono.fsx
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "msbuild", "msbuild", "{217A4EC0-6FF7-40E9-9E0C-12B0DF1B8BA7}"
-	ProjectSection(SolutionItems) = preProject
-		samples\msbuild\build.fsx = samples\msbuild\build.fsx
+		samples\example.fsx = samples\example.fsx
+		samples\mt.fsx = samples\mt.fsx
+		samples\multitarget.fsx = samples\multitarget.fsx
+		samples\rmdir.fsx = samples\rmdir.fsx
+		samples\trace.fsx = samples\trace.fsx
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Wiki", "Wiki", "{75E5F305-BC77-4A89-A1C8-3433E212A9E9}"
@@ -45,9 +34,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Project files", "Project fi
 		core\inner-examples.fsx = core\inner-examples.fsx
 	EndProjectSection
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Xake", "src\core\Xake.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Xake", "src\core\Xake.fsproj", "{6B39C22F-6741-428D-B21A-33580AF7BD8E}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "XakeLibTests", "src\tests\tests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "tests", "src\tests\tests.fsproj", "{5B7A9196-F7F9-47E6-ABC7-381432F613B2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -67,10 +56,8 @@ Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{4A657E43-9D03-4C2F-8D2C-D1F265ACDFBD} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
-		{B8F979DC-5E33-4025-AF54-973BC401C30F} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
-		{217A4EC0-6FF7-40E9-9E0C-12B0DF1B8BA7} = {5DF9487A-79E1-412A-BF67-5F02999A1988}
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D3EA0943-1F1D-4B36-A3F6-CED3B0B2D145}
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = core\XakeLib.fsproj

@@ -4,7 +4,8 @@
 /// Gets true if script is executed under Mono framework.
 /// </summary>
 let isRunningOnMono =
-  System.Type.GetType ("Mono.Runtime") <> null
+  System.Type.GetType ("Mono.Runtime")
+  |> function | null -> false | _ -> true
 
 /// <summary>
 /// Gets true if running under Unix/OSX (well, linux too).

@@ -15,18 +15,15 @@ See [documentation](docs/overview.md) for more details.
 The simple script looks like:
 
 ```fsharp
-#r @"Xake.dll"
-
+#r "paket: nuget Xake ~> 1.0 prerelease //"
 open Xake
+open Xake.Tasks.Dotnet
 
 do xakeScript {
   rules [
-    "main" ==> ["helloworld.exe"]
+    "main" <== ["helloworld.exe"]
 
-    "*.exe" ..> recipe {
-        let! exe = getTargetFullName()
-        do! csc {src !!(exe -. "cs")}
-    }
+    "helloworld.exe" ..> csc {src !!"helloworld.cs"}
   ]
 }
 ```
@@ -47,8 +44,14 @@ Make sure dotnet SDK 2.0+ is installed.
     ```
     cd samples
     dotnet restore dotnet-fake.csproj
-    dotnet fake run build.fsx
+    dotnet fake run gettingstarted.fsx
     ```
+1. Run the showcase script:
+
+    ```
+    dotnet fake run features.fsx
+    ```
+    
 
 ## Build the project
 

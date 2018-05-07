@@ -51,7 +51,7 @@ module DotNetFwk =
     module internal registry =
 
         open Microsoft.Win32
-        let HKLM = Registry.LocalMachine
+        let HKLM () = Registry.LocalMachine
 
         let open_subkey (hive:RegistryKey) key  = match hive.OpenSubKey(key) with | null -> None | k -> Some k
         let get_value key (hive:RegistryKey)    = match hive.GetValue(key) with |null -> None | v -> Some v
@@ -61,7 +61,6 @@ module DotNetFwk =
     // a set of functions and structures to detect Mono framework location
     module internal monoFwkImpl =
 
-        open Xake
         open registry
 
         let tryLocateFwk fwk : option<FrameworkInfo> * string =
@@ -80,14 +79,14 @@ module DotNetFwk =
                     let MonoProbeKeys = [@"SOFTWARE\Wow6432Node\Novell\Mono"; @"SOFTWARE\Novell\Mono"]
                     let Mono48ProbeKeys = [@"SOFTWARE\Wow6432Node\Mono"; @"SOFTWARE\Mono"]
 
-                    MonoProbeKeys |> List.tryPick (open_subkey HKLM)
+                    MonoProbeKeys |> List.tryPick (open_subkey <| HKLM ())
                     |>
                     function
                     | Some key ->
                         let monover = key |> registry.get_value_str "DefaultCLR"
                         monover |> Option.bind (open_subkey key)
                     | _ ->
-                        Mono48ProbeKeys |> List.tryPick (open_subkey HKLM)
+                        Mono48ProbeKeys |> List.tryPick (open_subkey <| HKLM ())
                     |>
                     function
                     | Some monokey ->
@@ -148,12 +147,12 @@ module DotNetFwk =
                     | None -> ["4.1"; "4.0"; "3.1"; "3.0"]
                     | Some v -> [v]
                 |> tryUntil (
-                    sprintf @"SOFTWARE\Wow6432Node\Microsoft\FSharp\%s\Runtime\v4.0" >> registry.open_subkey registry.HKLM
+                    sprintf @"SOFTWARE\Wow6432Node\Microsoft\FSharp\%s\Runtime\v4.0" >> registry.open_subkey (registry.HKLM())
                 )
                 |> Option.bind (registry.get_value_str "")
                 |> Option.map (fun p -> p </> "fsc.exe")
  
-            let fwkKey = open_subkey HKLM @"SOFTWARE\Microsoft\.NETFramework"
+            let fwkKey = open_subkey (HKLM()) @"SOFTWARE\Microsoft\.NETFramework"
             let installRoot_ = fwkKey |> Option.bind (get_value_str "InstallRoot")
             let installRoot = installRoot_ |> Option.get    // TODO gracefully fail
 
