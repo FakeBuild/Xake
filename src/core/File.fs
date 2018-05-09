@@ -21,7 +21,9 @@ type File = T of string * System.IO.FileInfo with
     // Note the Name used in application output for better readability
 
     member f.Name = let (T (n,_)) = f in n
-    member f.FullName = let (T (_,f)) = f in if f = null then "" else f.FullName
+    member f.FullName = let (T (_,f)) = f in f |> function |null -> "" |_ -> f.FullName
+
+    static member undefined = T ("",null)
 
     interface System.IComparable with
         member x.CompareTo yobj =
@@ -34,7 +36,8 @@ type File = T of string * System.IO.FileInfo with
         | :? File as y -> 0 = compareNames x.FullName y.FullName
         | _ -> false
     override x.GetHashCode() =
-        x |> (function |undefined -> "" |_ -> x.FullName) |> getFileHash
+        if x = File.undefined then "" else x.FullName
+        |> getFileHash
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module File =
@@ -64,5 +67,3 @@ module File =
     let getFullName (f:File) = f.FullName
     let exists (f:File) = BclFile.Exists f.FullName
     let getLastWriteTime (f:File) = BclFile.GetLastWriteTime f.FullName
-
-    let undefined = T ("",null)

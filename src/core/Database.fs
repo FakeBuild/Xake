@@ -31,7 +31,6 @@ module Storage =
     open BuildLog
     
     module private Persist = 
-        open System
         open Pickler
 
         type DatabaseHeader = 
@@ -45,8 +44,8 @@ module Storage =
             alt (function 
                 | FileTarget _ -> 0
                 | PhonyAction _ -> 1) 
-                [|  wrap (File.make >> FileTarget, fun (FileTarget f) -> f.Name) str
-                    wrap (PhonyAction, (fun (PhonyAction a) -> a)) str |]
+                [|  wrap (File.make >> FileTarget, fun (FileTarget f | OtherwiseFail f) -> f.Name) str
+                    wrap (PhonyAction, (fun (PhonyAction a | OtherwiseFail a) -> a)) str |]
         
         let step = 
             wrap 
@@ -62,12 +61,12 @@ module Storage =
                 | Var _ -> 3
                 | AlwaysRerun _ -> 4
                 | GetFiles _ -> 5) 
-                [| wrap (ArtifactDep, fun (ArtifactDep f) -> f) target                   
-                   wrap (FileDep, fun (FileDep(f, ts)) -> (f, ts))  (pair file date)                   
-                   wrap (EnvVar, fun (EnvVar(n, v)) -> n, v)  (pair str (option str))
-                   wrap (Var, fun (Var(n, v)) -> n, v)        (pair str (option str))
+                [| wrap (ArtifactDep, fun (ArtifactDep f | OtherwiseFail f) -> f) target                   
+                   wrap (FileDep, fun (FileDep(f, ts) | OtherwiseFail (f, ts)) -> (f, ts))  (pair file date)                   
+                   wrap (EnvVar, fun (EnvVar(n, v) | OtherwiseFail (n,v)) -> n, v)  (pair str (option str))
+                   wrap (Var, fun (Var(n, v)| OtherwiseFail (n,v)) -> n, v)        (pair str (option str))
                    wrap0 AlwaysRerun                   
-                   wrap (GetFiles, fun (GetFiles(fs, fi)) -> fs, fi)  (pair filesetPickler filelistPickler) |]
+                   wrap (GetFiles, fun (GetFiles(fs, fi)| OtherwiseFail (fs,fi)) -> fs, fi)  (pair filesetPickler filelistPickler) |]
         
         let result = 
             wrap 

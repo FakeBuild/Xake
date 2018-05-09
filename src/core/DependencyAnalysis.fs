@@ -74,7 +74,7 @@ let getChangeReasons ctx getTargetDeps target =
     let collapseFilesChanged reasons =
         let files, other = reasons |> List.partition (fst >> function | ChangeReason.FilesChanged _ -> true | _ -> false)
         let filesChangedDbg = files |> List.collect (snd >> Option.toList)
-        let filesChanged = files |> List.collect (fst >> fun (FilesChanged files) -> files) |> function | [] -> [] | ls -> [FilesChanged ls, Some (sprintf "%A" filesChangedDbg)]
+        let filesChanged = files |> List.collect (fst >> fun (FilesChanged files | OtherwiseFail files) -> files) |> function | [] -> [] | ls -> [FilesChanged ls, Some (sprintf "%A" filesChangedDbg)]
         in
         filesChanged @ other |> List.rev
 
@@ -150,7 +150,7 @@ let dumpDeps (ctx: ExecContext) (target: Target list) =
         | Var (name,value) ->
             printfn "%sScript var: '%s' = %A" (indent ii) name value
 
-        | GetFiles (fileset,files) ->
+        | GetFiles (fileset, _) ->
             printfn "%sGetFiles: %A" (indent ii) fileset
         | _ ->
             ()

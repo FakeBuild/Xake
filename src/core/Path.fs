@@ -15,9 +15,7 @@ module Path =
         | Recurse
         | FileMask of string
         | FileName of string
-        // IDEA | Named of string * PatternPart
 
-    // TODO NoComparison, NoEquality
     type PathMask = PathMask of Part list
 
     type MatchResult =
@@ -107,16 +105,19 @@ module Path =
                 | Directory _ -> 4
                 | Recurse -> 5
                 | FileMask _ -> 6
-                | FileName _ -> 7)
+                | FileName _ -> 7
+                | CurrentDir -> 8
+                )
               [|
                 wrap0 FsRoot
                 wrap0 Parent
-                wrap (Disk, fun (Disk d) -> d) str
-                wrap (DirectoryMask, fun (DirectoryMask d) -> d) str
-                wrap (Directory, fun (Directory d) -> d) str
+                wrap (Disk, fun (Disk d | OtherwiseFail d) -> d) str
+                wrap (DirectoryMask, fun (DirectoryMask d | OtherwiseFail d) -> d) str
+                wrap (Directory, fun (Directory d | OtherwiseFail d) -> d) str
                 wrap0 Recurse
-                wrap (FileMask, fun (FileMask m) -> m) str
-                wrap (FileName, fun (FileName m) -> m) str
+                wrap (FileMask, fun (FileMask m | OtherwiseFail m) -> m) str
+                wrap (FileName, fun (FileName m | OtherwiseFail m) -> m) str
+                wrap0 CurrentDir
               |]
 
         let pattern = wrap(PathMask, fun(PathMask pp) -> pp) (list patternpart)

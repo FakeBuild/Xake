@@ -6,7 +6,6 @@ open NUnit.Framework
 open Xake
 open Xake.Tasks
 open Storage
-open System.Net.Mail
 
 type Runtime = {Ver: string; Folder: string}
 
@@ -261,7 +260,7 @@ type ``XakeScript tests``() =
             map |> Map.isEmpty |> Assert.IsTrue
         else
             let expected = expect.Split(';') |> Array.map (fun s -> let pp = s.Split(':') in pp.[0],pp.[1])
-            let leaveNamedGroups (k:string) v = not (System.Char.IsDigit k.[0])
+            let leaveNamedGroups (k:string) _ = not (System.Char.IsDigit k.[0])
             Assert.That(map |> Map.filter leaveNamedGroups |> Map.toArray, Is.EquivalentTo(expected))
 
     [<TestCase("dd/a.dll", "dd/*.dll;dd/*.xml", "dd/a.dll;dd/a.xml", TestName="Simple case")>]
@@ -469,7 +468,7 @@ type ``XakeScript tests``() =
                 }
                 when System.IO.Path.GetFileName(fileDep.Name) = "bbb.c" && depDate = cdate
                 -> true
-            | a -> false
+            | _ -> false
             |> Assert.True
 
             match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test1"), ch) with
@@ -513,11 +512,12 @@ type ``XakeScript tests``() =
 
         use db = Storage.openDb "./.xake" logger
         try
-            let (Some {Steps = step1::_}) = db <-* (PhonyAction "main")
-            Assert.That(step1.WaitTime, Is.GreaterThanOrEqualTo(370))
-
-            let raaa = db <-* (PhonyAction "aaa")
-            printfn "%A" raaa
+            match db <-* (PhonyAction "main") with
+            | Some {Steps = step1::_} ->
+                Assert.That(step1.WaitTime, Is.GreaterThanOrEqualTo(370))
+                let raaa = db <-* (PhonyAction "aaa")
+                printfn "%A" raaa
+            |_ -> Assert.Fail "no results from db"
         finally
             db.PostAndReply CloseWait
 

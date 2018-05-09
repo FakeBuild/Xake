@@ -9,6 +9,8 @@ type File =
     member Name : string
     member FullName : string
 
+    static member undefined: File
+
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module File =
 
@@ -32,6 +34,3 @@ module File =
 
     /// Get the file modification time
     val getLastWriteTime: File -> System.DateTime
-
-    /// Get the instance indicating the file is not specified.
-    val undefined: File

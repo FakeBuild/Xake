@@ -77,7 +77,7 @@ module Fileset =
             let filterFile = if isExplicitRule then id else Seq.filter File.Exists
 
             // Recursively applies the pattern rules to every item is start list
-            let applyPart (paths:#seq<string>) = function
+            let applyPart (paths: seq<string>) :_ -> seq<string> = function
             | Disk d          -> fs.GetDisk d |> Seq.singleton
             | FsRoot          -> paths |> Seq.map fs.GetDirRoot
             | CurrentDir      -> paths
@@ -148,8 +148,8 @@ module Fileset =
           alt
             (function | Includes _ -> 0 | Excludes _ -> 1)
             [|
-              wrap (Includes, fun (Includes p) -> p) Path.pickler
-              wrap (Excludes, fun (Excludes p) -> p) Path.pickler
+              wrap (Includes, fun (Includes p | OtherwiseFail p) -> p) Path.pickler
+              wrap (Excludes, fun (Excludes p | OtherwiseFail p) -> p) Path.pickler
             |]
 
         let fileinfo = wrap(File.make, File.getFullName) str
@@ -184,16 +184,14 @@ module Fileset =
     let (~+) dir =
         Fileset ({DefaultOptions with BaseDir = Some dir}, [])
 
-    type private obsolete = System.ObsoleteAttribute
-
-    [<obsolete("Use Path.parse instead")>]
+    [<System.Obsolete("Use Path.parse instead")>]
     let parseFileMask = Path.parse
 
-    [<obsolete("Use Path.parseDir instead")>]
+    [<System.Obsolete("Use Path.parseDir instead")>]
     let parseDirMask = Path.parseDir
 
     // let matches filePattern projectRoot
-    [<obsolete("Use Path.matches instead")>]
+    [<System.Obsolete("Use Path.matches instead")>]
     let matches = Path.matches
 
     let FileSystem = Impl.FileSystem
@@ -259,40 +257,40 @@ module Fileset =
     type FilesetBuilder() =
 
         [<CustomOperation("failonempty")>]
-        member this.FailOnEmpty(fs,f) = fs |> changeFailonEmpty f
+        member __.FailOnEmpty(fs,f) = fs |> changeFailonEmpty f
 
         [<CustomOperation("basedir")>]
-        member this.Basedir(fs,dir) = fs |> changeBasedir dir
+        member __.Basedir(fs,dir) = fs |> changeBasedir dir
 
         [<CustomOperation("includes")>]
-        member this.Includes(fs:Fileset,pattern) = fs ++ pattern
+        member __.Includes(fs:Fileset,pattern) = fs ++ pattern
 
         [<CustomOperation("includesif")>]
-        member this.IncludesIf(fs:Fileset,condition, pattern:FilePattern) =    fs +? (condition,pattern)
+        member __.IncludesIf(fs:Fileset,condition, pattern:FilePattern) =    fs +? (condition,pattern)
 
         [<CustomOperation("join")>]
-        member this.JoinFileset(fs1, fs2) = fs1 |> Impl.combineWith fs2
+        member __.JoinFileset(fs1, fs2) = fs1 |> Impl.combineWith fs2
 
         [<CustomOperation("excludes")>]
-        member this.Excludes(fs:Fileset, pattern) = fs -- pattern
+        member __.Excludes(fs:Fileset, pattern) = fs -- pattern
 
         [<CustomOperation("excludesif")>]
-        member this.ExcludesIf(fs:Fileset, pattern) = fs -? pattern
+        member __.ExcludesIf(fs:Fileset, pattern) = fs -? pattern
 
         [<CustomOperation("includefile")>]
-        member this.IncludeFile(fs, file)  = (fs,file) ||> combineWithFile (Path.parse >> Includes)
+        member __.IncludeFile(fs, file)  = (fs,file) ||> combineWithFile (Path.parse >> Includes)
 
         [<CustomOperation("excludefile")>]
-        member this.ExcludeFile(fs,file)    = (fs,file) ||> combineWithFile (Path.parse >> Excludes)
+        member __.ExcludeFile(fs,file)    = (fs,file) ||> combineWithFile (Path.parse >> Excludes)
 
-        member this.Yield(())    = Empty
-        member this.Return(pattern:FilePattern) = Empty ++ pattern
+        member __.Yield(())    = Empty
+        member __.Return(pattern:FilePattern) = Empty ++ pattern
 
-        member this.Combine(fs1, fs2) = fs1 |> Impl.combineWith fs2
-        member this.Delay(f) = f()
+        member __.Combine(fs1, fs2) = fs1 |> Impl.combineWith fs2
+        member __.Delay(f) = f()
         member this.Zero() = this.Yield ( () )
 
-        member x.Bind(fs1:Fileset, f) = let fs2 = f() in fs1 |> Impl.combineWith fs2
+        member __.Bind(fs1:Fileset, f) = let fs2 = f() in fs1 |> Impl.combineWith fs2
         member x.For(fs, f) = x.Bind(fs, f)
         member x.Return(a) = x.Yield(a)
 

@@ -37,7 +37,7 @@ module internal WindowsProgress =
         Activator.CreateInstance ty :?> ITaskbarList3
 
     [<DllImport "user32.dll">] 
-    extern IntPtr FindWindow(string lpClassName,string lpWindowName)
+    extern IntPtr FindWindow(string (*lpClassName*),string (*lpWindowName*))
 
     /// <summary>
     /// Creates a Windows 7 taskbar progress indicator
@@ -122,7 +122,7 @@ module Estimate =
 
             let mstate, endTime = execMany state getDurationDeps deps
             let slot = mstate.Cpu |> nearest endTime
-            let Some (BusyUntil result), newState =
+            let (Some (BusyUntil result)|OtherwiseFail result), newState =
                 mstate.Cpu |> Impl.updateFirst ((=) slot) (readyAt >> max endTime >> (+) duration >> BusyUntil)
             {Cpu = newState; Tasks = mstate.Tasks |> Map.add task result}, result
 //        |> fun r ->

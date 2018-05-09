@@ -107,7 +107,7 @@ let ``compresses database when limit is reached``() =
         agent
 
     use testee = Storage.openDb dbname logger
-    for j in seq { 1..20 } do
+    for _ in seq { 1..20 } do
         for i in seq { 1..20 } do
             let name = sprintf "a%A.exe" i
             testee <-- Store(createResult name) |> ignore
@@ -133,9 +133,13 @@ let ``updates data in file storage``() =
     testee <-- Store updatedResult |> ignore
     testee.PostAndReply CloseWait
     use testee = Storage.openDb dbname logger
-    let (Some read) = testee <-* (mkFileTarget "abc")
-    testee.PostAndReply CloseWait
-    Assert.AreEqual([ Var("DEBUG", Some "true") ], read.Depends)
+    match testee <-* (mkFileTarget "abc") with
+    | Some read ->
+        testee.PostAndReply CloseWait
+        Assert.AreEqual([ Var("DEBUG", Some "true") ], read.Depends)
+    | None ->
+        Assert.Fail "No result from db"
+
 
 [<Test>]
 let ``restores db in case write failed``() =
