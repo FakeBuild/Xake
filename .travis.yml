@@ -1,6 +1,6 @@
 language: csharp
 mono: latest
-dotnet: 2.1.105
+dotnet: 2.1.200
 env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}.${TRAVIS_BUILD_NUMBER}; else echo 1.0.0.${TRAVIS_BUILD_NUMBER}; fi;)
 install:
   - dotnet restore build.proj
