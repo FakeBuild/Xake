@@ -29,7 +29,7 @@ packages
 .DS_Store
 *.swp
 TestResult.*
-.xake
+.xake*
 .fake
 .vs/
 samples/**/*.exe

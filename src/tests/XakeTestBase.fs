@@ -17,7 +17,7 @@ type XakeTestBase(folder) =
     [<OneTimeSetUp>]
     member __.Setup () =
         rememberDir <- Directory.GetCurrentDirectory()
-        outFolder <- rememberDir </> "~testout~" </> folder
+        outFolder <- __SOURCE_DIRECTORY__ </> "~testout~" </> folder
         testOptions <- {
             ExecOptions.Default with
                 Threads = 1

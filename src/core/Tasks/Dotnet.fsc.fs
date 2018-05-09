@@ -71,8 +71,11 @@ module FscImpl =
             let! options = getCtxOptions()
             let getFiles = toFileList options.ProjectRoot
 
-            let! contextTargetFile = getTargetFile()
-            let outFile = if settings.Out = File.undefined then contextTargetFile else settings.Out
+            let! outFile =
+                if settings.Out = File.undefined then
+                    getTargetFile()
+                else
+                    settings.Out |> recipe.Return
 
             let resinfos = settings.Resources |> List.collect (Impl.collectResInfo options.ProjectRoot) |> List.map Impl.compileResxFiles
             let resfiles =

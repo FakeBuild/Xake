@@ -14,16 +14,17 @@ type ``Various tests``() =
         return n
     }
 
-    [<Test; Ignore("Fails on netcore")>]
+    [<Test>]
     member x.``runs csc task (full test)``() =
 
         let needExecuteCount = ref 0
         
         do xake {x.TestOptions with FileLog="skipbuild.log"; ConLogLevel = Verbosity.Diag} {  // one thread to avoid simultaneous access to 'wasExecuted'
-            want (["hello"])
+            wantOverride (["hello"])
+            filelog "csc-err.log" Verbosity.Diag
 
             rules [
-                "hello" ..> recipe {
+                "hello" => recipe {
                     do! trace Error "Running inside 'hello' rule"
                     do! need ["hello.cs"]
 
@@ -31,6 +32,7 @@ type ``Various tests``() =
                     do! Csc {
                     CscSettings with
                         Src = !!"hello.cs"
+                        Out = File.make "hello.exe"
                     }
                 }
                 "hello.cs" ..> action {
