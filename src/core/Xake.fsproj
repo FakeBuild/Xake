@@ -4,7 +4,7 @@
     <AssemblyName>Xake</AssemblyName>
     <OutputType>Library</OutputType>
     <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
-    <Copyright>(c) OlegZee 2014-1018</Copyright>
+    <Copyright>(c) OlegZee 2014-2018</Copyright>
     <RepositoryUrl>https://github.com/OlegZee/Xake</RepositoryUrl>
     <Description>Xake build tool</Description>
   </PropertyGroup>
@@ -43,8 +43,6 @@
     <Compile Include="Tasks\Dotnet.resgen.fs" />
     <Compile Include="Tasks\Dotnet.Msbuild.fs" />
     <Compile Include="Tasks\misc.fs" />
-    <Compile Include="VersionInfo.fs" />
-    <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
