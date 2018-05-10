@@ -207,7 +207,7 @@ module DotNetFwk =
                 | Some str -> str.StartsWith fragment
 
             let tryLocate =
-                match fwk |> startsWith "mono-", fwk |> startsWith "net-" with
+                match Env.isUnix || fwk |> startsWith "mono-", fwk |> startsWith "net-" with
                 | true, _ -> monoFwkImpl.tryLocateFwk
                 | _, true -> MsImpl.tryLocateFwk
                 | _,_ -> if Env.isRunningOnMono then monoFwkImpl.tryLocateFwk else MsImpl.tryLocateFwk
