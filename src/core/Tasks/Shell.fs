@@ -3,7 +3,6 @@
 open Xake
 open Xake.Env
 open Xake.ProcessExec
-open System.IO
 
 [<AutoOpen>]
 module ShellImpl =
@@ -31,7 +30,6 @@ module ShellImpl =
 
     /// Start shell/system process.
     let Shell (opts: ShellOptions) =
-      let cmd = opts.Command
       let args = (opts.Args |> String.concat " ")
       let isExt file ext = System.IO.Path.GetExtension(file).Equals(ext, System.StringComparison.OrdinalIgnoreCase)
 
@@ -65,17 +63,17 @@ module ShellImpl =
 
     type ShellBuilder() =
 
-        [<CustomOperation("cmd")>]      member this.Command(a:ShellOptions, value) = {a with Command = value}
-        [<CustomOperation("args")>]     member this.Args(a:ShellOptions, value) =    {a with Args = value}
-        [<CustomOperation("workdir")>]  member this.WorkDir(a:ShellOptions, value) = {a with WorkingDir = Some value}
-        [<CustomOperation("useclr")>]   member this.UseClr(a :ShellOptions) =        {a with UseClr = true}
-        [<CustomOperation("failonerror")>] member this.FailOnError(a :ShellOptions)= {a with FailOnErrorLevel = true}
+        [<CustomOperation("cmd")>]      member __.Command(a:ShellOptions, value) = {a with Command = value}
+        [<CustomOperation("args")>]     member __.Args(a:ShellOptions, value) =    {a with Args = value}
+        [<CustomOperation("workdir")>]  member __.WorkDir(a:ShellOptions, value) = {a with WorkingDir = Some value}
+        [<CustomOperation("useclr")>]   member __.UseClr(a :ShellOptions) =        {a with UseClr = true}
+        [<CustomOperation("failonerror")>] member __.FailOnError(a :ShellOptions)= {a with FailOnErrorLevel = true}
 
-        member this.Bind(x, f) = f x
-        member this.Yield(()) = ShellOptions.Default
-        member x.For(sq, b) = for e in sq do b e
+        member __.Bind(x, f) = f x
+        member __.Yield(()) = ShellOptions.Default
+        member __.For(sq, b) = for e in sq do b e
 
-        member this.Zero() = ShellOptions.Default
-        member this.Run(opts:ShellOptions) = Shell opts
+        member __.Zero() = ShellOptions.Default
+        member __.Run(opts:ShellOptions) = Shell opts
 
     let shell = ShellBuilder()
