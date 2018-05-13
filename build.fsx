@@ -17,23 +17,21 @@ let libtargets =
 
 let getVersion () = recipe {
     let! verVar = getVar("VER")
-    let! ver = getEnv("VER")
-    return verVar |> Option.defaultValue (ver |> Option.defaultValue "0.0.1")
-}
+    let! verEnv = getEnv("VER")
+    let ver = verVar |> Option.defaultValue (verEnv |> Option.defaultValue "0.0.1")
 
-let makePackageName () = recipe {
-    let! ver = getVersion()
     let! verSuffix =
         getVar("SUFFIX")
         |> Recipe.map (
             function
-            | None -> "-alpha"
+            | None -> "-beta"
             | Some "" -> "" // this is release!
             | Some s -> "-" + s
             )
-
-    return sprintf "Xake.%s%s.nupkg" ver verSuffix
+    return ver + verSuffix
 }
+
+let makePackageName = sprintf "Xake.%s.nupkg"
 
 let dotnet arglist = recipe {
     do! shell {
@@ -98,8 +96,8 @@ do xakeScript {
     (* Nuget publishing rules *)
     rules [
         "pack" => recipe {
-            let! package_name = makePackageName ()
-            do! need ["out" </> package_name]
+            let! version = getVersion()
+            do! need ["out" </> makePackageName version]
         }
 
         "out/Xake.(ver:*).nupkg" ..> recipe {
@@ -116,18 +114,16 @@ do xakeScript {
 
         // push need pack to be explicitly called in advance
         "push" => recipe {
-
-            let! package_name = makePackageName ()
+            let! version = getVersion()
 
             let! nuget_key = getEnv("NUGET_KEY")
             do! dotnet
                   [
                     "nuget"; "push"
-                    "out" </> package_name
+                    "out" </> makePackageName version
                     "--source"; "https://www.nuget.org/api/v2/package"
                     "--api-key"; nuget_key |> Option.defaultValue ""
                   ]
         }
     ]
 }
-
