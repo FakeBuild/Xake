@@ -1,14 +1,14 @@
-﻿// xake build file
-// #r @"../bin/Debug/Xake.Core.dll"
-#r "../core/bin/Debug/net46/Xake.dll"
+﻿#r "paket: nuget Xake ~> 1.1 prerelease //"
 
 open Xake
 
-do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
+do xakeScript {
 
-  phony "main" (action {
+  phony "main" (recipe {
     do! trace Message "The exception thrown below will be silently ignored"
     failwith "some error"
     } |> WhenError ignore)
+
+  // TODO more examples and tricks
 
 }

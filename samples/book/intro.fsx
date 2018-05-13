@@ -1,9 +1,9 @@
-//#r @"../../packages/Xake/tools/Xake.Core.dll" // (1)
-#r "../../core/bin/Debug/net46/Xake.dll"
-
+#r "paket:
+    nuget Xake ~> 1.1 prerelease
+    nuget Xake.Dotnet ~> 1.1 prerelease //" // (1)
 
 open Xake                          // (2)
-open Xake.Tasks.Dotnet             // (2.1)
+open Xake.Dotnet                   // (2.1)
 
 do xakeScript {                    // (3)
 
