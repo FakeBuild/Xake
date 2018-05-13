@@ -32,7 +32,7 @@ This script compiles helloworld assembly from helloworld.cs file.
 
 ## Getting started
 
-Make sure dotnet SDK 2.0+ is installed.
+Make sure dotnet SDK 2.0+ is installed. dotnet 2.1.300+ is required to make production build as it properly write package metadata.
 
 1. Clone the project:
 
