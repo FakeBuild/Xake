@@ -1,8 +1,9 @@
 #r "paket:
-    nuget Xake ~> 1.0 prerelease //"
+    nuget Xake ~> 1.1 prerelease
+    nuget Xake.Dotnet ~> 1.1 prerelease //"
 
 #if !FAKE
-#load ".fake/build.fsx/intellisense.fsx"
+#load ".fake/features.fsx/intellisense.fsx"
 #endif
 
 // This a sample Xake script to show off some features.
@@ -16,7 +17,7 @@
 
 open Xake
 open Xake.Tasks
-open Xake.Tasks.Dotnet
+open Xake.Dotnet
 
 do xakeScript {
 

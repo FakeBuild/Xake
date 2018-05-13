@@ -1,6 +1,7 @@
-#r "paket: nuget Xake ~> 1.0 prerelease //"
+#r "paket: nuget Xake ~> 1.1 prerelease
+           nuget Xake.Dotnet ~> 1.1 prerelease //"
 open Xake
-open Xake.Tasks.Dotnet
+open Xake.Dotnet
 
 do xakeScript {
   rules [
