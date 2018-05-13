@@ -1,1 +1,0 @@
-module Xake.Const [<Literal>]  let internal Version = "0.0.1"

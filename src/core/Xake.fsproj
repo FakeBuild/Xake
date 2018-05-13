@@ -4,9 +4,9 @@
     <AssemblyName>Xake</AssemblyName>
     <OutputType>Library</OutputType>
     <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
-    <Copyright>(c) OlegZee 2014-1018</Copyright>
-    <RepositoryUrl>https://github.com/OlegZee/Xake</RepositoryUrl>
-    <Description>Xake build tool</Description>
+    <Copyright>(c) OlegZee 2014-2018</Copyright>
+    <RepositoryUrl>https://github.com/xakebuild/Xake</RepositoryUrl>
+    <Description>Xake build tool, the engine</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,8 +36,6 @@
     <Compile Include="Tasks\Rm.fs" />
     <Compile Include="Tasks\Shell.fs" />
     <Compile Include="Tasks\misc.fs" />
-    <Compile Include="VersionInfo.fs" />
-    <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net46'">

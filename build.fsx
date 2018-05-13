@@ -75,28 +75,23 @@ do xakeScript {
                 = getFiles <| fileset {
                     basedir "src/core"
                     includes "Xake.fsproj"
-                    includes "VersionInfo.fs"
                     includes "**/*.fs"
                 }
 
             do! needFiles allFiles
+            let! version = getVersion()
 
             for framework in frameworks do
                 do! dotnet
                         [
                             "build"
                             "src/core"
+                            "/p:Version=" + version
                             "--configuration"; "Release"
                             "--framework"; framework
                             "--output"; "../../out/" + framework
                             "/p:DocumentationFile=Xake.xml"
                         ]
-        }
-
-        "src/core/VersionInfo.fs" ..> recipe {
-            
-            let! version = getVersion()
-            do! writeText <| sprintf "module Xake.Const [<Literal>]  let internal Version = \"%s\"" version
         }
     ]
 
