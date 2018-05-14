@@ -1,6 +1,6 @@
 Xake is a make utility made for .NET on F# language. Xake is inspired by [shake](https://github.com/ndmitchell/shake) build tool.
 
-Unlike NAnt, Fake and similar tools with imperative script style, Xake is declarative:
+Unlike NAnt, Cake and similar tools with imperative script style, Xake is declarative:
 
   * you define targets (either files or actions)
   * you describe rules on how to make particular target and which targets it depends on
@@ -8,7 +8,7 @@ Unlike NAnt, Fake and similar tools with imperative script style, Xake is declar
 
 See [documentation](docs/overview.md) for more details.
 
-[![Build Status](https://travis-ci.org/OlegZee/Xake.svg?branch=master)](https://travis-ci.org/OlegZee/Xake)
+[![Build Status](https://travis-ci.org/xakebuild/Xake.svg?branch=dev)](https://travis-ci.org/xakebuild/Xake)
 
 ## The script
 
