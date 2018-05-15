@@ -27,40 +27,58 @@ module XakeScript =
         let updateVar (key: string) (value: string) =
             List.filter(fst >> ((<>) key)) >> ((@) [key, value])
 
-        member o.Bind(x,f) = f x
-        member o.Zero() = XakeScript (options, Rules [])
-        member o.Yield(())    = o.Zero()
+        member __.Zero() = XakeScript (options, Rules [])
+        member this.Yield(()) = this.Zero()
 
-        member this.Run(XakeScript (options,rules)) =
+        member __.Run(XakeScript (options,rules)) =
             ExecCore.runScript options rules
 
-        [<CustomOperation("dryrun")>] member this.DryRun(XakeScript (options, rules))
-            = XakeScript ({options with DryRun = true}, rules)
+        [<CustomOperation("dryrun")>]
+        member __.DryRun(XakeScript (options, rules)) =
+        
+            XakeScript ({options with DryRun = true}, rules)
 
-        [<CustomOperation("var")>] member this.AddVar(XakeScript (options, rules), name, value)
-            =
+        [<CustomOperation("var")>]
+        member __.AddVar(XakeScript (options, rules), name, value) =
+
             XakeScript ({options with Vars = options.Vars |> updateVar name value }, rules)
 
-        [<CustomOperation("filelog")>] member this.FileLog(XakeScript (options, rules), filename, ?loglevel)
-            =
+        [<CustomOperation("filelog")>]
+        member __.FileLog(XakeScript (options, rules), filename, ?loglevel) =
+
             let loglevel = defaultArg loglevel Verbosity.Chatty in
             XakeScript ({options with FileLog = filename; FileLogLevel = loglevel}, rules)
 
-        [<CustomOperation("consolelog")>] member this.ConLog(XakeScript (options, rules), ?loglevel)
-            =
+        [<CustomOperation("consolelog")>]
+        member __.ConLog(XakeScript (options, rules), ?loglevel) =
+
             let loglevel = defaultArg loglevel Verbosity.Chatty in
             XakeScript ({options with ConLogLevel =loglevel}, rules)
 
-        [<CustomOperation("rule")>] member this.Rule(script, rule)
-            = updRules script (addRule rule)
+        [<CustomOperation("rule")>]
+        member __.Rule(script, rule) =
+        
+            updRules script (addRule rule)
+
         // [<CustomOperation("addRule")>] member this.AddRule(script, pattern, action)
         //     = updRules script (pattern *> action |> addRule)
-        [<CustomOperation("phony")>] member this.Phony(script, name, action)
-            = updRules script (name => action |> addRule)
-        [<CustomOperation("rules")>] member this.Rules(script, rules: #seq<ExecContext Rule>)
-            = (rules |> Seq.map addRule |> Seq.fold (>>) id) |> updRules script
 
-        [<CustomOperation("want")>] member this.Want(script, targets)
-            = updTargets script (function |[] -> targets |x -> x)    // Options override script!
-        [<CustomOperation("wantOverride")>] member this.WantOverride(script,targets)
-            = updTargets script (fun _ -> targets)
+        [<CustomOperation("phony")>]
+        member __.Phony(script, name, action) =
+
+            updRules script (name => action |> addRule)
+
+        [<CustomOperation("rules")>]
+        member __.Rules(script, rules: #seq<ExecContext Rule>) =
+        
+            (rules |> Seq.map addRule |> Seq.fold (>>) id) |> updRules script
+
+        [<CustomOperation("want")>]
+        member __.Want(script, targets) =
+        
+            updTargets script (function |[] -> targets |x -> x)    // Options override script!
+
+        [<CustomOperation("wantOverride")>]
+        member __.WantOverride(script,targets) =
+        
+            updTargets script (fun _ -> targets)
