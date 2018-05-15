@@ -7,7 +7,7 @@
     <Copyright>(c) OlegZee 2014-2018</Copyright>
 
     <RepositoryUrl>https://github.com/xakebuild/Xake</RepositoryUrl>
-    <PackageIconUrl>https://github.com/xakebuild/Xake/blob/dev/Icon.png</PackageIconUrl>
+    <PackageIconUrl>https://github.com/xakebuild/Xake/raw/dev/Icon.png</PackageIconUrl>
     <Description>Xake build tool, the engine</Description>
   </PropertyGroup>
 
