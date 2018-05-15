@@ -15,20 +15,21 @@ See [documentation](docs/overview.md) for more details.
 The simple script looks like:
 
 ```fsharp
-#r "paket: nuget Xake ~> 1.0 prerelease //"
+#r "paket: nuget Xake ~> 1.1 prerelease //"
 open Xake
 open Xake.Tasks.Dotnet
 
 do xakeScript {
   rules [
-    "main" <== ["helloworld.exe"]
-
+    "main" => need ["helloworld.exe"]
     "helloworld.exe" ..> csc {src !!"helloworld.cs"}
   ]
 }
 ```
 
 This script compiles helloworld assembly from helloworld.cs file.
+
+See [features sample](https://github.com/xakebuild/Xake/blob/dev/samples/features.fsx) for various samples and the [introduction page](https://github.com/xakebuild/Xake/wiki/introduction) to learn more about Xake.
 
 ## Getting started
 

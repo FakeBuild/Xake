@@ -22,10 +22,22 @@ open Xake.Dotnet
 do xakeScript {
 
     consolelog Verbosity.Diag
-    want ["main"]   // this is redundant as "main" is default target
+
+    // this instruction defines the default target and could be overriden by command-line parameters
+    // this is redundant as "main" is default target
+    want ["main"]
 
     rules [
-        "main" <== ["tracetest"; "temp/a.exe"]
+
+        // this rule does nothing but demands the other targets
+        // the execution of the recipe is suspended until all demanded targets are built.
+        // Targets are executed in parallel. Dependencies could be demanded in any part of recipe.
+        "main"  => recipe {
+            do! need ["tracetest"; "temp/a.exe"]
+            }
+
+        // this is shorter way to express the same. See also `<==` and '<<<' operators.
+        "main"  => need ["tracetest"; "temp/a.exe"]
 
         // .NET build rules
         // build .net executable using full .net framework (or mono under unix)
@@ -55,6 +67,44 @@ do xakeScript {
             let! envVersion = getVar("VERSION")
             let version = envVersion |> Option.defaultValue "1.0.0"
             do! writeText <| sprintf "[assembly: System.Reflection.AssemblyVersion(\"%s\")]" version
+        }
+
+
+        // defining the target which produces multiple files
+        // recipe will be executed just once, regardless how many times its outcome was requested in other targets
+        // notice the `*..>` operator is used
+        ["app.exe"; "app.xml"] *..> recipe {
+
+            let! [appfile; xmlfile] = getTargetFiles()
+
+            do! Fsc {
+                FscSettings with
+                    Src = fileset {
+                        basedir "core"
+                        includes "Logging.fs"
+                        includes "Program.fs"
+                    }
+                    Out = appfile
+                    Ref = !! "bin/FSharp.Core.dll"
+                    RefGlobal = ["System.dll"; "System.Core.dll"]
+                    CommandArgs = ["--utf8output"; "--doc:" + xmlfile.FullName]
+            }
+        }
+
+        // using wildcards and named groups when defining target
+        // The following rule defines how to build any file which names matches "*/*.cs*" pattern.
+        // Round brackets specify the named groups (known from regexps), the values can be accessed via getRuleMatch function
+        // e.g. for src/hello.csx the matches will be: dir=src, file=hello, ext=csx
+
+        "(dir:*)/(file:*).(ext:c*)" ..> recipe {
+
+            let! dir = getRuleMatch "dir"
+            let! file = getRuleMatch "file"
+            let! ext = getRuleMatch "ext"
+
+            // here you place regular build steps
+
+            return ()
         }
 
         // `trace` function demo
