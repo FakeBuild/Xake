@@ -1,16 +1,8 @@
-Xake is a make utility made for .NET on F# language. Xake is inspired by [shake](https://github.com/ndmitchell/shake) build tool.
-
-Unlike NAnt, Cake and similar tools with imperative script style, Xake is declarative:
-
-  * you define targets (either files or actions)
-  * you describe rules on how to make particular target and which targets it depends on
-  * build tool identifies dependencies and build your targets
-
-See [documentation](docs/overview.md) for more details.
+Xake is a build utility that uses the full power of the F# programming language. Xake is inspired by [shake](https://github.com/ndmitchell/shake) build tool.
 
 [![Build Status](https://travis-ci.org/xakebuild/Xake.svg?branch=dev)](https://travis-ci.org/xakebuild/Xake)
 
-## The script
+## Sample script
 
 The simple script looks like:
 
@@ -29,16 +21,12 @@ do xakeScript {
 
 This script compiles helloworld assembly from helloworld.cs file.
 
-See [features sample](https://github.com/xakebuild/Xake/blob/dev/samples/features.fsx) for various samples and the [introduction page](https://github.com/xakebuild/Xake/wiki/introduction) to learn more about Xake.
-
-## Getting started
-
-Make sure dotnet SDK 2.0+ is installed. dotnet 2.1.300+ is required to make production build as it properly write package metadata.
+To run this script:
 
 1. Clone the project:
 
     ```
-    git clone http://github.com/olegzee/xake
+    git clone http://github.com/xakebuild/xake
     ```
 1. Run the "Hello world" build sctipt:
 
@@ -47,12 +35,12 @@ Make sure dotnet SDK 2.0+ is installed. dotnet 2.1.300+ is required to make prod
     dotnet restore dotnet-fake.csproj
     dotnet fake run gettingstarted.fsx
     ```
-1. Run the showcase script:
 
-    ```
-    dotnet fake run features.fsx
-    ```
-    
+## Further reading
+
+* See [the features.fsx](https://github.com/xakebuild/Xake/blob/dev/samples/features.fsx) script for various samples.
+* We have the [introduction page](https://github.com/xakebuild/Xake/wiki/introduction) for you to learn more about Xake.
+* And there're the [documentation notes](https://github.com/xakebuild/Xake/wiki) for more details.
 
 ## Build the project
 
@@ -65,25 +53,11 @@ dotnet fake run build.fsx -- build test
 
 ... or use `build.cmd` (`build.sh`) in the root folder
 
-## Getting started for Mono on Linux/OSX
-
-Make sure mono with F# is installed and root certificates are imported:
-
-```
-sudo apt-get install mono-complete
-sudo mozroots --import --sync
-```
-
-TBD
-
-## Documentation
-
-See [documentation](docs/overview.md) for more details.
-
 ## References
 
 * [implementation notes](docs/implnotes.md)
 * [Shake manual](https://github.com/ndmitchell/shake/blob/master/docs/Manual.md)
+* [samples repository](https://github.com/xakebuild/Samples)
 
 ## Mono on OSX troubleshooting
 
