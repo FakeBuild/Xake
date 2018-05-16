@@ -20,7 +20,7 @@ type ``Testing Copy task``() =
 
         do xake x.TestOptions {
             rules [
-                "main" => action {
+                "main" => recipe {
                     do! need ["samplefile"]
                     do! Cp {CpArgs.Default with file = "samplefile"; todir = "cptgt"}
                 }

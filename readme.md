@@ -7,13 +7,17 @@ Xake is a build utility that uses the full power of the F# programming language.
 The simple script looks like:
 
 ```fsharp
-#r "paket: nuget Xake ~> 1.1 prerelease //"
+#r "paket:
+  nuget Xake ~> 1.1 prerelease
+  nuget Xake.Dotnet ~> 1.1 prerelease //"
+
 open Xake
-open Xake.Tasks.Dotnet
+open Xake.Dotnet
 
 do xakeScript {
   rules [
-    "main" => need ["helloworld.exe"]
+    "main" <== ["helloworld.exe"]
+
     "helloworld.exe" ..> csc {src !!"helloworld.cs"}
   ]
 }

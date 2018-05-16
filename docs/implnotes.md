@@ -36,10 +36,10 @@ Error handling assumes the following system behavior:
 
 #### try/with/finally exception handling
 
-`action` computation expression supports try/with and try/finally blocks.
+`recipe` computation expression supports try/with and try/finally blocks.
 
 ```fsharp
-action {
+recipe {
   do! log "before try"
 
   try

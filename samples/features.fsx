@@ -107,6 +107,79 @@ do xakeScript {
             return ()
         }
 
+        // "phony" rule that produces no file but just removes the files
+        // `rm` recipe (Xake.Tasks namespace) allow to remove files and folders
+        "clean" => recipe {
+            do! rm {file "paket-files/*.*"}
+            do! rm {dir "out"}
+            do! rm {files (fileset {
+                    includes "samplefile*"
+                }); verbose
+            }
+        }
+
+        "libs" => recipe {
+            // this command will copy all dlls to `lib` (flat files)
+            do! cp {file "packages/mylib/net46/*.dll"; todir "lib"}
+
+            // this command will copy content of the specified folder to `lib` folder preserving structure starting from packages
+            do! cp {dir "packages/theirlib"; todir "lib"}
+
+            // this `cp` accepts fileset and also preserves the directory structure, using basedir as a root of the structure.
+            do! cp {
+                files (!!"*.exe" @@ "bin")
+                todir "deploy"
+            }
+        }
+
+        // shell commands runs shell command
+        "shell" => recipe {
+            let! errorLevel = shell {
+                cmd "dir"
+                args ["*.*"; "/A"]
+                workdir "."
+            }
+
+            // this will fail the script
+            // if errorLevel <> 0 then failwith "command failed"
+            // the same results could be obtained by `failonerror` instruction within shell {}
+
+            do! trace Info "dir command finished with %i error code" errorLevel
+        }
+
+        // all kind of control flow constructs are supported with recipe
+        "control-flow" => recipe {
+
+            // defining recipe
+            let log text = recipe {
+                do! trace Info "%s" text
+            }
+
+            for i in [1;2;3] do
+                do! trace Info "Circle %i" i
+                if i = 2 then
+                    do! log "Fizz"  // use let!, do! to call any recipe
+            
+            try
+                let j = ref 3
+                while !j < 5 do
+                    do! log (sprintf "j=%i" !j)
+                    j := !j + 1                
+            with _ ->
+                do! trace Error "Exception occured!"
+        }
+
+        // working with filesets and dependencies
+        "fileset" => recipe {
+            let srcFileset = ls "src/*.cs"
+            let! files = getFiles srcFileset
+            do! needFiles files
+
+            // `let! files...` above records the dependency of `fileset` target from the set of files matching `src/*.cs` pattern. Whenever file is added or removed the dependency will be triggered
+            // `do! needFiles` records that `fileset` depends on *contents* of each file matching the mask. It will trigger if file size or timestamp is changed
+        }
+
+
         // `trace` function demo
         // note: output verbosity is set to Diag to display all messages (see the "consolelog" instruction on top of xakeScript body)
 
