@@ -59,6 +59,7 @@ dotnet fake run build.fsx -- build test
 
 ## References
 
+* [documentation](https://github.com/xakebuild/Xake/wiki) 
 * [implementation notes](docs/implnotes.md)
 * [Shake manual](https://github.com/ndmitchell/shake/blob/master/docs/Manual.md)
 * [samples repository](https://github.com/xakebuild/Samples)
