@@ -64,7 +64,7 @@ do xakeScript {
             // in case of travis only run tests for standard runtime, eventually will add more
             let! limitFwk = getEnv("TRAVIS") |> Recipe.map (function | Some _ -> ["-f:netcoreapp2.0"] | _ -> [])
 
-            do! dotnet <| ["test"; "src/tests"; "-c"; "Release"] @ where @ limitFwk
+            do! dotnet <| ["test"; "src/tests"; "-c"; "Release"; "-p:ParallelizeTestCollections=false"] @ where @ limitFwk
         }
 
         libtargets *..> recipe {
