@@ -3,8 +3,6 @@
 [<AutoOpen>]
 module ScriptFuncs =
 
-    open XakeScript
-
     /// <summary>
     /// Gets the script options.
     /// </summary>
