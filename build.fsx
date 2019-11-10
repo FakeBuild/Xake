@@ -16,12 +16,12 @@ let libtargets =
     ]
 
 let getVersion () = recipe {
-    let! verVar = getVar("VER")
-    let! verEnv = getEnv("VER")
+    let! verVar = getVar "VER"
+    let! verEnv = getEnv "VER"
     let ver = verVar |> Option.defaultValue (verEnv |> Option.defaultValue "0.0.1")
 
     let! verSuffix =
-        getVar("SUFFIX")
+        getVar "SUFFIX"
         |> Recipe.map (
             function
             | None -> "-beta"
@@ -101,7 +101,7 @@ do xakeScript {
         }
 
         "out/Xake.(ver:*).nupkg" ..> recipe {
-            let! ver = getRuleMatch("ver")
+            let! ver = getRuleMatch "ver"
             do! dotnet
                   [
                       "pack"; "src/core"
@@ -116,7 +116,7 @@ do xakeScript {
         "push" => recipe {
             let! version = getVersion()
 
-            let! nuget_key = getEnv("NUGET_KEY")
+            let! nuget_key = getEnv "NUGET_KEY"
             do! dotnet
                   [
                     "nuget"; "push"

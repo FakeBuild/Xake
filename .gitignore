@@ -32,6 +32,8 @@ TestResult.*
 .xake*
 .fake
 .vs/
+.vscode/
+.ionide/
 samples/**/*.exe
 samples/**/*.dll
 samples/**/*.fsx.lock
