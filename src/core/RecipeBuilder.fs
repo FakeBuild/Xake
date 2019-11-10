@@ -1,23 +1,23 @@
 ﻿namespace Xake
 
-module internal A =
+module internal RecipeAlgebra =
     let runAction (Recipe r) = r
-    let returnF a = Recipe (fun (s,_) -> async {return (s,a)})
+    let returnF a = Recipe (fun s -> async {return (s,a)})
 
-    let bindF m f = Recipe (fun (s, a) -> async {
-        let! (s', b) = runAction m (s, a) in
-        return! runAction (f b) (s', a)
+    let bindF m f = Recipe (fun s -> async {
+        let! (s', b) = runAction m s in
+        return! runAction (f b) s'
         })
-    let bindA m f = Recipe (fun (s, r) -> async {
+    let bindA m f = Recipe (fun s -> async {
         let! a = m in
-        return! runAction (f a) (s, r)
+        return! runAction (f a) s
         })
     let resultFromF m = m
 
     let callF f a = bindF (returnF a) f
     let delayF f = callF f ()
 
-    let doneF = Recipe (fun (s,_) -> async {return (s,())})
+    let doneF = Recipe (fun s -> async {return (s,())})
 
     let ignoreF p = bindF p (fun _ -> doneF)
     let combineF f g = bindF f (fun _ -> g)
@@ -61,7 +61,7 @@ module internal A =
 
 [<AutoOpen>]
 module Builder =
-    open A
+    open RecipeAlgebra
     type RecipeBuilder() =
         member this.Return(c) = returnF c
         member this.Zero()    = doneF

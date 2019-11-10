@@ -22,13 +22,14 @@
     <Compile Include="File.fs" />
     <Compile Include="Fileset.fs" />
     <Compile Include="Types.fs" />
-    <Compile Include="CommonLib.fs" />
     <Compile Include="Database.fs" />
+    <Compile Include="CommonLib.fs" />
     <Compile Include="RecipeBuilder.fs" />
     <Compile Include="RecipeFunctions.fs" />
     <Compile Include="WorkerPool.fs" />
     <Compile Include="Progress.fs" />
     <Compile Include="ExecTypes.fs" />
+    <Compile Include="BuildDatabase.fs" />
     <Compile Include="DependencyAnalysis.fs" />
     <Compile Include="ExecCore.fs" />
     <Compile Include="XakeScript.fs" />

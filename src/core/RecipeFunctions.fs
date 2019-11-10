@@ -7,7 +7,7 @@ open Xake
 /// Ignores action result in case task returns the value but you don't need it.
 /// </summary>
 /// <param name="act"></param>
-let Ignore act = act |> A.ignoreF
+let Ignore act = act |> RecipeAlgebra.ignoreF
 
 /// <summary>
 /// Translates the recipe result.
@@ -17,33 +17,19 @@ let map f (rc: Recipe<_,_>) = recipe {
     return f r
 }
 
-/// <summary>
 /// Gets action context.
-/// </summary>
-let getCtx()     = Recipe (fun (r,c) -> async {return (r,c)})
+let getCtx()     = Recipe (fun c -> async {return (c,c)})
 
 /// <summary>
 /// Gets current task result.
 /// </summary>
-let getResult()  = Recipe (fun (s,_) -> async {return (s,s)})
+// let getResult()  = Recipe (fun (s,_) -> async {return (s,s)})
 
 /// <summary>
 /// Updates the build result
 /// </summary>
 /// <param name="s'"></param>
-let setResult s' = Recipe (fun (_,_) -> async {return (s',())})
-
-/// <summary>
-/// Finalizes current build step and starts a new one
-/// </summary>
-/// <param name="name">New step name</param>
-let newstep name =
-    Recipe (fun (r,_) ->
-        async {
-            let r' = Step.updateTotalDuration r
-            let r'' = {r' with Steps = (Step.start name) :: r'.Steps}
-            return (r'',())
-        })
+let setCtx ctx = Recipe (fun _ -> async {return (ctx,())})
 
 /// <summary>
 /// Consumes the task output and in case condition is met raises the error.

@@ -26,8 +26,8 @@ module ScriptFuncs =
         files |> List.map FileTarget |> ExecCore.need
 
     let private record d = recipe {
-        let! result = getResult()
-        do! setResult { result with Depends = d :: result.Depends }
+        let! ctx = getCtx()
+        do! setCtx { ctx with Result = { ctx.Result with Depends = d :: ctx.Result.Depends } }
     }
 
     /// <summary>
@@ -123,6 +123,14 @@ module ScriptFuncs =
         do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available
     })
 
+    /// Finalizes current build step and starts a new one       // TODO put it somewhere
+    let newstep name = recipe {
+        let! c = getCtx()
+        let r' = Step.updateTotalDuration c.Result
+        let r'' = {r' with Steps = (Step.start name) :: r'.Steps}
+        do! setCtx { c with Result = r''}
+    }
+        
     /// Defines a rule which demands the other targets to be sequentially built.
     /// Unlike '<==' operator, this one waits the completion of one before issuing another rule.
     let (<<<) name targets = PhonyRule (name, recipe {
@@ -130,5 +138,3 @@ module ScriptFuncs =
             do! need [t]
         do! alwaysRerun()
     })
-
-

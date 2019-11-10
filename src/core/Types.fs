@@ -50,14 +50,8 @@ module DomainTypes =
         { Name: string; Start: System.DateTime; OwnTime: int<ms>; WaitTime: int<ms> }
         with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); OwnTime = 0<ms>; WaitTime = 0<ms>}
 
-    type BuildResult =
-        { Targets : Target list
-          Built : Timestamp
-          Depends : Dependency list
-          Steps : StepInfo list }
-
     // expression type
-    type Recipe<'a,'b> = Recipe of (BuildResult * 'a -> Async<BuildResult * 'b>)
+    type Recipe<'a,'b> = Recipe of ('a -> Async<'a * 'b>)
 
     /// Data type for action's out parameter. Defined target file and named groups in pattern
 

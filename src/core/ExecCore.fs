@@ -7,7 +7,7 @@ open DependencyAnalysis
 [<System.Obsolete("Obsolete, use ExecOptions.Default")>]
 let XakeOptions = ExecOptions.Default
 
-open Storage
+open Database
 
 /// Writes the message with formatting to a log
 let traceLog (level:Logging.Level) fmt =
@@ -116,11 +116,11 @@ let rec execOne ctx target =
 
                 do Progress.TaskStart primaryTarget |> ctx.Progress.Post
 
-                let startResult = {BuildLog.makeResult targets with Steps = [Step.start "all"]}
+                let startResult = {BuildResult.makeResult targets with Steps = [Step.start "all"]}
                 let! (result,_) = action (startResult, taskContext)
                 let result = Step.updateTotalDuration result
 
-                Store result |> ctx.Db.Post
+                Store (result.Targets, result) |> ctx.Db.Post
 
                 do Progress.TaskComplete primaryTarget |> ctx.Progress.Post
                 do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" primaryTarget.ShortName (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
@@ -316,7 +316,7 @@ let runScript options rules =
 
     let (throttler, pool) = WorkerPool.create logger options.Threads
 
-    let db = openDb (options.ProjectRoot </> options.DbFileName) logger
+    let db = openDb BuildDatabase.Picklers.result (options.ProjectRoot </> options.DbFileName) logger
 
     let ctx = {
         Ordinal = 0
@@ -326,7 +326,8 @@ let runScript options rules =
         Progress = Progress.emptyProgress()
         NeedRebuild = fun _ -> false
         Targets = []
-        RuleMatches = Map.empty }
+        RuleMatches = Map.empty
+        Result = BuildResult.makeResult [] }
 
     logger.Log Info "Options: %A" options
 
@@ -359,19 +360,17 @@ let runScript options rules =
                 ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
                 exit 2
     finally
-        db.PostAndReply Storage.CloseWait
+        db.PostAndReply Database.CloseWait
         FlushLogs()
 
 /// "need" implementation
-let need targets =
-    action {
-        let startTime = System.DateTime.Now
+let need targets = recipe {
+    let startTime = System.DateTime.Now
 
-        let! ctx = getCtx()
-        let! _,deps = targets |> execNeed ctx
+    let! ctx = getCtx()
+    let! _,deps = targets |> execNeed ctx
 
-        let totalDuration = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
-        let! result = getResult()
-        let result' = {result with Depends = result.Depends @ deps} |> (Step.updateWaitTime totalDuration)
-        do! setResult result'
-    }
+    let totalDuration = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
+    let result' = {ctx.Result with Depends = ctx.Result.Depends @ deps} |> (Step.updateWaitTime totalDuration)
+    do! setCtx { ctx with Result = result' }
+}

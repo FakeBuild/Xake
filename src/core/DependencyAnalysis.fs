@@ -1,7 +1,7 @@
 ﻿module internal Xake.DependencyAnalysis
 
 open Xake
-open Storage
+open Database
 
 /// <summary>
 /// Dependency state.
@@ -21,7 +21,7 @@ let TimeCompareToleranceMs = 10.0
 /// <param name="ctx"></param>
 /// <param name="target"></param>
 let getExecTime ctx target =
-    (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
+    (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
     |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
 
 /// Gets single dependency state and reason of a change.
@@ -30,26 +30,26 @@ let getDepState getVar getFileList (getChangedDeps: Target -> ChangeReason list)
         let dbgInfo = File.exists a |> function
             | false -> "file does not exists"
             | _ -> sprintf "write time: %A vs %A" (File.getLastWriteTime a) wrtime
-        ChangeReason.FilesChanged [a.Name], Some dbgInfo
+        FilesChanged [a.Name], Some dbgInfo
 
     | ArtifactDep (FileTarget file) when not (File.exists file) ->
-        ChangeReason.DependsMissingTarget (FileTarget file), None
+        DependsMissingTarget (FileTarget file), None
 
     | ArtifactDep dependeeTarget ->
-        dependeeTarget |> getChangedDeps |> List.filter ((<>) ChangeReason.NotChanged)
+        dependeeTarget |> getChangedDeps |> List.filter ((<>) NotChanged)
         |> function
             |  [] -> NotChanged, None
             |item::_ ->
-                ChangeReason.Depends dependeeTarget, Some (sprintf "E.g. %A..." item)
+                Depends dependeeTarget, Some (sprintf "E.g. %A..." item)
 
     | EnvVar (name,value) when value <> Util.getEnvVar name ->
-        ChangeReason.Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (Util.getEnvVar name), None
+        Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (Util.getEnvVar name), None
 
     | Var (name,value) when value <> getVar name ->
-        ChangeReason.Other <| sprintf "Global script variable %s was changed '%A'->'%A'" name value (getVar name), None
+        Other <| sprintf "Global script variable %s was changed '%A'->'%A'" name value (getVar name), None
 
     | AlwaysRerun ->
-        ChangeReason.Other <| "AlwaysRerun rule", Some "Rule indicating target has to be run regardless dependencies state"
+        Other <| "AlwaysRerun rule", Some "Rule indicating target has to be run regardless dependencies state"
 
     | GetFiles (fileset,files) ->
         let newfiles = getFileList fileset
@@ -96,12 +96,12 @@ let getChangeReasons ctx getTargetDeps target =
             | [] ->
                 match result with
                 | targetList when targetList |> List.exists (function | FileTarget file when not (File.exists file) -> true | _ -> false) ->
-                    [ChangeReason.Other "target file does not exist", Some "The file has to be rebuilt regardless all its dependencies were not changed"]
+                    [Other "target file does not exist", Some "The file has to be rebuilt regardless all its dependencies were not changed"]
                 | _ -> []
             | ls -> ls
 
     | _ ->
-        [ChangeReason.Other "Not built yet", Some "Target was not built before or build results were cleaned so we don't know dependencies."]
+        [Other "Not built yet", Some "Target was not built before or build results were cleaned so we don't know dependencies."]
     |> List.map fst
 
 // gets task duration and list of targets it depends on. No clue why one method does both.
