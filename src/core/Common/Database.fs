@@ -4,7 +4,8 @@ open Xake
 
 let XakeDbVersion = "0.5"
 
-type Database<'result> = { Status : Map<Target, 'result> }
+type Database<'target,'result> when 'target: comparison
+    = { Status : Map<'target, 'result> }
 
 type DatabaseHeader = 
     { XakeSign : string
@@ -20,15 +21,9 @@ let newDatabase() = { Database.Status = Map.empty }
 let internal addResult db targets (result: 'result) =
     { db with Status = targets |> List.fold (fun m i -> Map.add i result m) db.Status }
 
-module Picklers =
+module private impl = 
+    open System.IO
     open Pickler
-
-    let targetPu = 
-        alt (function 
-            | FileTarget _ -> 0
-            | PhonyAction _ -> 1) 
-            [|  wrap (File.make >> FileTarget, fun (FileTarget f | OtherwiseFail f) -> f.Name) str
-                wrap (PhonyAction, (fun (PhonyAction a | OtherwiseFail a) -> a)) str |]
 
     let dbHeaderPu = 
         wrap 
@@ -38,11 +33,6 @@ module Picklers =
                ScriptDate = scriptDate }), 
              fun h -> (h.XakeSign, h.XakeVer, h.ScriptDate)) 
             (triple str str date)
-
-module private impl = 
-    open System.IO
-    open Pickler
-    open Picklers
     
     let writeHeader w = 
         let h = 
@@ -51,11 +41,9 @@ module private impl =
               ScriptDate = System.DateTime.Now }
         dbHeaderPu.pickle h w
 
-    let targetListPu = list targetPu
-    
-    let openDatabaseFile (resultPU: 'result PU) dbpath (logger : ILogger) = 
+    let openDatabaseFile (targetPu: 'target PU, resultPU: 'result PU) dbpath (logger : ILogger) = 
         let log = logger.Log
-        let bkpath = dbpath <.> "bak"
+        let bkpath = dbpath + ".bak"
         // if exists backup restore
         if File.Exists(bkpath) then 
             log Level.Message "Backup file found ('%s'), restoring db" 
@@ -68,7 +56,9 @@ module private impl =
         let recordCount = ref 0
 
         // read database
-        if File.Exists(dbpath) then 
+        if File.Exists(dbpath) then
+            let targetListPu = list targetPu
+
             try 
                 use reader = new BinaryReader(File.OpenRead(dbpath))
                 let stream = reader.BaseStream
@@ -105,15 +95,17 @@ module private impl =
         if dbwriter.BaseStream.Position = 0L then writeHeader dbwriter
         db, dbwriter
     
-type DatabaseApi<'result> = 
-    | GetResult of Target * AsyncReplyChannel<'result option>
-    | Store of Target list * 'result
+type DatabaseApi<'target,'result> = 
+    | GetResult of 'target * AsyncReplyChannel<'result option>
+    | Store of 'target list * 'result
     | Close
     | CloseWait of AsyncReplyChannel<unit>
 
 /// Opens database.
-let openDb resultPU dbPath (logger : ILogger) = 
-    let db, dbWriter = impl.openDatabaseFile resultPU dbPath logger
+let openDb (targetPu: 'target Pickler.PU, resultPU: 'result Pickler.PU) dbPath (logger : ILogger) = 
+    let db, dbWriter = impl.openDatabaseFile (targetPu, resultPU) dbPath logger
+    let targetListPu = Pickler.list targetPu
+
     MailboxProcessor.Start(fun mbox -> 
         let rec loop (db) = 
             async { 
@@ -125,7 +117,7 @@ let openDb resultPU dbPath (logger : ILogger) =
                     |> chan.Reply
                     return! loop (db)
                 | Store (targets, result) -> 
-                    impl.targetListPu.pickle targets dbWriter
+                    targetListPu.pickle targets dbWriter
                     resultPU.pickle result dbWriter
                     return! loop (addResult db targets result)
                 | Close -> 

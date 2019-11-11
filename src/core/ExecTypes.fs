@@ -99,7 +99,7 @@ type 'ctx Rules = Rules of 'ctx Rule list
 /// Script execution context
 type ExecContext = {
     TaskPool: TaskPool
-    Db: Agent<DatabaseApi<BuildResult>>
+    Db: Agent<DatabaseApi<Target,BuildResult>>
     Throttler: SemaphoreSlim
     Options: ExecOptions
     Rules: Rules<ExecContext>

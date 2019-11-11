@@ -5,9 +5,14 @@ module Picklers =
     open Pickler
     open ExecTypes
 
-    let target = Database.Picklers.targetPu
-
     let file = wrap (File.make, fun a ->  a.FullName) str
+
+    let target = 
+        alt (function 
+            | FileTarget _ -> 0
+            | PhonyAction _ -> 1) 
+            [|  wrap (File.make >> FileTarget, fun (FileTarget f | OtherwiseFail f) -> f.Name) str
+                wrap (PhonyAction, (fun (PhonyAction a | OtherwiseFail a) -> a)) str |]
 
     let step = 
         wrap 
@@ -40,7 +45,7 @@ module Picklers =
              fun r -> (r.Targets, r.Built, r.Depends, r.Steps)) 
             (quad (list target) date (list dependency) (list step))
 
-type DatabaseApi = Database.DatabaseApi<ExecTypes.BuildResult>
+type DatabaseApi = Database.DatabaseApi<Target, ExecTypes.BuildResult>
 
 /// Opens the database
-let openDb path loggers = Database.openDb Picklers.result path loggers
+let openDb path loggers = Database.openDb (Picklers.target, Picklers.result) path loggers

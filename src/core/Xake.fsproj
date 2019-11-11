@@ -12,17 +12,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Prelude.fs" />
-    <Compile Include="Logging.fs" />
-    <Compile Include="Pickler.fs" />
-    <Compile Include="Env.fs" />
+    <Compile Include="Common/Prelude.fs" />
+    <Compile Include="Common/Logging.fs" />
+    <Compile Include="Common/Pickler.fs" />
+    <Compile Include="Common/Env.fs" />
+    <Compile Include="Common/Database.fs" />
     <Compile Include="Path.fs" />
     <Compile Include="PathExt.fs" />
     <Compile Include="File.fsi" />
     <Compile Include="File.fs" />
     <Compile Include="Fileset.fs" />
     <Compile Include="Target.fs" />
-    <Compile Include="Database.fs" />
     <Compile Include="CommonLib.fs" />
     <Compile Include="Recipe.fs" />
     <Compile Include="RecipeFunctions.fs" />

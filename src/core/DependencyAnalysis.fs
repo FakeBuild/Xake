@@ -20,7 +20,7 @@ let TimeCompareToleranceMs = 10.0
 /// </summary>
 /// <param name="ctx"></param>
 /// <param name="target"></param>
-let getExecTime ctx target =
+let getExecTime ctx (target: Target) =
     (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
     |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
 
