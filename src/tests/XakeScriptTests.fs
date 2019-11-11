@@ -507,7 +507,7 @@ type ``XakeScript tests``() =
             ]
         }
 
-        let (<-*) (a:Agent<DatabaseApi<BuildResult>>) t = a.PostAndReply(fun ch -> DatabaseApi.GetResult (t,ch))
+        let (<-*) (a:Agent<DatabaseApi>) t = a.PostAndReply(fun ch -> DatabaseApi.GetResult (t,ch))
 
         use db = BuildDatabase.openDb "./.xake" (ConsoleLogger Diag)
         try

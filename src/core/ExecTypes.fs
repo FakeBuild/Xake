@@ -1,4 +1,5 @@
-﻿namespace Xake
+﻿[<AutoOpen>]
+module Xake.ExecTypes
 
 open System.Threading
 open Prelude
@@ -68,12 +69,32 @@ end
 
 type ExecStatus = | Succeed | Skipped | JustFile
 type TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
+type Timestamp = System.DateTime
+
+type Dependency =
+    | FileDep of File * Timestamp // regular file (such as source code file), triggers when file date/time is changed
+    | ArtifactDep of Target // other target (triggers when target is rebuilt)
+    | EnvVar of string * string option // environment variable
+    | Var of string * string option // any other data such as compiler version (not used yet)
+    | AlwaysRerun // trigger always
+    | GetFiles of Fileset * Filelist // depends on set of files. Triggers when resulting filelist is changed
+
+type StepInfo =
+    { Name: string; Start: System.DateTime; OwnTime: int<ms>; WaitTime: int<ms> }
+    with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); OwnTime = 0<ms>; WaitTime = 0<ms>}
 
 type BuildResult =
     { Targets : Target list
       Built : Timestamp
       Depends : Dependency list
       Steps : StepInfo list }
+
+type 'ctx Rule =
+    | FileRule of string * Recipe<'ctx,unit>
+    | MultiFileRule of string list * Recipe<'ctx,unit>
+    | PhonyRule of string * Recipe<'ctx,unit>
+    | FileConditionRule of (string -> bool) * Recipe<'ctx,unit>
+type 'ctx Rules = Rules of 'ctx Rule list
 
 /// Script execution context
 type ExecContext = {
@@ -84,13 +105,16 @@ type ExecContext = {
     Rules: Rules<ExecContext>
     Logger: ILogger
     RootLogger: ILogger
-    Progress: Agent<Progress.ProgressReport>
+    Progress: Agent<Progress.ProgressReport<Target>>
     Targets: Target list
     RuleMatches: Map<string,string>
     Ordinal: int
     NeedRebuild: Target list -> bool
     Result: BuildResult
 }
+
+/// Defines common exception type
+exception XakeException of string
 
 module internal Util =
 

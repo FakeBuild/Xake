@@ -126,7 +126,7 @@ let dumpDeps (ctx: ExecContext) (target: Target list) =
     let rec displayNestedDeps ii =
         function
         | ArtifactDep dependeeTarget ->
-            printfn "%sArtifact: %A" (indent ii) dependeeTarget.FullName
+            printfn "%sArtifact: %A" (indent ii) (Target.fullName dependeeTarget)
             showTargetStatus (ii+1) dependeeTarget
         | _ -> ()
     and showDepStatus ii (d: Dependency) =
@@ -158,7 +158,7 @@ let dumpDeps (ctx: ExecContext) (target: Target list) =
         if not <| doneTargets.ContainsKey(target) then
             doneTargets.Add(target, 1)
 
-            printfn "%sTarget %A" (indent ii) target.ShortName
+            printfn "%sTarget %A" (indent ii) (Target.shortName target)
 
             let lastResult = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
             match lastResult with

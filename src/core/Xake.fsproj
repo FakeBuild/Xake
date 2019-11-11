@@ -21,10 +21,10 @@
     <Compile Include="File.fsi" />
     <Compile Include="File.fs" />
     <Compile Include="Fileset.fs" />
-    <Compile Include="Types.fs" />
+    <Compile Include="Target.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="CommonLib.fs" />
-    <Compile Include="RecipeBuilder.fs" />
+    <Compile Include="Recipe.fs" />
     <Compile Include="RecipeFunctions.fs" />
     <Compile Include="WorkerPool.fs" />
     <Compile Include="Progress.fs" />

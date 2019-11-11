@@ -2,7 +2,6 @@ namespace Xake.Tasks
 
 open Xake
 open System.IO
-open Xake.FileTasksImpl
 
 [<AutoOpen>]
 module CpImpl =

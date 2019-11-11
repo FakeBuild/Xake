@@ -1,140 +1,138 @@
-﻿namespace Xake
+﻿[<AutoOpen>]
+module Xake.ScriptFuncs
 
-[<AutoOpen>]
-module ScriptFuncs =
+/// <summary>
+/// Gets the script options.
+/// </summary>
+let getCtxOptions () = recipe {
+    let! (ctx: ExecContext) = getCtx()
+    return ctx.Options
+}
 
-    /// <summary>
-    /// Gets the script options.
-    /// </summary>
-    let getCtxOptions () = recipe {
-        let! (ctx: ExecContext) = getCtx()
-        return ctx.Options
+/// <summary>
+/// Executes and awaits specified artifacts.
+/// </summary>
+/// <param name="targets"></param>
+let need targets =
+    action {
+        let! ctx = getCtx()
+        let t' = targets |> (List.map (ExecCore.makeTarget ctx))
+        do! ExecCore.need t'
     }
 
-    /// <summary>
-    /// Executes and awaits specified artifacts.
-    /// </summary>
-    /// <param name="targets"></param>
-    let need targets =
-        action {
-            let! ctx = getCtx()
-            let t' = targets |> (List.map (ExecCore.makeTarget ctx))
-            do! ExecCore.need t'
-        }
+let needFiles (Filelist files) =
+    files |> List.map FileTarget |> ExecCore.need
 
-    let needFiles (Filelist files) =
-        files |> List.map FileTarget |> ExecCore.need
+let private record d = recipe {
+    let! ctx = getCtx()
+    do! setCtx { ctx with Result = { ctx.Result with Depends = d :: ctx.Result.Depends } }
+}
 
-    let private record d = recipe {
-        let! ctx = getCtx()
-        do! setCtx { ctx with Result = { ctx.Result with Depends = d :: ctx.Result.Depends } }
-    }
+/// <summary>
+/// Instructs Xake to rebuild the target even if dependencies are not changed.
+/// </summary>
+let alwaysRerun() = AlwaysRerun |> record
 
-    /// <summary>
-    /// Instructs Xake to rebuild the target even if dependencies are not changed.
-    /// </summary>
-    let alwaysRerun() = AlwaysRerun |> record
-
-    /// <summary>
-    /// Gets the environment variable.
-    /// </summary>
-    /// <param name="variableName"></param>
-    let getEnv variableName =
-        let value = Util.getEnvVar variableName
-        action {
-            do! EnvVar (variableName,value) |> record
-            return value
-        }
-
-    /// <summary>
-    /// Gets the global (options) variable.
-    /// </summary>
-    /// <param name="variableName"></param>
-    let getVar variableName = recipe {
-        let! ctx = getCtx()
-        let value = Util.getVar ctx.Options variableName
-
-        do! Var (variableName,value) |> record
+/// <summary>
+/// Gets the environment variable.
+/// </summary>
+/// <param name="variableName"></param>
+let getEnv variableName =
+    let value = Util.getEnvVar variableName
+    action {
+        do! EnvVar (variableName,value) |> record
         return value
     }
 
-    /// <summary>
-    /// Gets the list of files matching specified fileset.
-    /// </summary>
-    /// <param name="fileset"></param>
-    let getFiles fileset = recipe {
-        let! ctx = getCtx()
-        let files = fileset |> toFileList ctx.Options.ProjectRoot
-        do! GetFiles (fileset,files) |> record
+/// <summary>
+/// Gets the global (options) variable.
+/// </summary>
+/// <param name="variableName"></param>
+let getVar variableName = recipe {
+    let! ctx = getCtx()
+    let value = Util.getVar ctx.Options variableName
 
-        return files
-    }
+    do! Var (variableName,value) |> record
+    return value
+}
 
-    /// <summary>
-    /// Gets current target file
-    /// </summary>
-    let getTargetFile() = recipe {
-        let! ctx = getCtx()
-        return ctx.Targets
-            |> function
-            | FileTarget file::_ -> file
-            | _ -> failwith "getTargetFile is not available for phony actions"
-    }
+/// <summary>
+/// Gets the list of files matching specified fileset.
+/// </summary>
+/// <param name="fileset"></param>
+let getFiles fileset = recipe {
+    let! ctx = getCtx()
+    let files = fileset |> toFileList ctx.Options.ProjectRoot
+    do! GetFiles (fileset,files) |> record
 
-    /// <summary>
-    /// Gets current target file
-    /// </summary>
-    let getTargetFiles() : Recipe<ExecContext, File list> = recipe {
-        let! ctx = getCtx()
-        return ctx.Targets |> List.collect (function |FileTarget file -> [file] |_ -> failwith "Expected only a file targets"; [])
-    }
+    return files
+}
 
-    /// <summary>
-    /// Gets current target file name with path
-    /// </summary>
-    let getTargetFullName() = recipe {
-        let! file = getTargetFile()
-        return File.getFullName file
-    }
+/// <summary>
+/// Gets current target file
+/// </summary>
+let getTargetFile() = recipe {
+    let! ctx = getCtx()
+    return ctx.Targets
+        |> function
+        | FileTarget file::_ -> file
+        | _ -> failwith "getTargetFile is not available for phony actions"
+}
 
-    let getRuleMatches () = recipe {
-        let! ctx = getCtx()
-        return ctx.RuleMatches
-    }
+/// <summary>
+/// Gets current target file
+/// </summary>
+let getTargetFiles() : Recipe<ExecContext, File list> = recipe {
+    let! ctx = getCtx()
+    return ctx.Targets |> List.collect (function |FileTarget file -> [file] |_ -> failwith "Expected only a file targets"; [])
+}
 
-    /// <summary>
-    /// Gets group (part of the name) by its name.
-    /// </summary>
-    let getRuleMatch key = action {
-        let! groups = getRuleMatches()
-        return groups |> Map.tryFind key |> function |Some v -> v | None -> ""
-    }
+/// <summary>
+/// Gets current target file name with path
+/// </summary>
+let getTargetFullName() = recipe {
+    let! file = getTargetFile()
+    return File.getFullName file
+}
+
+let getRuleMatches () = recipe {
+    let! ctx = getCtx()
+    return ctx.RuleMatches
+}
+
+/// <summary>
+/// Gets group (part of the name) by its name.
+/// </summary>
+let getRuleMatch key = action {
+    let! groups = getRuleMatches()
+    return groups |> Map.tryFind key |> function |Some v -> v | None -> ""
+}
 
 
-    /// <summary>
-    /// Writes a message to a log.
-    /// </summary>
-    let trace = ExecCore.traceLog
+/// <summary>
+/// Writes a message to a log.
+/// </summary>
+let trace = ExecCore.traceLog
 
-    /// Defines a rule that demands specified targets
-    /// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
-    let (<==) name targets = PhonyRule (name, recipe {
-        do! need targets
-        do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available
-    })
+/// Defines a rule that demands specified targets
+/// e.g. "main" ==> ["build-release"; "build-debug"; "unit-test"]
+let (<==) name targets = PhonyRule (name, recipe {
+    do! need targets
+    do! alwaysRerun()   // always check demanded dependencies. Otherwise it wan't check any target is available
+})
 
-    /// Finalizes current build step and starts a new one       // TODO put it somewhere
-    let newstep name = recipe {
-        let! c = getCtx()
-        let r' = Step.updateTotalDuration c.Result
-        let r'' = {r' with Steps = (Step.start name) :: r'.Steps}
-        do! setCtx { c with Result = r''}
-    }
-        
-    /// Defines a rule which demands the other targets to be sequentially built.
-    /// Unlike '<==' operator, this one waits the completion of one before issuing another rule.
-    let (<<<) name targets = PhonyRule (name, recipe {
-        for t in targets do
-            do! need [t]
-        do! alwaysRerun()
-    })
+/// Finalizes current build step and starts a new one       // TODO put it somewhere
+let newstep name = recipe {
+    let! c = getCtx()
+    let r' = Step.updateTotalDuration c.Result
+    let r'' = {r' with Steps = (Step.start name) :: r'.Steps}
+    do! setCtx { c with Result = r''}
+}
+    
+/// Defines a rule which demands the other targets to be sequentially built.
+/// Unlike '<==' operator, this one waits the completion of one before issuing another rule.
+let (<<<) name targets = PhonyRule (name, recipe {
+    for t in targets do
+        do! need [t]
+    do! alwaysRerun()
+})

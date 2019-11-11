@@ -1,6 +1,8 @@
 ﻿module internal Xake.ExecCore
 
 open System.Text.RegularExpressions
+
+open Xake
 open DependencyAnalysis
 
 /// Default options
@@ -11,7 +13,7 @@ open Database
 
 /// Writes the message with formatting to a log
 let traceLog (level:Logging.Level) fmt =
-    let write s = action {
+    let write s = recipe {
         let! ctx = getCtx()
         return ctx.Logger.Log level "%s" s
     }
@@ -112,7 +114,7 @@ let rec execOne ctx target =
             match ctx.NeedRebuild targets with
             | true ->
                 let taskContext = newTaskContext targets ruleMatches ctx
-                do ctx.Logger.Log Command "Started %s as task %i" primaryTarget.ShortName taskContext.Ordinal
+                do ctx.Logger.Log Command "Started %s as task %i" (Target.shortName primaryTarget) taskContext.Ordinal
 
                 do Progress.TaskStart primaryTarget |> ctx.Progress.Post
 
@@ -123,10 +125,10 @@ let rec execOne ctx target =
                 Store (result.Targets, result) |> ctx.Db.Post
 
                 do Progress.TaskComplete primaryTarget |> ctx.Progress.Post
-                do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" primaryTarget.ShortName (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
+                do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (Target.shortName primaryTarget) (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
                 return Succeed
             | false ->
-                do ctx.Logger.Log Command "Skipped %s (up to date)" primaryTarget.ShortName
+                do ctx.Logger.Log Command "Skipped %s (up to date)" (Target.shortName primaryTarget)
                 return Skipped
         }
 
@@ -149,7 +151,7 @@ let rec execOne ctx target =
         target |> function
         | FileTarget file when File.exists file ->
             async.Return <| (target, JustFile, FileDep (file, File.getLastWriteTime file))
-        | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" target.FullName) ""
+        | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" <| Target.fullName target) ""
 
 /// <summary>
 /// Executes several artifacts in parallel.
@@ -205,9 +207,9 @@ let dryRun ctx options (groups: string list list) =
         | Other reason ->
             print "%sReason: %s" (indent ii) reason
         | Depends t ->
-            print "%sDepends '%s' - changed target" (indent ii) t.ShortName
+            print "%sDepends '%s' - changed target" (indent ii) (Target.shortName t)
         | DependsMissingTarget t ->
-            print "%sDepends on '%s' - missing target" (indent ii) t.ShortName
+            print "%sDepends on '%s' - missing target" (indent ii) (Target.shortName t)
         | FilesChanged (file:: rest) ->
             print "%sFile is changed '%s' %s" (indent ii) file (if List.isEmpty rest then "" else sprintf " and %d more file(s)" <| List.length rest)
         | reasons ->
@@ -225,7 +227,7 @@ let dryRun ctx options (groups: string list list) =
             let deps = getDeps target
             if not <| List.isEmpty deps then
                 let execTimeEstimate = getExecTime ctx target
-                do ctx.Logger.Log Command "%sRebuild %A (~%Ams)" (indent ii) target.ShortName execTimeEstimate
+                do ctx.Logger.Log Command "%sRebuild %A (~%Ams)" (indent ii) (Target.shortName target) execTimeEstimate
                 deps |> List.iter (showDepStatus (ii+1))
                 deps |> List.iter (displayNestedDeps (ii+1))
 
@@ -273,15 +275,15 @@ let runBuild ctx options groups =
             function
             | [] -> false, ""
             | Other reason::_        -> true, reason
-            | Depends t ::_          -> true, "Depends on target " + t.ShortName
-            | DependsMissingTarget t ::_ -> true, sprintf "Depends on target %s (missing)" t.ShortName
+            | Depends t ::_          -> true, "Depends on target " + (Target.shortName t)
+            | DependsMissingTarget t ::_ -> true, sprintf "Depends on target %s (missing)" (Target.shortName t)
             | FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
             | reasons -> true, sprintf "Some reason %A" reasons
             >>
             function
             | false, _ -> false
             | true, reason ->
-                do ctx.Logger.Log Info "Rebuild %A: %s" target.ShortName reason
+                do ctx.Logger.Log Info "Rebuild %A: %s" (Target.shortName target) reason
                 true
             <| target
             // todo improve output by printing primary target

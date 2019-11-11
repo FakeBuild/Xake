@@ -1,7 +1,7 @@
 ﻿module ``Progress estimator``
 
 open NUnit.Framework
-open Xake.DomainTypes
+
 open Xake.Progress.Estimate
 
 type TaskDeps = string list

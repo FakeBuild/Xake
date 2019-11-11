@@ -1,5 +1,14 @@
 ﻿module Xake.Progress
 
+/// <summary>
+/// A message to a progress reporter.
+/// </summary>
+type ProgressMessage =
+    | Begin of System.TimeSpan
+    | Progress of System.TimeSpan * int
+    | End
+
+
 module internal WindowsProgress =
 
     open System
@@ -144,11 +153,11 @@ module Estimate =
 /// <summary>
 /// Interface for progress module.
 /// </summary>
-type ProgressReport =
-    | TaskStart of Target
-    | TaskSuspend of Target
-    | TaskResume of Target
-    | TaskComplete of Target
+type ProgressReport<'TKey> when 'TKey: comparison =
+    | TaskStart of 'TKey
+    | TaskSuspend of 'TKey
+    | TaskResume of 'TKey
+    | TaskComplete of 'TKey
     | Refresh
     | Finish
 
@@ -195,7 +204,7 @@ let openProgress getDurationDeps threadCount goals toConsole =
     let _,endTime = execMany machineState getDurationDeps goals
 
     let startTime = System.DateTime.Now
-    progressBar <| ProgressMessage.Begin (System.TimeSpan.FromMilliseconds (float endTime))
+    progressBar <| Begin (System.TimeSpan.FromMilliseconds (float endTime))
 
     /// We track currently running tasks and subtract already passed time from task duration
     let getDuration2 runningTasks t =
@@ -214,7 +223,7 @@ let openProgress getDurationDeps threadCount goals toConsole =
         //printf "progress %A to %A " timePassed endTime
         let percentDone = timePassed * 100 / (timePassed + leftTime) |> int
         let progressData = System.TimeSpan.FromMilliseconds (leftTime/1<ms> |> float), percentDone
-        do ProgressMessage.Progress progressData |> progressBar
+        do Progress progressData |> progressBar
         if toConsole then
             do WriteConsoleProgress progressData
 

@@ -9,7 +9,7 @@ type Database<'result> = { Status : Map<Target, 'result> }
 type DatabaseHeader = 
     { XakeSign : string
       XakeVer : string
-      ScriptDate : Timestamp }
+      ScriptDate : System.DateTime }
 
 (* API *)
 

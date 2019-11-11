@@ -1,5 +1,8 @@
 ﻿namespace Xake
 
+// expression type
+type Recipe<'a,'b> = Recipe of ('a -> Async<'a * 'b>)
+
 module internal RecipeAlgebra =
     let runAction (Recipe r) = r
     let returnF a = Recipe (fun s -> async {return (s,a)})
