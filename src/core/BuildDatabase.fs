@@ -1,6 +1,6 @@
 module Xake.BuildDatabase
 
-module internal Picklers =
+module Picklers =
 
     open Pickler
 
@@ -38,3 +38,8 @@ module internal Picklers =
                Steps = steps }), 
              fun r -> (r.Targets, r.Built, r.Depends, r.Steps)) 
             (quad (list target) date (list dependency) (list step))
+
+type DatabaseApi<'result> = Database.DatabaseApi<'result>
+
+/// Opens the database
+let openDb path loggers = Database.openDb Picklers.result path loggers

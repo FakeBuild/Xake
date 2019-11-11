@@ -106,7 +106,7 @@ let newTaskContext targets matches ctx =
 // executes single artifact
 let rec execOne ctx target =
 
-    let run ruleMatches action targets =
+    let run ruleMatches (Recipe action) targets =
         let primaryTarget = targets |> List.head
         async {
             match ctx.NeedRebuild targets with
@@ -117,7 +117,7 @@ let rec execOne ctx target =
                 do Progress.TaskStart primaryTarget |> ctx.Progress.Post
 
                 let startResult = {BuildResult.makeResult targets with Steps = [Step.start "all"]}
-                let! (result,_) = action (startResult, taskContext)
+                let! ({Result = result},_) = action { taskContext with Result = startResult }
                 let result = Step.updateTotalDuration result
 
                 Store (result.Targets, result) |> ctx.Db.Post
@@ -140,9 +140,8 @@ let rec execOne ctx target =
     match target |> locateRule ctx.Rules ctx.Options.ProjectRoot with
     | Some(rule,groups,targets) ->
         let groupsMap = groups |> Map.ofSeq
-        let (Recipe action) = rule |> getAction
         async {
-            let! waitTask = (fun channel -> WorkerPool.Run(target, targets, run groupsMap action targets, channel)) |> ctx.TaskPool.PostAndAsyncReply
+            let! waitTask = (fun channel -> WorkerPool.Run(target, targets, run groupsMap (getAction rule) targets, channel)) |> ctx.TaskPool.PostAndAsyncReply
             let! status = waitTask
             return target, status, ArtifactDep target
         }
@@ -316,7 +315,7 @@ let runScript options rules =
 
     let (throttler, pool) = WorkerPool.create logger options.Threads
 
-    let db = openDb BuildDatabase.Picklers.result (options.ProjectRoot </> options.DbFileName) logger
+    let db = BuildDatabase.openDb (options.ProjectRoot </> options.DbFileName) logger
 
     let ctx = {
         Ordinal = 0

@@ -83,7 +83,7 @@ let getChangeReasons ctx getTargetDeps target =
 
     match lastBuild with
     | Some {BuildResult.Depends = []} ->
-        [ChangeReason.Other "No dependencies", Some "It means target is not \"pure\" and depends on something beyond our control (oracle)"]
+        [Other "No dependencies", Some "It means target is not \"pure\" and depends on something beyond our control (oracle)"]
 
     | Some {BuildResult.Depends = depends; Targets = result} ->
         let depState = getDepState (Util.getVar ctx.Options) (toFileList ctx.Options.ProjectRoot) getTargetDeps

@@ -125,10 +125,11 @@ module internal Step =
         | {Steps = current :: _} -> current
         | _ -> start "dummy"
     
-module internal BuildResult =
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module BuildResult =
     /// Creates a new build result
-    let makeResult target = 
-        { Targets = target
+    let makeResult targets = 
+        { Targets = targets
           Built = System.DateTime.Now
           Depends = []
           Steps = [] }

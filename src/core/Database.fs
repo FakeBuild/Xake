@@ -2,7 +2,7 @@
 
 open Xake
 
-let XakeDbVersion = "0.4"
+let XakeDbVersion = "0.5"
 
 type Database<'result> = { Status : Map<Target, 'result> }
 
@@ -50,6 +50,8 @@ module private impl =
               XakeVer = XakeDbVersion
               ScriptDate = System.DateTime.Now }
         dbHeaderPu.pickle h w
+
+    let targetListPu = list targetPu
     
     let openDatabaseFile (resultPU: 'result PU) dbpath (logger : ILogger) = 
         let log = logger.Log
@@ -65,7 +67,6 @@ module private impl =
         let db = ref (newDatabase())
         let recordCount = ref 0
 
-        let targetListPu = list targetPu
         // read database
         if File.Exists(dbpath) then 
             try 
@@ -111,28 +112,29 @@ type DatabaseApi<'result> =
     | CloseWait of AsyncReplyChannel<unit>
 
 /// Opens database.
-let openDb resultPU dbpath (logger : ILogger) = 
-    let db, dbwriter = impl.openDatabaseFile resultPU dbpath logger
+let openDb resultPU dbPath (logger : ILogger) = 
+    let db, dbWriter = impl.openDatabaseFile resultPU dbPath logger
     MailboxProcessor.Start(fun mbox -> 
         let rec loop (db) = 
             async { 
                 let! msg = mbox.Receive()
                 match msg with
-                | GetResult(key, chnl) -> 
+                | GetResult(key, chan) -> 
                     db.Status
                     |> Map.tryFind key
-                    |> chnl.Reply
+                    |> chan.Reply
                     return! loop (db)
                 | Store (targets, result) -> 
-                    resultPU.pickle result dbwriter
+                    impl.targetListPu.pickle targets dbWriter
+                    resultPU.pickle result dbWriter
                     return! loop (addResult db targets result)
                 | Close -> 
                     logger.Log Info "Closing database"
-                    dbwriter.Dispose()
+                    dbWriter.Dispose()
                     return ()
                 | CloseWait ch -> 
                     logger.Log Info "Closing database"
-                    dbwriter.Dispose()
+                    dbWriter.Dispose()
                     ch.Reply()
                     return ()
             }
