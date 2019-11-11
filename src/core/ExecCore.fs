@@ -4,11 +4,6 @@ open System.Text.RegularExpressions
 
 open Xake
 open DependencyAnalysis
-
-/// Default options
-[<System.Obsolete("Obsolete, use ExecOptions.Default")>]
-let XakeOptions = ExecOptions.Default
-
 open Database
 
 /// Writes the message with formatting to a log
@@ -92,18 +87,15 @@ let raiseError ctx error details =
 // Ordinal of the task being added to a task pool
 let refTaskOrdinal = ref 0
 
-/// <summary>
 /// Creates a context for a new task
-/// </summary>
 let newTaskContext targets matches ctx =
     let ordinal = System.Threading.Interlocked.Increment(refTaskOrdinal)
     let prefix = ordinal |> sprintf "%i> "
     in
-    {ctx with
+    { ctx with
         Ordinal = ordinal; Logger = PrefixLogger prefix ctx.RootLogger
         Targets = targets
-        RuleMatches = matches
-    }
+        RuleMatches = matches }
 
 // executes single artifact
 let rec execOne ctx target =
@@ -154,14 +146,10 @@ let rec execOne ctx target =
             async.Return <| (target, JustFile, FileDep (file, File.getLastWriteTime file))
         | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" <| Target.fullName target) ""
 
-/// <summary>
 /// Executes several artifacts in parallel.
-/// </summary>
 and execParallel ctx = List.map (execOne ctx) >> Seq.ofList >> Async.Parallel
 
-/// <summary>
 /// Gets the status of dependency artifacts (obtained from 'need' calls).
-/// </summary>
 /// <returns>
 /// ExecStatus.Succeed,... in case at least one dependency was rebuilt
 /// </returns>
@@ -205,17 +193,12 @@ let dryRun ctx options (groups: string list list) =
 
     let rec showDepStatus ii reasons =
         reasons |> function
-        | Other reason ->
-            print "%sReason: %s" (indent ii) reason
-        | Depends t ->
-            print "%sDepends '%s' - changed target" (indent ii) (Target.shortName t)
-        | DependsMissingTarget t ->
-            print "%sDepends on '%s' - missing target" (indent ii) (Target.shortName t)
-        | FilesChanged (file:: rest) ->
-            print "%sFile is changed '%s' %s" (indent ii) file (if List.isEmpty rest then "" else sprintf " and %d more file(s)" <| List.length rest)
-        | reasons ->
-            do print "%sSome reason %A" (indent ii) reasons
-        ()
+        | Other reason ->   print "%sReason: %s" (indent ii) reason
+        | Depends t ->      print "%sDepends '%s' - changed target" (indent ii) (Target.shortName t)
+        | DependsMissingTarget t ->      print "%sDepends on '%s' - missing target" (indent ii) (Target.shortName t)
+        | FilesChanged (file:: rest) ->  print "%sFile is changed '%s' %s" (indent ii) file (if List.isEmpty rest then "" else sprintf " and %d more file(s)" <| List.length rest)
+        | reasons ->        print "%sSome reason %A" (indent ii) reasons
+
     let rec displayNestedDeps ii =
         function
         | DependsMissingTarget t
@@ -237,14 +220,14 @@ let dryRun ctx options (groups: string list list) =
     let endTime = Progress.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targetGroups |> toSec
 
     targetGroups |> List.collect id |> List.iter (showTargetStatus 0)
-    let alldeps = targetGroups |> List.collect id |> List.collect getDeps
-    if List.isEmpty alldeps then
+    match targetGroups |> List.collect id |> List.collect getDeps with
+    | [] ->
         ctx.Logger.Log Message "\n\n\tNo changed dependencies. Nothing to do.\n"
-    else
+    | _ ->
         let parallelismMsg =
             let endTimeTotal = Progress.estimateEndTime (getDurationDeps ctx getDeps) 1 targetGroups |> toSec
             if options.Threads > 1 && endTimeTotal > endTime * 1.05 then
-                sprintf "\n\tTotal tasks duration is (estimate) in %As\n\tParallelist degree: %.2f" endTimeTotal (endTimeTotal / endTime)
+                sprintf "\n\tTotal tasks duration is (estimate) in %As\n\tParallelism degree: %.2f" endTimeTotal (endTimeTotal / endTime)
             else ""
         ctx.Logger.Log Message "\n\n\tBuild will be completed (estimate) in %As%s\n" endTime parallelismMsg
 
@@ -254,7 +237,7 @@ let rec unwindAggEx (e:System.Exception) = seq {
         | a -> yield a
     }
 
-let rec runSeq<'r> :Async<'r> list -> Async<'r list> = 
+let runSeq<'r> :Async<'r> list -> Async<'r list> = 
     List.fold
         (fun rest i -> async {
             let! tail = rest
