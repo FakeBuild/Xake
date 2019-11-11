@@ -12,30 +12,29 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Common/Prelude.fs" />
+    <Compile Include="Common/Util.fs" />
     <Compile Include="Common/Logging.fs" />
     <Compile Include="Common/Pickler.fs" />
     <Compile Include="Common/Env.fs" />
     <Compile Include="Common/Database.fs" />
+    <Compile Include="Common/Recipe.fs" />
+    <Compile Include="Common/RecipeFunctions.fs" />
+    <Compile Include="Common/Progress.fs" />
+    <Compile Include="Common/WorkerPool.fs" />
     <Compile Include="Path.fs" />
     <Compile Include="PathExt.fs" />
     <Compile Include="File.fsi" />
     <Compile Include="File.fs" />
     <Compile Include="Fileset.fs" />
     <Compile Include="Target.fs" />
-    <Compile Include="CommonLib.fs" />
-    <Compile Include="Recipe.fs" />
-    <Compile Include="RecipeFunctions.fs" />
-    <Compile Include="WorkerPool.fs" />
-    <Compile Include="Progress.fs" />
     <Compile Include="ExecTypes.fs" />
     <Compile Include="BuildDatabase.fs" />
     <Compile Include="DependencyAnalysis.fs" />
     <Compile Include="ExecCore.fs" />
     <Compile Include="XakeScript.fs" />
     <Compile Include="ScriptFuncs.fs" />
-    <Compile Include="ProcessExec.fs" />
     <Compile Include="FileTasksImpl.fs" />
+    <Compile Include="Tasks\ProcessExec.fs" />
     <Compile Include="Tasks\Cp.fs" />
     <Compile Include="Tasks\Rm.fs" />
     <Compile Include="Tasks\Shell.fs" />

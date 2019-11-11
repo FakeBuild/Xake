@@ -1,20 +1,15 @@
 ﻿[<AutoOpen>]
 module Xake.ScriptFuncs
 
-/// <summary>
 /// Gets the script options.
-/// </summary>
 let getCtxOptions () = recipe {
     let! (ctx: ExecContext) = getCtx()
     return ctx.Options
 }
 
-/// <summary>
 /// Executes and awaits specified artifacts.
-/// </summary>
-/// <param name="targets"></param>
 let need targets =
-    action {
+    recipe {
         let! ctx = getCtx()
         let t' = targets |> (List.map (ExecCore.makeTarget ctx))
         do! ExecCore.need t'
@@ -39,7 +34,7 @@ let alwaysRerun() = AlwaysRerun |> record
 /// <param name="variableName"></param>
 let getEnv variableName =
     let value = Util.getEnvVar variableName
-    action {
+    recipe {
         do! EnvVar (variableName,value) |> record
         return value
     }
@@ -68,23 +63,18 @@ let getFiles fileset = recipe {
     return files
 }
 
-/// <summary>
+let private takeFile (FileTarget file | OtherwiseFailErr "Expected only a file targets" file) = Some file
+
 /// Gets current target file
-/// </summary>
 let getTargetFile() = recipe {
     let! ctx = getCtx()
-    return ctx.Targets
-        |> function
-        | FileTarget file::_ -> file
-        | _ -> failwith "getTargetFile is not available for phony actions"
+    return ctx.Targets |> List.choose takeFile |> List.head
 }
 
-/// <summary>
 /// Gets current target file
-/// </summary>
-let getTargetFiles() : Recipe<ExecContext, File list> = recipe {
-    let! ctx = getCtx()
-    return ctx.Targets |> List.collect (function |FileTarget file -> [file] |_ -> failwith "Expected only a file targets"; [])
+let getTargetFiles() = recipe {
+    let! (ctx: ExecContext) = getCtx()
+    return ctx.Targets |> List.choose takeFile
 }
 
 /// <summary>
@@ -100,18 +90,13 @@ let getRuleMatches () = recipe {
     return ctx.RuleMatches
 }
 
-/// <summary>
 /// Gets group (part of the name) by its name.
-/// </summary>
 let getRuleMatch key = action {
     let! groups = getRuleMatches()
     return groups |> Map.tryFind key |> function |Some v -> v | None -> ""
 }
 
-
-/// <summary>
 /// Writes a message to a log.
-/// </summary>
 let trace = ExecCore.traceLog
 
 /// Defines a rule that demands specified targets
@@ -124,8 +109,8 @@ let (<==) name targets = PhonyRule (name, recipe {
 /// Finalizes current build step and starts a new one       // TODO put it somewhere
 let newstep name = recipe {
     let! c = getCtx()
-    let r' = Step.updateTotalDuration c.Result
-    let r'' = {r' with Steps = (Step.start name) :: r'.Steps}
+    let r' = BuildResult.updateTotalDuration c.Result
+    let r'' = {r' with Steps = (BuildResult.startStep name) :: r'.Steps}
     do! setCtx { c with Result = r''}
 }
     

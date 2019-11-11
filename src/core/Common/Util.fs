@@ -1,5 +1,13 @@
 ﻿[<AutoOpen>]
-module internal Xake.CommonLib
+module Xake.Util
+
+let (><) f a b = f b a
+let inline (|OtherwiseFail|) _ = failwith "no choice"
+let inline (|OtherwiseFailErr|) message _ = failwith message
+
+type 't Agent = 't MailboxProcessor
+
+[<Measure>] type ms
 
 type private CacheKey<'K> = K of 'K
 
@@ -23,27 +31,17 @@ let memoize f =
                     res)
 
 
-///**Description**
 /// Memoizes the recursive function. Memoized function is passed as first argument to f.
-///**Parameters**
 ///  * `f` - parameter of type `('a -> 'b) -> 'a -> 'b` The function to be memoized.
-///
-///**Output Type**
-///  * `'a -> 'b`
-///
-///**Exceptions**
-///
 let memoizeRec f =
     let rec fn x = f fm x
     and fm = fn |> memoize
     in
     fm
 
-/// <summary>
 /// Takes n first elements from a list.
-/// </summary>
-/// <param name="cnt"></param>
-let rec take cnt = function |_ when cnt <= 0 -> [] |[] -> [] |a::rest -> a :: (take (cnt-1) rest)
+let take cnt =
+    if cnt > 0 then List.chunkBySize cnt >> List.head else fun _ -> List.empty
 
 /// <summary>
 /// Returns a list of unique values for a specific list.

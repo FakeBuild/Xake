@@ -2,7 +2,6 @@
 module Xake.ExecTypes
 
 open System.Threading
-open Prelude
 open Xake.Database
 
 /// Script execution options
@@ -68,7 +67,7 @@ static member Default = {
 end
 
 type ExecStatus = | Succeed | Skipped | JustFile
-type TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
+type TaskPool = Agent<WorkerPool.ExecMessage<Target,ExecStatus>>
 type Timestamp = System.DateTime
 
 type Dependency =
@@ -98,7 +97,7 @@ type 'ctx Rules = Rules of 'ctx Rule list
 
 /// Script execution context
 type ExecContext = {
-    TaskPool: TaskPool
+    Workers: TaskPool
     Db: Agent<DatabaseApi<Target,BuildResult>>
     Throttler: SemaphoreSlim
     Options: ExecOptions
@@ -116,7 +115,7 @@ type ExecContext = {
 /// Defines common exception type
 exception XakeException of string
 
-module internal Util =
+module internal Util =  // TODO rename to an ExecOptions
 
     let private nullableToOption = function | null -> None | s -> Some s
     let getEnvVar = System.Environment.GetEnvironmentVariable >> nullableToOption
@@ -124,36 +123,31 @@ module internal Util =
     let private valueByName variableName = function |name,value when name = variableName -> Some value | _ -> None
     let getVar (options: ExecOptions) name = options.Vars |> List.tryPick (valueByName name)
 
-/// Utility methods to manipulate build stats   // TODO moveme
-module internal Step =
+[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
+module BuildResult =
+    open System
 
-    type DateTime = System.DateTime
+    /// Creates a new build result
+    let makeResult targets =  { Targets = targets; Built = DateTime.Now; Depends = []; Steps = [] }
 
-    let start name = {StepInfo.Empty with Name = name; Start = DateTime.Now}
+    /// Start a new step
+    let startStep name = {StepInfo.Empty with Name = name; Start = DateTime.Now}
 
-    /// <summary>
     /// Updated last (current) build step
-    /// </summary>
     let updateLastStep fn = function
         | {Steps = current :: rest} as result -> {result with Steps = (fn current) :: rest}
         | result -> result
 
-    /// <summary>
     /// Adds specific amount to a wait time
-    /// </summary>
     let updateWaitTime delta = updateLastStep (fun c -> {c with WaitTime = c.WaitTime + delta})
+
+    /// Updates total duration of the build (adds to last step)
     let updateTotalDuration =
         let durationSince (startTime: DateTime) = int (DateTime.Now - startTime).TotalMilliseconds * 1<ms>
         updateLastStep (fun c -> {c with OwnTime = (durationSince c.Start) - c.WaitTime})
+
+    /// Gets the last (current) step
     let lastStep = function
         | {Steps = current :: _} -> current
-        | _ -> start "dummy"
-    
-[<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
-module BuildResult =
-    /// Creates a new build result
-    let makeResult targets = 
-        { Targets = targets
-          Built = System.DateTime.Now
-          Depends = []
-          Steps = [] }
+        | _ -> startStep "dummy"
+      

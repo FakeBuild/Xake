@@ -20,8 +20,8 @@ let pexec handleStd handleErr cmd args (envvars:(string * string) list) workDir 
 
     let proc = new Process(StartInfo = pinfo)
 
-    proc.ErrorDataReceived.Add(fun e -> if e.Data <> null then handleErr e.Data)
-    proc.OutputDataReceived.Add(fun e -> if e.Data <> null then handleStd e.Data)
+    proc.ErrorDataReceived.Add(fun e -> if not (isNull e.Data) then handleErr e.Data)
+    proc.OutputDataReceived.Add(fun e -> if not (isNull e.Data) then handleStd e.Data)
 
     do proc.Start() |> ignore
 

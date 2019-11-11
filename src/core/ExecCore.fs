@@ -118,14 +118,14 @@ let rec execOne ctx target =
 
                 do Progress.TaskStart primaryTarget |> ctx.Progress.Post
 
-                let startResult = {BuildResult.makeResult targets with Steps = [Step.start "all"]}
+                let startResult = {BuildResult.makeResult targets with Steps = [BuildResult.startStep "all"]}
                 let! ({Result = result},_) = action { taskContext with Result = startResult }
-                let result = Step.updateTotalDuration result
+                let result = BuildResult.updateTotalDuration result
 
                 Store (result.Targets, result) |> ctx.Db.Post
 
                 do Progress.TaskComplete primaryTarget |> ctx.Progress.Post
-                do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (Target.shortName primaryTarget) (Step.lastStep result).OwnTime  (Step.lastStep result).WaitTime
+                do ctx.Logger.Log Command "Completed %s in %A ms (wait %A ms)" (Target.shortName primaryTarget) (BuildResult.lastStep result).OwnTime  (BuildResult.lastStep result).WaitTime
                 return Succeed
             | false ->
                 do ctx.Logger.Log Command "Skipped %s (up to date)" (Target.shortName primaryTarget)
@@ -143,7 +143,8 @@ let rec execOne ctx target =
     | Some(rule,groups,targets) ->
         let groupsMap = groups |> Map.ofSeq
         async {
-            let! waitTask = (fun channel -> WorkerPool.Run(target, targets, run groupsMap (getAction rule) targets, channel)) |> ctx.TaskPool.PostAndAsyncReply
+            let taskTitle = Target.shortName target
+            let! waitTask = (fun channel -> WorkerPool.Run(taskTitle, target::targets, run groupsMap (getAction rule) targets, channel)) |> ctx.Workers.PostAndAsyncReply
             let! status = waitTask
             return target, status, ArtifactDep target
         }
@@ -321,7 +322,7 @@ let runScript options rules =
 
     let ctx = {
         Ordinal = 0
-        TaskPool = pool; Throttler = throttler
+        Workers = pool; Throttler = throttler
         Options = options; Rules = rules
         Logger = logger; RootLogger = logger; Db = db
         Progress = Progress.emptyProgress()
@@ -372,6 +373,6 @@ let need targets = recipe {
     let! _,deps = targets |> execNeed ctx
 
     let totalDuration = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
-    let result' = {ctx.Result with Depends = ctx.Result.Depends @ deps} |> (Step.updateWaitTime totalDuration)
+    let result' = {ctx.Result with Depends = ctx.Result.Depends @ deps} |> (BuildResult.updateWaitTime totalDuration)
     do! setCtx { ctx with Result = result' }
 }

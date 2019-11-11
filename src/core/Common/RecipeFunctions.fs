@@ -20,22 +20,10 @@ let map f (rc: Recipe<_,_>) = recipe {
 /// Gets action context.
 let getCtx()     = Recipe (fun c -> async {return (c,c)})
 
-/// <summary>
-/// Gets current task result.
-/// </summary>
-// let getResult()  = Recipe (fun (s,_) -> async {return (s,s)})
-
-/// <summary>
 /// Updates the build result
-/// </summary>
-/// <param name="s'"></param>
 let setCtx ctx = Recipe (fun _ -> async {return (ctx,())})
 
-/// <summary>
 /// Consumes the task output and in case condition is met raises the error.
-/// </summary>
-/// <param name="cond"></param>
-/// <param name="act"></param>
 let FailWhen cond err (act: Recipe<_,_>) =
     recipe {
         let! b = act

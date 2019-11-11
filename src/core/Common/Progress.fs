@@ -8,7 +8,6 @@ type ProgressMessage =
     | Progress of System.TimeSpan * int
     | End
 
-
 module internal WindowsProgress =
 
     open System

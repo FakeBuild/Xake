@@ -2,6 +2,7 @@
 
 open NUnit.Framework
 
+open Xake
 open Xake.Progress.Estimate
 
 type TaskDeps = string list

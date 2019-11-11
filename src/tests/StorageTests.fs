@@ -38,7 +38,7 @@ module private impl =
                         Var("DEBUG", Some "false") ]
             Steps = [ newStepInfo ("compile", 217) ] }
 
-    let (<-*) (a : Agent<_ DatabaseApi>) t = a.PostAndReply(fun ch -> GetResult(t, ch))
+    let (<-*) (a : Agent<DatabaseApi>) t = a.PostAndReply(fun ch -> GetResult(t, ch))
 
     let inline (<--) (agent : ^a) (msg : 'b) =
         (^a : (member Post : 'b -> unit) (agent, msg))
