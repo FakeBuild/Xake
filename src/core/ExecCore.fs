@@ -344,6 +344,7 @@ let runScript options rules =
                 let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
                 th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
                 ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
+                FlushLogs()
                 exit 2
     finally
         db.PostAndReply Database.CloseWait

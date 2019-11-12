@@ -4,10 +4,10 @@
     <AssemblyName>Xake</AssemblyName>
     <OutputType>Library</OutputType>
     <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
-    <Copyright>(c) OlegZee 2014-2018</Copyright>
+    <Copyright>(c) OlegZee 2014-2019</Copyright>
 
-    <PackageProjectUrl>https://github.com/xakebuild/Xake</PackageProjectUrl>
-    <PackageIconUrl>https://github.com/xakebuild/Xake/raw/dev/Icon.png</PackageIconUrl>
+    <PackageProjectUrl>https://github.com/Fakebuild/Xake</PackageProjectUrl>
+    <PackageIconUrl>https://github.com/Fakebuild/Xake/raw/dev/Icon.png</PackageIconUrl>
     <Description>Xake build tool, the engine</Description>
   </PropertyGroup>
 
