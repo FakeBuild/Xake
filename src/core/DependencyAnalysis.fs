@@ -1,6 +1,9 @@
 ﻿module internal Xake.DependencyAnalysis
 
 open Xake
+open Xake.Util
+open Xake.Estimate
+
 open Database
 
 /// <summary>
@@ -22,7 +25,7 @@ let TimeCompareToleranceMs = 10.0
 /// <param name="target"></param>
 let getExecTime ctx (target: Target) =
     (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
-    |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
+    |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<Ms>
 
 /// Gets single dependency state and reason of a change.
 let getDepState getVar getFileList (getChangedDeps: Target -> ChangeReason list) = function
@@ -107,7 +110,7 @@ let getChangeReasons ctx getTargetDeps target =
 // gets task duration and list of targets it depends on. No clue why one method does both.
 let getDurationDeps ctx getDeps t =
     match getDeps t with
-    | [] -> 0<ms>, []
+    | [] -> 0<Estimate.Ms>, []
     | deps ->
         let targets = deps |> List.collect (function |Depends t |DependsMissingTarget t -> [t] | _ -> [])
         (getExecTime ctx t, targets)

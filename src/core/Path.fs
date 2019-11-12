@@ -3,6 +3,8 @@
 open System.IO
 open System.Text.RegularExpressions
 
+open Xake.Util
+
 type Part =
     | FsRoot
     | Parent

@@ -4,6 +4,7 @@ open System.IO
 open NUnit.Framework
 
 open Xake
+open Xake.Util
 open Xake.Database
 open Xake.BuildDatabase
 
@@ -17,7 +18,7 @@ module private impl =
     let mkFileTarget = File.make >> FileTarget
     let newStepInfo (name, duration) =
         { StepInfo.Empty with Name = name
-                              OwnTime = duration * 1<ms> }
+                              OwnTime = duration * 1<Ms> }
 
     // stores object to a binary stream and immediately reads it
     let writeAndRead (pu : Pickler.PU<_>) testee =

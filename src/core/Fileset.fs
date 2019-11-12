@@ -3,6 +3,7 @@ module Xake.Fileset
 
 open System.IO
 open Xake
+open Xake.Util
 
 /// <summary>
 /// Defines interface to a file system

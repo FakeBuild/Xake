@@ -19,6 +19,7 @@
     <Compile Include="Common/Database.fs" />
     <Compile Include="Common/Recipe.fs" />
     <Compile Include="Common/RecipeFunctions.fs" />
+    <Compile Include="Common/Estimate.fs" />
     <Compile Include="Common/Progress.fs" />
     <Compile Include="Common/WorkerPool.fs" />
     <Compile Include="Path.fs" />

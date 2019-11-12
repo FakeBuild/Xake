@@ -3,6 +3,7 @@
 open System.Text.RegularExpressions
 
 open Xake
+open Xake.Util
 open DependencyAnalysis
 open Database
 
@@ -216,8 +217,8 @@ let dryRun ctx options (groups: string list list) =
                 deps |> List.iter (displayNestedDeps (ii+1))
 
     let targetGroups = makeTarget ctx |> List.map |> List.map <| groups in 
-    let toSec v = float (v / 1<ms>) * 0.001
-    let endTime = Progress.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targetGroups |> toSec
+    let toSec v = float (v / 1<Ms>) * 0.001
+    let endTime = Estimate.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targetGroups |> toSec
 
     targetGroups |> List.collect id |> List.iter (showTargetStatus 0)
     match targetGroups |> List.collect id |> List.collect getDeps with
@@ -225,7 +226,7 @@ let dryRun ctx options (groups: string list list) =
         ctx.Logger.Log Message "\n\n\tNo changed dependencies. Nothing to do.\n"
     | _ ->
         let parallelismMsg =
-            let endTimeTotal = Progress.estimateEndTime (getDurationDeps ctx getDeps) 1 targetGroups |> toSec
+            let endTimeTotal = Estimate.estimateEndTime (getDurationDeps ctx getDeps) 1 targetGroups |> toSec
             if options.Threads > 1 && endTimeTotal > endTime * 1.05 then
                 sprintf "\n\tTotal tasks duration is (estimate) in %As\n\tParallelism degree: %.2f" endTimeTotal (endTimeTotal / endTime)
             else ""
@@ -355,7 +356,7 @@ let need targets = recipe {
     let! ctx = getCtx()
     let! _,deps = targets |> execNeed ctx
 
-    let totalDuration = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
+    let totalDuration = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<Ms>
     let result' = {ctx.Result with Depends = ctx.Result.Depends @ deps} |> (BuildResult.updateWaitTime totalDuration)
     do! setCtx { ctx with Result = result' }
 }

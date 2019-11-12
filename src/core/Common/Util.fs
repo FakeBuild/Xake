@@ -1,13 +1,10 @@
-﻿[<AutoOpen>]
-module Xake.Util
+﻿module Xake.Util
 
 let (><) f a b = f b a
 let inline (|OtherwiseFail|) _ = failwith "no choice"
 let inline (|OtherwiseFailErr|) message _ = failwith message
 
 type 't Agent = 't MailboxProcessor
-
-[<Measure>] type ms
 
 type private CacheKey<'K> = K of 'K
 
@@ -42,12 +39,3 @@ let memoizeRec f =
 /// Takes n first elements from a list.
 let take cnt =
     if cnt > 0 then List.chunkBySize cnt >> List.head else fun _ -> List.empty
-
-/// <summary>
-/// Returns a list of unique values for a specific list.
-/// </summary>
-/// <param name="ls"></param>
-let distinct ls =        
-    ls |>
-    List.fold (fun map item -> if map |> Map.containsKey item then map else map |> Map.add item 1) Map.empty
-    |> Map.toList |> List.map fst

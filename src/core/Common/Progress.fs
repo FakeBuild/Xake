@@ -1,5 +1,8 @@
 ﻿module Xake.Progress
 
+open Xake.Util
+open Xake.Estimate
+
 /// <summary>
 /// A message to a progress reporter.
 /// </summary>
@@ -82,73 +85,6 @@ module internal WindowsProgress =
         with _ ->
             ignore
 
-module internal Impl =
-    /// <summary>
-    /// Updates the first item matching the criteria and returns the updated value.
-    /// </summary>
-    /// <param name="predicate"></param>
-    /// <param name="upd"></param>
-    let rec updateFirst predicate upd = function
-        | [] -> None,[]
-        | c::list when predicate c ->
-            let updated = upd c in
-            Some updated, updated :: list
-        | c::list ->
-            let result,list = (updateFirst predicate upd list) in
-            result, c::list
-
-    let ignoreFailures f a =
-        try
-            f a
-        with _ ->
-            ()
-
-/// Estimate the task execution times
-module Estimate =
-
-    type CpuState = | BusyUntil of int<ms>
-    type MachineState<'T when 'T:comparison> =
-        { Cpu: CpuState list; Tasks: Map<'T,int<ms>>}
-
-    /// <summary>
-    /// "Executes" one task
-    /// </summary>
-    /// <param name="state">Initial "machine" state</param>
-    /// <param name="getDurationDeps">Provide a task information to exec function</param>
-    /// <param name="task">The task to execute</param>
-    let rec exec state getDurationDeps task =
-        // Gets the thread that will be freed after specific moment
-        let nearest after =
-            let ready (BusyUntil x) = if x <= after then 0<ms> else x in
-            List.minBy ready
-
-        match state.Tasks |> Map.tryFind task with
-        | Some result -> state,result
-        | None ->
-            let duration,deps = task |> getDurationDeps
-            let readyAt (BusyUntil x)= x
-
-            let mstate, endTime = execMany state getDurationDeps deps
-            let slot = mstate.Cpu |> nearest endTime
-            let (Some (BusyUntil result)|OtherwiseFail result), newState =
-                mstate.Cpu |> Impl.updateFirst ((=) slot) (readyAt >> max endTime >> (+) duration >> BusyUntil)
-            {Cpu = newState; Tasks = mstate.Tasks |> Map.add task result}, result
-//        |> fun r ->
-//            printf "after %A" task
-//            printf "   %A\n\n" r
-//            r
-
-    /// Executes multiple targers simultaneously
-    and execMany state getDurationDeps goals =
-        let machineState,endTime =
-            goals |> List.fold (
-                fun (prevState,prevTime) t ->
-                    let newState,time = exec prevState getDurationDeps t in
-                    (newState, max time prevTime)
-                ) (state, 0<ms>)
-
-        machineState, endTime
-
 /// <summary>
 /// Interface for progress module.
 /// </summary>
@@ -159,8 +95,6 @@ type ProgressReport<'TKey> when 'TKey: comparison =
     | TaskComplete of 'TKey
     | Refresh
     | Finish
-
-open Estimate
 
 /// <summary>
 /// Creates "null" progress reporter.
@@ -177,19 +111,6 @@ let emptyProgress () =
         loop ())
 
 /// <summary>
-/// Gets estimated execution time for several target groups. Each group start when previous group is completed and runs in parallel.
-/// </summary>
-let estimateEndTime getDurationDeps threadCount groups =
-    let machineState = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
-
-    groups |> List.fold (fun (state, _) group -> 
-        let newState, endTime = execMany state getDurationDeps group
-        let newState = {newState with Cpu = newState.Cpu |> List.map (fun _ -> BusyUntil endTime)}
-        newState, endTime
-        ) (machineState, 0<ms>)
-    |> snd
-
-/// <summary>
 /// Creates windows taskbar progress reporter.
 /// </summary>
 /// <param name="getDurationDeps">gets the dependency duration in ms</param>
@@ -198,7 +119,7 @@ let estimateEndTime getDurationDeps threadCount groups =
 let openProgress getDurationDeps threadCount goals toConsole = 
 
     let progressBar = WindowsProgress.createTaskbarIndicator() |> Impl.ignoreFailures
-    let machineState = {Cpu = BusyUntil 0<ms> |> List.replicate threadCount; Tasks = Map.empty}
+    let machineState = {Cpu = BusyUntil 0<Ms> |> List.replicate threadCount; Tasks = Map.empty}
 
     let _,endTime = execMany machineState getDurationDeps goals
 
@@ -212,16 +133,16 @@ let openProgress getDurationDeps threadCount goals toConsole =
             let originalDuration,deps = getDurationDeps t
             //do printf "\nestimate %A: %A\n" t timeToComplete
             in
-            originalDuration - runningTime |> max 0<ms>, deps
+            originalDuration - runningTime |> max 0<Ms>, deps
         | _ ->
             getDurationDeps t
 
     let reportProgress (state, runningTasks) =
-        let timePassed = 1<ms> * int (System.DateTime.Now - startTime).TotalMilliseconds in
+        let timePassed = 1<Ms> * int (System.DateTime.Now - startTime).TotalMilliseconds in
         let _,leftTime = execMany state (getDuration2 runningTasks) goals
         //printf "progress %A to %A " timePassed endTime
         let percentDone = timePassed * 100 / (timePassed + leftTime) |> int
-        let progressData = System.TimeSpan.FromMilliseconds (leftTime/1<ms> |> float), percentDone
+        let progressData = System.TimeSpan.FromMilliseconds (leftTime/1<Ms> |> float), percentDone
         do Progress progressData |> progressBar
         if toConsole then
             do WriteConsoleProgress progressData
@@ -229,7 +150,7 @@ let openProgress getDurationDeps threadCount goals toConsole =
     let updTime = ref System.DateTime.Now
     let advanceRunningTime rt =
         let now = System.DateTime.Now
-        let increment = 1<ms> * int (now - !updTime).TotalMilliseconds
+        let increment = 1<Ms> * int (now - !updTime).TotalMilliseconds
         updTime := now
         rt |> Map.map (
             fun _ (cpu,isRunning) ->
@@ -248,7 +169,7 @@ let openProgress getDurationDeps threadCount goals toConsole =
                     let runningTasks = runningTasks |> advanceRunningTime
 
                     match msg with
-                    | TaskStart target ->    return! loop (state, runningTasks |> Map.add target (0<ms>, true))
+                    | TaskStart target ->    return! loop (state, runningTasks |> Map.add target (0<Ms>, true))
                     | TaskSuspend target ->  return! loop (state, runningTasks |> Map.map (suspend target))
                     | TaskResume target ->   return! loop (state, runningTasks |> Map.map (resume target))
                     | Refresh _ ->
@@ -256,7 +177,7 @@ let openProgress getDurationDeps threadCount goals toConsole =
                         return! loop (state,runningTasks)
 
                     | TaskComplete target ->
-                        let newState = ({state with Tasks = state.Tasks |> Map.add target 0<ms>}, runningTasks |> Map.remove target)
+                        let newState = ({state with Tasks = state.Tasks |> Map.add target 0<Ms>}, runningTasks |> Map.remove target)
                         reportProgress newState
                         return! loop newState
 

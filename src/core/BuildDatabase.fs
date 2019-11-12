@@ -1,5 +1,7 @@
 module Xake.BuildDatabase
 
+open Xake.Util
+
 module Picklers =
 
     open Pickler
@@ -16,8 +18,8 @@ module Picklers =
 
     let step = 
         wrap 
-            ((fun (n, s, o, w) -> {StepInfo.Name = n; Start = s; OwnTime = o * 1<ms>; WaitTime = w * 1<ms>}), 
-             fun ({StepInfo.Name = n; Start = s; OwnTime = o; WaitTime = w}) -> (n, s, o / 1<ms>, w / 1<ms>)) (quad str date int int)
+            ((fun (n, s, o, w) -> {StepInfo.Name = n; Start = s; OwnTime = o * 1<Ms>; WaitTime = w * 1<Ms>}), 
+             fun ({StepInfo.Name = n; Start = s; OwnTime = o; WaitTime = w}) -> (n, s, o / 1<Ms>, w / 1<Ms>)) (quad str date int int)
     
     // Fileset of FilesetOptions * FilesetElement list
     let dependency = 

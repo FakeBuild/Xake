@@ -4,6 +4,9 @@ module Xake.ExecTypes
 open System.Threading
 open Xake.Database
 
+type internal 't Agent = 't MailboxProcessor
+[<Measure>] type Ms = Estimate.Ms
+
 /// Script execution options
 type ExecOptions = {
     /// Defines project root folder
@@ -79,8 +82,8 @@ type Dependency =
     | GetFiles of Fileset * Filelist // depends on set of files. Triggers when resulting filelist is changed
 
 type StepInfo =
-    { Name: string; Start: System.DateTime; OwnTime: int<ms>; WaitTime: int<ms> }
-    with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); OwnTime = 0<ms>; WaitTime = 0<ms>}
+    { Name: string; Start: System.DateTime; OwnTime: int<Ms>; WaitTime: int<Ms> }
+    with static member Empty = {Name = ""; Start = new System.DateTime(1900,1,1); OwnTime = 0<Ms>; WaitTime = 0<Ms>}
 
 type BuildResult =
     { Targets : Target list
@@ -143,7 +146,7 @@ module BuildResult =
 
     /// Updates total duration of the build (adds to last step)
     let updateTotalDuration =
-        let durationSince (startTime: DateTime) = int (DateTime.Now - startTime).TotalMilliseconds * 1<ms>
+        let durationSince (startTime: DateTime) = int (DateTime.Now - startTime).TotalMilliseconds * 1<Ms>
         updateLastStep (fun c -> {c with OwnTime = (durationSince c.Start) - c.WaitTime})
 
     /// Gets the last (current) step

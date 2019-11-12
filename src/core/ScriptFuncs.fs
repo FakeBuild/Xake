@@ -1,6 +1,8 @@
 ﻿[<AutoOpen>]
 module Xake.ScriptFuncs
 
+open Xake.Util
+
 /// Gets the script options.
 let getCtxOptions () = recipe {
     let! (ctx: ExecContext) = getCtx()

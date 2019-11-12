@@ -4,6 +4,7 @@ open System.IO
 open NUnit.Framework
 
 open Xake
+open Xake.Util
 open Xake.BuildDatabase
 open Xake.Tasks
 
