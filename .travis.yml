@@ -2,6 +2,8 @@ language: csharp
 mono: latest
 dotnet: 3.0
 env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}.${TRAVIS_BUILD_NUMBER}; else echo 1.0.0.${TRAVIS_BUILD_NUMBER}; fi;)
+install:
+  - chmod +x ./fake.sh
 script:
   - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5-api/
   - ./fake.sh run build.fsx -- build test -ll Diag
