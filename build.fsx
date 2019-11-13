@@ -8,7 +8,7 @@
 open Xake
 open Xake.Tasks
 
-let frameworks = ["netstandard2.0"; "net46"]
+let frameworks = ["netstandard2.0"]
 let libtargets =
     [ for t in frameworks do
       for e in ["dll"; "xml"] -> sprintf "out/%s/Xake.%s" t e ]
