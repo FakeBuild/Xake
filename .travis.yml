@@ -6,7 +6,8 @@ install:
   - chmod +x ./fake.sh
 script:
   - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5-api/
-  - ./fake.sh run build.fsx -- -ll Diag
+  - ./fake.sh run build.fsx -- build -ll Diag
+  - ./fake.sh run build.fsx -- test -ll Diag
 deploy:
   - provider: script
     script: ./fake.sh run build.fsx -- pack push -ll Diag
