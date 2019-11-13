@@ -1,5 +1,5 @@
 #r "paket:
-    nuget Xake ~> 1.1 prerelease //"
+    nuget Xake ~> 1.1.4 prerelease //"
 
 #if !FAKE
 #load ".fake/build.fsx/intellisense.fsx"
