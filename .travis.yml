@@ -5,9 +5,8 @@ env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}.${TRAV
 install:
   - chmod +x ./fake.sh
 script:
-  - export FrameworkPathOverride=$(dirname $(which mono))/../lib/mono/4.5-api/
-  - ./fake.sh run build.fsx -- build -ll Diag
-  - ./fake.sh run build.fsx -- test -ll Diag
+  - dotnet build src/core /p:Version=$VER -c Release /p:DocumentationFile=Xake.xml
+  - dotnet test src/test -c Release
 deploy:
   - provider: script
     script: ./fake.sh run build.fsx -- pack push -ll Diag
