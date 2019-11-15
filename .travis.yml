@@ -6,7 +6,7 @@ install:
   - chmod +x ./fake.sh
 script:
   - dotnet build src/core /p:Version=$VER -c Release /p:DocumentationFile=Xake.xml
-  - dotnet test src/test -c Release
+  - dotnet test src/tests -c Release
 deploy:
   - provider: script
     script: ./fake.sh run build.fsx -- pack push -ll Diag
