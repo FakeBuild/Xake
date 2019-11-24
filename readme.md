@@ -1,6 +1,6 @@
 Xake is a build utility that uses the full power of the F# programming language. Xake is inspired by [shake](https://github.com/ndmitchell/shake) build tool.
 
-[![Build Status](https://travis-ci.org/xakebuild/Xake.svg?branch=dev)](https://travis-ci.org/xakebuild/Xake)
+[![Build Status](https://travis-ci.org/Fakebuild/Xake.svg?branch=dev)](https://travis-ci.org/xakebuild/Xake)
 
 ## Sample script
 
@@ -29,12 +29,13 @@ To run this script:
 
 1. Clone the project:
 
-    ```
+    ```bash
     git clone http://github.com/xakebuild/xake
     ```
+
 1. Run the "Hello world" build sctipt:
 
-    ```
+    ```bash
     cd samples
     dotnet restore dotnet-fake.csproj
     dotnet fake run gettingstarted.fsx
@@ -51,8 +52,7 @@ To run this script:
 Once you cloned the repository you are ready to compile and test the binaries:
 
 ```
-dotnet restore build.proj
-dotnet fake run build.fsx -- build test
+fake run build.fsx -- build test
 ```
 
 ... or use `build.cmd` (`build.sh`) in the root folder
@@ -68,4 +68,3 @@ dotnet fake run build.fsx -- build test
 
 Xake requires 'pkg-config' to locate mono runtime. Pkg-config utility is deployed with mono, but it's not included in
 $PATH. The options available are described on [monobjc mailing list](http://www.mail-archive.com/users@lists.monobjc.net/msg00235.html)
-

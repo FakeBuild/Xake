@@ -3,44 +3,43 @@
   <PropertyGroup>
     <AssemblyName>Xake</AssemblyName>
     <OutputType>Library</OutputType>
-    <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
-    <Copyright>(c) OlegZee 2014-2018</Copyright>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <Copyright>(c) OlegZee 2014-2019</Copyright>
 
-    <PackageProjectUrl>https://github.com/xakebuild/Xake</PackageProjectUrl>
-    <PackageIconUrl>https://github.com/xakebuild/Xake/raw/dev/Icon.png</PackageIconUrl>
+    <PackageProjectUrl>https://github.com/Fakebuild/Xake</PackageProjectUrl>
+    <PackageIconUrl>https://github.com/Fakebuild/Xake/raw/dev/Icon.png</PackageIconUrl>
     <Description>Xake build tool, the engine</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Prelude.fs" />
-    <Compile Include="Logging.fs" />
-    <Compile Include="Pickler.fs" />
-    <Compile Include="Env.fs" />
+    <Compile Include="Common/Util.fs" />
+    <Compile Include="Common/Logging.fs" />
+    <Compile Include="Common/Pickler.fs" />
+    <Compile Include="Common/Env.fs" />
+    <Compile Include="Common/Database.fs" />
+    <Compile Include="Common/Recipe.fs" />
+    <Compile Include="Common/RecipeFunctions.fs" />
+    <Compile Include="Common/Estimate.fs" />
+    <Compile Include="Common/Progress.fs" />
+    <Compile Include="Common/WorkerPool.fs" />
     <Compile Include="Path.fs" />
+    <Compile Include="PathExt.fs" />
     <Compile Include="File.fsi" />
     <Compile Include="File.fs" />
     <Compile Include="Fileset.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="CommonLib.fs" />
-    <Compile Include="Database.fs" />
-    <Compile Include="RecipeBuilder.fs" />
-    <Compile Include="RecipeFunctions.fs" />
-    <Compile Include="WorkerPool.fs" />
-    <Compile Include="Progress.fs" />
+    <Compile Include="Target.fs" />
     <Compile Include="ExecTypes.fs" />
+    <Compile Include="BuildDatabase.fs" />
     <Compile Include="DependencyAnalysis.fs" />
     <Compile Include="ExecCore.fs" />
     <Compile Include="XakeScript.fs" />
     <Compile Include="ScriptFuncs.fs" />
-    <Compile Include="ProcessExec.fs" />
     <Compile Include="FileTasksImpl.fs" />
+    <Compile Include="Tasks\ProcessExec.fs" />
     <Compile Include="Tasks\Cp.fs" />
     <Compile Include="Tasks\Rm.fs" />
     <Compile Include="Tasks\Shell.fs" />
     <Compile Include="Tasks\misc.fs" />
     <Compile Include="Program.fs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
-    <PackageReference Include="FSharp.Core" Version="3.1.2.5" />
   </ItemGroup>
 </Project>

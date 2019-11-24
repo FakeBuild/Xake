@@ -1,7 +1,10 @@
 ﻿module internal Xake.DependencyAnalysis
 
 open Xake
-open Storage
+open Xake.Util
+open Xake.Estimate
+
+open Database
 
 /// <summary>
 /// Dependency state.
@@ -20,9 +23,9 @@ let TimeCompareToleranceMs = 10.0
 /// </summary>
 /// <param name="ctx"></param>
 /// <param name="target"></param>
-let getExecTime ctx target =
-    (fun ch -> Storage.GetResult(target, ch)) |> ctx.Db.PostAndReply
-    |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
+let getExecTime ctx (target: Target) =
+    (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
+    |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<Ms>
 
 /// Gets single dependency state and reason of a change.
 let getDepState getVar getFileList (getChangedDeps: Target -> ChangeReason list) = function
@@ -30,26 +33,26 @@ let getDepState getVar getFileList (getChangedDeps: Target -> ChangeReason list)
         let dbgInfo = File.exists a |> function
             | false -> "file does not exists"
             | _ -> sprintf "write time: %A vs %A" (File.getLastWriteTime a) wrtime
-        ChangeReason.FilesChanged [a.Name], Some dbgInfo
+        FilesChanged [a.Name], Some dbgInfo
 
     | ArtifactDep (FileTarget file) when not (File.exists file) ->
-        ChangeReason.DependsMissingTarget (FileTarget file), None
+        DependsMissingTarget (FileTarget file), None
 
     | ArtifactDep dependeeTarget ->
-        dependeeTarget |> getChangedDeps |> List.filter ((<>) ChangeReason.NotChanged)
+        dependeeTarget |> getChangedDeps |> List.filter ((<>) NotChanged)
         |> function
             |  [] -> NotChanged, None
             |item::_ ->
-                ChangeReason.Depends dependeeTarget, Some (sprintf "E.g. %A..." item)
+                Depends dependeeTarget, Some (sprintf "E.g. %A..." item)
 
     | EnvVar (name,value) when value <> Util.getEnvVar name ->
-        ChangeReason.Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (Util.getEnvVar name), None
+        Other <| sprintf "Environment variable %s was changed from '%A' to '%A'" name value (Util.getEnvVar name), None
 
     | Var (name,value) when value <> getVar name ->
-        ChangeReason.Other <| sprintf "Global script variable %s was changed '%A'->'%A'" name value (getVar name), None
+        Other <| sprintf "Global script variable %s was changed '%A'->'%A'" name value (getVar name), None
 
     | AlwaysRerun ->
-        ChangeReason.Other <| "AlwaysRerun rule", Some "Rule indicating target has to be run regardless dependencies state"
+        Other <| "AlwaysRerun rule", Some "Rule indicating target has to be run regardless dependencies state"
 
     | GetFiles (fileset,files) ->
         let newfiles = getFileList fileset
@@ -83,7 +86,7 @@ let getChangeReasons ctx getTargetDeps target =
 
     match lastBuild with
     | Some {BuildResult.Depends = []} ->
-        [ChangeReason.Other "No dependencies", Some "It means target is not \"pure\" and depends on something beyond our control (oracle)"]
+        [Other "No dependencies", Some "It means target is not \"pure\" and depends on something beyond our control (oracle)"]
 
     | Some {BuildResult.Depends = depends; Targets = result} ->
         let depState = getDepState (Util.getVar ctx.Options) (toFileList ctx.Options.ProjectRoot) getTargetDeps
@@ -96,18 +99,18 @@ let getChangeReasons ctx getTargetDeps target =
             | [] ->
                 match result with
                 | targetList when targetList |> List.exists (function | FileTarget file when not (File.exists file) -> true | _ -> false) ->
-                    [ChangeReason.Other "target file does not exist", Some "The file has to be rebuilt regardless all its dependencies were not changed"]
+                    [Other "target file does not exist", Some "The file has to be rebuilt regardless all its dependencies were not changed"]
                 | _ -> []
             | ls -> ls
 
     | _ ->
-        [ChangeReason.Other "Not built yet", Some "Target was not built before or build results were cleaned so we don't know dependencies."]
+        [Other "Not built yet", Some "Target was not built before or build results were cleaned so we don't know dependencies."]
     |> List.map fst
 
 // gets task duration and list of targets it depends on. No clue why one method does both.
 let getDurationDeps ctx getDeps t =
     match getDeps t with
-    | [] -> 0<ms>, []
+    | [] -> 0<Estimate.Ms>, []
     | deps ->
         let targets = deps |> List.collect (function |Depends t |DependsMissingTarget t -> [t] | _ -> [])
         (getExecTime ctx t, targets)
@@ -126,7 +129,7 @@ let dumpDeps (ctx: ExecContext) (target: Target list) =
     let rec displayNestedDeps ii =
         function
         | ArtifactDep dependeeTarget ->
-            printfn "%sArtifact: %A" (indent ii) dependeeTarget.FullName
+            printfn "%sArtifact: %A" (indent ii) (Target.fullName dependeeTarget)
             showTargetStatus (ii+1) dependeeTarget
         | _ -> ()
     and showDepStatus ii (d: Dependency) =
@@ -158,7 +161,7 @@ let dumpDeps (ctx: ExecContext) (target: Target list) =
         if not <| doneTargets.ContainsKey(target) then
             doneTargets.Add(target, 1)
 
-            printfn "%sTarget %A" (indent ii) target.ShortName
+            printfn "%sTarget %A" (indent ii) (Target.shortName target)
 
             let lastResult = (fun ch -> GetResult(target, ch)) |> ctx.Db.PostAndReply
             match lastResult with

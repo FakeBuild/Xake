@@ -4,8 +4,9 @@ open System.IO
 open NUnit.Framework
 
 open Xake
-open Xake.BuildLog
-open Xake.Storage
+open Xake.Util
+open Xake.Database
+open Xake.BuildDatabase
 
 type Bookmark =
     | Bookmark of string * string
@@ -17,7 +18,7 @@ module private impl =
     let mkFileTarget = File.make >> FileTarget
     let newStepInfo (name, duration) =
         { StepInfo.Empty with Name = name
-                              OwnTime = duration * 1<ms> }
+                              OwnTime = duration * 1<Ms> }
 
     // stores object to a binary stream and immediately reads it
     let writeAndRead (pu : Pickler.PU<_>) testee =
@@ -31,15 +32,19 @@ module private impl =
     let logger = ConsoleLogger Verbosity.Diag
 
     let createResult name =
-        { ([name
-           |> File.make
-           |> FileTarget]
-           |> makeResult) with Depends =
-                                   [ "abc.c" |> mkFileTarget |> ArtifactDep
-                                     Var("DEBUG", Some "false") ]
-                               Steps = [ newStepInfo ("compile", 217) ] }
-    
+        let targets = [name |> File.make |> FileTarget ]
+        targets, {
+          (BuildResult.makeResult targets) with
+            Depends = [ "abc.c" |> mkFileTarget |> ArtifactDep
+                        Var("DEBUG", Some "false") ]
+            Steps = [ newStepInfo ("compile", 217) ] }
+
     let (<-*) (a : Agent<DatabaseApi>) t = a.PostAndReply(fun ch -> GetResult(t, ch))
+
+    let inline (<--) (agent : ^a) (msg : 'b) =
+        (^a : (member Post : 'b -> unit) (agent, msg))
+        agent
+
     // Is.Any predicate for assertions
     let IsAny() = Is.Not.All.Not
 
@@ -55,7 +60,7 @@ let Setup() =
 [<Test>]
 let ``persists simple data``() =
 
-    let testee = makeResult <| [mkFileTarget "abc.exe"]
+    let testee = BuildResult.makeResult <| [mkFileTarget "abc.exe"]
 
     let testee =
         { testee with
@@ -71,7 +76,7 @@ let ``persists simple data``() =
                 newStepInfo ("compile", 217)
                 newStepInfo ("link", 471) ] }
 
-    let (buf, repl) = writeAndRead Storage.resultPU testee
+    let (buf, repl) = writeAndRead BuildDatabase.Picklers.result testee
     printfn "size is %A" buf.Length
     printfn "src %A" testee
     printfn "repl %A" repl
@@ -79,15 +84,12 @@ let ``persists simple data``() =
 
 [<Test>]
 let ``persists build data in Xake db``() =
-    let inline (<--) (agent : ^a) (msg : 'b) =
-        (^a : (member Post : 'b -> unit) (agent, msg))
-        agent
 
-    use testee = Storage.openDb dbname logger
+    use testee = BuildDatabase.openDb dbname logger
     testee <-- Store(createResult "abc.exe") <-- Store(createResult "def.exe") <-- Store(createResult "fgh.exe")
     |> ignore
     testee.PostAndReply CloseWait
-    use testee = Storage.openDb dbname logger
+    use testee = BuildDatabase.openDb dbname logger
     let abc = testee <-* (mkFileTarget "abc.exe")
     Assert.IsTrue(Option.isSome abc)
     let def = testee <-* (mkFileTarget "def.exe")
@@ -106,14 +108,14 @@ let ``compresses database when limit is reached``() =
         (^a : (member Post : 'b -> unit) (agent, msg))
         agent
 
-    use testee = Storage.openDb dbname logger
+    use testee = BuildDatabase.openDb dbname logger
     for _ in seq { 1..20 } do
         for i in seq { 1..20 } do
             let name = sprintf "a%A.exe" i
             testee <-- Store(createResult name) |> ignore
     testee.PostAndReply CloseWait
     let oldLen = (FileInfo dbname).Length
-    use testee = Storage.openDb dbname logger
+    use testee = BuildDatabase.openDb dbname logger
     testee.PostAndReply CloseWait
     let newLen = (FileInfo dbname).Length
     printfn "old size: %A, new size: %A" oldLen newLen
@@ -126,13 +128,13 @@ let ``updates data in file storage``() =
         (^a : (member Post : 'b -> unit) (agent, msg))
         agent
 
-    use testee = Storage.openDb dbname logger
-    let result = createResult "abc"
-    testee <-- Store result |> ignore
+    use testee = BuildDatabase.openDb dbname logger
+    let targets, result = createResult "abc"
+    testee <-- Store (targets, result) |> ignore
     let updatedResult = { result with Depends = [ Var("DEBUG", Some "true") ] }
-    testee <-- Store updatedResult |> ignore
+    testee <-- Store (targets, updatedResult) |> ignore
     testee.PostAndReply CloseWait
-    use testee = Storage.openDb dbname logger
+    use testee = BuildDatabase.openDb dbname logger
     match testee <-* (mkFileTarget "abc") with
     | Some read ->
         testee.PostAndReply CloseWait
@@ -150,13 +152,13 @@ let ``restores db in case write failed``() =
         (^a : (member Post : 'b -> unit) (agent, msg))
         agent
 
-    use testee = Storage.openDb dbname logger
+    use testee = BuildDatabase.openDb dbname logger
     testee <-- Store(createResult "abc") |> ignore
     testee.PostAndReply CloseWait
     let bkdb = "." </> ".xake" <.> "bak"
     File.Move(dbname, bkdb)
     File.WriteAllText(dbname, "dummy text")
-    use testee = Storage.openDb dbname logger
+    use testee = BuildDatabase.openDb dbname logger
     let read = testee <-* (mkFileTarget "abc")
     Assert.IsTrue(Option.isSome read)
     testee.PostAndReply CloseWait
@@ -171,7 +173,7 @@ let ``repairs (cleans) broken db``() =
         (^a : (member Post : 'b -> unit) (agent, msg))
         agent
     File.WriteAllText(dbname, "dummy text")
-    use testee = Storage.openDb dbname logger
+    use testee = BuildDatabase.openDb dbname logger
     testee <-- Store(createResult "abc") |> ignore
     let read = testee <-* mkFileTarget "abc"
     Assert.IsTrue(Option.isSome read)

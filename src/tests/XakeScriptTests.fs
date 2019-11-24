@@ -4,8 +4,9 @@ open System.IO
 open NUnit.Framework
 
 open Xake
+open Xake.Util
+open Xake.BuildDatabase
 open Xake.Tasks
-open Storage
 
 type Runtime = {Ver: string; Folder: string}
 
@@ -456,7 +457,7 @@ type ``XakeScript tests``() =
             ]
         }
 
-        use testee = Storage.openDb "./.xake" (ConsoleLogger Verbosity.Diag)
+        use testee = openDb "./.xake" (ConsoleLogger Verbosity.Diag)
         try
             match testee.PostAndReply <| fun ch -> DatabaseApi.GetResult ((PhonyAction "test"), ch) with
             | Some {
@@ -507,10 +508,9 @@ type ``XakeScript tests``() =
             ]
         }
 
-        let (<-*) (a:Agent<DatabaseApi>) t = a.PostAndReply(fun ch -> GetResult (t,ch))
-        let logger = ConsoleLogger Verbosity.Diag
+        let (<-*) (a:Agent<DatabaseApi>) t = a.PostAndReply(fun ch -> DatabaseApi.GetResult (t,ch))
 
-        use db = Storage.openDb "./.xake" logger
+        use db = BuildDatabase.openDb "./.xake" (ConsoleLogger Diag)
         try
             match db <-* (PhonyAction "main") with
             | Some {Steps = step1::_} ->
@@ -519,7 +519,7 @@ type ``XakeScript tests``() =
                 printfn "%A" raaa
             |_ -> Assert.Fail "no results from db"
         finally
-            db.PostAndReply CloseWait
+            db.PostAndReply DatabaseApi.CloseWait
 
     [<Test>]
     member x.``dryrun for not executing``() =
