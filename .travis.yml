@@ -1,12 +1,11 @@
 language: csharp
-mono: latest
 dotnet: 3.0
 env: VER=$(if [[ "${TRAVIS_TAG:0:1}" == "v" ]]; then echo ${TRAVIS_TAG:1}.${TRAVIS_BUILD_NUMBER}; else echo 1.0.0.${TRAVIS_BUILD_NUMBER}; fi;)
 install:
   - chmod +x ./fake.sh
 script:
   - dotnet build src/core /p:Version=$VER -c Release /p:DocumentationFile=Xake.xml
-  - dotnet test src/tests -c Release
+  - dotnet test src/tests -c Release -p:ParallelizeTestCollections=false
 deploy:
   - provider: script
     script: ./fake.sh run build.fsx -- pack push -ll Diag
