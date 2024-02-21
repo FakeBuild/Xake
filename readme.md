@@ -15,7 +15,7 @@ See [documentation](docs/overview.md) for more details.
 The simple script looks like:
 
 ```fsharp
-#r "nuget: Xake, 1.1.4.427-beta"
+#r "nuget: Xake"
 open Xake
 open Xake.Tasks.Dotnet
 

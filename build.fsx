@@ -1,4 +1,4 @@
-#r "nuget: Xake, 1.1.4.427-beta"
+#r "nuget: Xake, 2.0.0"
 
 open Xake
 open Xake.Tasks
@@ -94,7 +94,7 @@ do xakeScript {
                 "pack"; "src/core"
                 "-c"; "Release"
                 $"/p:Version={ver}"
-                "--output"; "../../out/"
+                "--output"; "out/"
                 "/p:DocumentationFile=Xake.xml"
             ]
         }
