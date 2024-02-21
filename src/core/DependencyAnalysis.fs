@@ -25,7 +25,8 @@ let getExecTime ctx target =
     |> Option.fold (fun _ r -> r.Steps |> List.sumBy (fun s -> s.OwnTime)) 0<ms>
 
 /// Gets single dependency state and reason of a change.
-let getDepState getVar getFileList (getChangedDeps: Target -> ChangeReason list) = function
+let getDepState getVar getFileList (getChangedDeps: Target -> ChangeReason list) x = 
+    match x with
     | FileDep (a:File, wrtime) when not((File.exists a) && abs((File.getLastWriteTime a - wrtime).TotalMilliseconds) < TimeCompareToleranceMs) ->
         let dbgInfo = File.exists a |> function
             | false -> "file does not exists"

@@ -21,7 +21,7 @@ module internal ParseArgs = begin
         | "-h" | "/h" | "--help" | "/help" | "/?" | "-?" ->
             printf """
 Usage:
- fsi <script file> [-- options target..]
+ dotnet fsi <script file> [-- -- options target..]
 
 Options:
   -h                  - displays help screen

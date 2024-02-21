@@ -59,7 +59,7 @@ module Storage =
                 | FileDep _ -> 1
                 | EnvVar _ -> 2
                 | Var _ -> 3
-                | AlwaysRerun _ -> 4
+                | AlwaysRerun -> 4
                 | GetFiles _ -> 5) 
                 [| wrap (ArtifactDep, fun (ArtifactDep f | OtherwiseFail f) -> f) target                   
                    wrap (FileDep, fun (FileDep(f, ts) | OtherwiseFail (f, ts)) -> (f, ts))  (pair file date)                   
