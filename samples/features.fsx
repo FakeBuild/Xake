@@ -1,10 +1,5 @@
-#r "paket:
-    nuget Xake ~> 1.1 prerelease
-    nuget Xake.Dotnet ~> 1.1 prerelease //"
-
-#if !FAKE
-#load ".fake/features.fsx/intellisense.fsx"
-#endif
+#r "nuget: Xake, 1.1.4.427-beta"
+#r "nuget: Xake.Dotnet, 1.1.4.7-beta"
 
 // This a sample Xake script to show off some features.
 //

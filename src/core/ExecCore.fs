@@ -5,11 +5,6 @@ module internal ExecCore =
     open System.Text.RegularExpressions
     open DependencyAnalysis
 
-    /// Default options
-    [<System.Obsolete("Obsolete, use ExecOptions.Default")>]
-    let XakeOptions = ExecOptions.Default
-
-    open WorkerPool
     open Storage
 
     /// Writes the message with formatting to a log
@@ -74,9 +69,12 @@ module internal ExecCore =
                     let targets = patterns |> List.map (generateName >> (</>) projectRoot >> File.make >> FileTarget)
                     rule, groups, targets)
 
-            |PhonyRule (name,_), PhonyAction phony when phony = name ->
-                // writeLog Verbose "Found phony pattern '%s'" name
-                Some (rule, [], [target])
+            |PhonyRule (pattern,_), PhonyAction phony ->
+                // printfn $"Phony rule {phony}, pattern {pattern}"
+                // Some (rule, [], [target])
+                phony
+                |> Path.matchGroups pattern ""
+                |> Option.map (fun groups -> rule,groups,[target])
 
             | _ -> None
 
@@ -187,7 +185,10 @@ module internal ExecCore =
     /// phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
     let makeTarget ctx name =
         let (Rules rules) = ctx.Rules
-        let isPhonyRule nm = function |PhonyRule (n,_) when n = nm -> true | _ -> false
+        let isPhonyRule nm = function
+            |PhonyRule (pattern,_) ->
+                nm |> Path.matchGroups pattern "" |> Option.isSome
+            | _ -> false
         in
         match rules |> List.exists (isPhonyRule name) with
         | true -> PhonyAction name
@@ -206,21 +207,21 @@ module internal ExecCore =
 
         let rec showDepStatus ii reasons =
             reasons |> function
-            | ChangeReason.Other reason ->
+            | Other reason ->
                 print "%sReason: %s" (indent ii) reason
-            | ChangeReason.Depends t ->
+            | Depends t ->
                 print "%sDepends '%s' - changed target" (indent ii) t.ShortName
-            | ChangeReason.DependsMissingTarget t ->
+            | DependsMissingTarget t ->
                 print "%sDepends on '%s' - missing target" (indent ii) t.ShortName
-            | ChangeReason.FilesChanged (file:: rest) ->
+            | FilesChanged (file:: rest) ->
                 print "%sFile is changed '%s' %s" (indent ii) file (if List.isEmpty rest then "" else sprintf " and %d more file(s)" <| List.length rest)
             | reasons ->
                 do print "%sSome reason %A" (indent ii) reasons
             ()
         let rec displayNestedDeps ii =
             function
-            | ChangeReason.DependsMissingTarget t
-            | ChangeReason.Depends t ->
+            | DependsMissingTarget t
+            | Depends t ->
                 showTargetStatus ii t
             | _ -> ()
         and showTargetStatus ii target =
@@ -276,10 +277,10 @@ module internal ExecCore =
                 getDeps >>
                 function
                 | [] -> false, ""
-                | ChangeReason.Other reason::_        -> true, reason
-                | ChangeReason.Depends t ::_          -> true, "Depends on target " + t.ShortName
-                | ChangeReason.DependsMissingTarget t ::_ -> true, sprintf "Depends on target %s (missing)" t.ShortName
-                | ChangeReason.FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
+                | Other reason::_        -> true, reason
+                | Depends t ::_          -> true, "Depends on target " + t.ShortName
+                | DependsMissingTarget t ::_ -> true, sprintf "Depends on target %s (missing)" t.ShortName
+                | FilesChanged (file::_) ::_ -> true, "File(s) changed " + file
                 | reasons -> true, sprintf "Some reason %A" reasons
                 >>
                 function
@@ -310,16 +311,24 @@ module internal ExecCore =
     /// Executes the build script
     let runScript options rules =
         let logger = CombineLogger (ConsoleLogger options.ConLogLevel) options.CustomLogger
-
         let logger =
             match options.FileLog, options.FileLogLevel with
             | null,_ | "",_
-            | _,Verbosity.Silent -> logger
+            | _, Silent -> logger
             | logFileName,level -> CombineLogger logger (FileLogger logFileName level)
 
         let (throttler, pool) = WorkerPool.create logger options.Threads
-
         let db = Storage.openDb (options.ProjectRoot </> options.DbFileName) logger
+
+        let finalize () =
+            db.PostAndReply Storage.CloseWait
+            FlushLogs()
+
+        System.Console.CancelKeyPress
+        |> Event.add (fun _ -> 
+            logger.Log Error "Build interrupted by user"
+            finalize()
+            exit 1)
 
         let ctx = {
             Ordinal = 0
@@ -363,8 +372,7 @@ module internal ExecCore =
                     ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
                     exit 2
         finally
-            db.PostAndReply Storage.CloseWait
-            Logging.FlushLogs()
+            finalize()
 
     /// "need" implementation
     let need targets =

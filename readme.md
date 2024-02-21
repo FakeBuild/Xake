@@ -15,7 +15,7 @@ See [documentation](docs/overview.md) for more details.
 The simple script looks like:
 
 ```fsharp
-#r "paket: nuget Xake ~> 1.0 prerelease //"
+#r "nuget: Xake, 1.1.4.427-beta"
 open Xake
 open Xake.Tasks.Dotnet
 
@@ -32,7 +32,7 @@ This script compiles helloworld assembly from helloworld.cs file.
 
 ## Getting started
 
-Make sure dotnet SDK 2.0+ is installed. dotnet 2.1.300+ is required to make production build as it properly write package metadata.
+Make sure dotnet SDK 7.0+ is installed.
 
 1. Clone the project:
 
@@ -43,13 +43,12 @@ Make sure dotnet SDK 2.0+ is installed. dotnet 2.1.300+ is required to make prod
 
     ```
     cd samples
-    dotnet restore dotnet-fake.csproj
-    dotnet fake run gettingstarted.fsx
+    dotnet fsi gettingstarted.fsx
     ```
 1. Run the showcase script:
 
     ```
-    dotnet fake run features.fsx
+    dotnet fsi features.fsx
     ```
     
 
@@ -58,13 +57,14 @@ Make sure dotnet SDK 2.0+ is installed. dotnet 2.1.300+ is required to make prod
 Once you cloned the repository you are ready to compile and test the binaries:
 
 ```
-dotnet restore build.proj
-dotnet fake run build.fsx -- build test
+dotnet fsi build.fsx -- -- build test
 ```
 
 ... or use `build.cmd` (`build.sh`) in the root folder
 
 ## Getting started for Mono on Linux/OSX
+
+> This is untested and mono nowadays is poorly explored territory for me.
 
 Make sure mono with F# is installed and root certificates are imported:
 

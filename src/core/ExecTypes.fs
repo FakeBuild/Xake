@@ -44,30 +44,28 @@ type ExecOptions = {
 
     /// Dump dependencies only
     Progress: bool
-} with
-static member Default =
-    {
-    ProjectRoot = System.IO.Directory.GetCurrentDirectory()
-    Threads = System.Environment.ProcessorCount
-    ConLogLevel = Normal
+} with static member Default = {
+        ProjectRoot = System.IO.Directory.GetCurrentDirectory()
+        Threads = System.Environment.ProcessorCount
+        ConLogLevel = Normal
 
-    CustomLogger = CustomLogger (fun _ -> false) ignore
-    FileLog = "build.log"
-    FileLogLevel = Chatty
-    Targets = []
-    FailOnError = false
-    Vars = List<string*string>.Empty
-    IgnoreCommandLine = false
-    Nologo = false
-    DbFileName = ".xake"
-    DryRun = false
-    DumpDeps = false
-    Progress = true
+        CustomLogger = CustomLogger (fun _ -> false) ignore
+        FileLog = "build.log"
+        FileLogLevel = Chatty
+        Targets = []
+        FailOnError = false
+        Vars = List<string*string>.Empty
+        IgnoreCommandLine = false
+        Nologo = false
+        DbFileName = ".xake"
+        DryRun = false
+        DumpDeps = false
+        Progress = true
     }
 end
 
-type internal ExecStatus = | Succeed | Skipped | JustFile
-type private TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
+type ExecStatus = | Succeed | Skipped | JustFile
+type TaskPool = Agent<ExecMessage<ExecStatus>>
 
 /// Script execution context
 type ExecContext = {

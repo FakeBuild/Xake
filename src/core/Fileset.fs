@@ -249,7 +249,7 @@ module Fileset =
             Fileset (opts, pts @ [includes |> Path.parse |> Includes])
 
         /// Adds excludes pattern to a fileset.
-        static member (--) (Fileset (opts,pts), excludes) =
+        static member (--) (Fileset (opts,pts), excludes): Fileset =
             Fileset (opts, pts @ [excludes |> Path.parse |> Excludes])
     end
 

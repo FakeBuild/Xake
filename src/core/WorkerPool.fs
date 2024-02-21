@@ -1,18 +1,15 @@
 ﻿namespace Xake
 
+// TODO consider removing first argument
+// execution context
+type ExecMessage<'r> =
+    | Run of Target * Target list * Async<'r> * AsyncReplyChannel<Async<'r>>
+
 module internal WorkerPool =
 
-  open System.IO
   open System.Threading
   open System.Threading.Tasks
 
-  open BuildLog
-
-  // TODO consider removing first argument
-  // execution context
-  type ExecMessage<'r> =
-      | Run of Target * Target list * Async<'r> * AsyncReplyChannel<Async<'r>>
-  
   let create (logger:ILogger) maxThreads =
       // controls how many threads are running in parallel
       let throttler = new SemaphoreSlim (maxThreads)
