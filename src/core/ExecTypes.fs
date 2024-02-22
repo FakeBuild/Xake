@@ -24,8 +24,9 @@ type ExecOptions = {
     /// Global script variables
     Vars: (string * string) list
 
-    /// Defines whether `run` should throw exception if script fails
-    FailOnError: bool
+    /// Defines whether `run` should throw exception if script fails.
+    /// Default is false which means to exit process with non-zero code.
+    ThrowOnError: bool
 
     /// Ignores command line swithes
     IgnoreCommandLine: bool
@@ -53,7 +54,7 @@ type ExecOptions = {
         FileLog = "build.log"
         FileLogLevel = Chatty
         Targets = []
-        FailOnError = false
+        ThrowOnError = false
         Vars = List<string*string>.Empty
         IgnoreCommandLine = false
         Nologo = false

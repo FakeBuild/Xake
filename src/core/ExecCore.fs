@@ -373,12 +373,11 @@ module internal ExecCore =
                     do reportError ctx errorText details
                     ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
 
-                    if options.FailOnError then
+                    if options.ThrowOnError then
                         raise (XakeException "Script failure. See log file for details.")
-
-                        // finalize()
-                        // exit 2
-                    // TODO optionally panic
+                    else
+                        finalize()
+                        exit 2
         finally
             finalize()
 
