@@ -7,9 +7,8 @@ Xake is a build utility that uses the full power of the F# programming language.
 The simple script looks like:
 
 ```fsharp
-#r "paket:
-  nuget Xake ~> 1.1 prerelease
-  nuget Xake.Dotnet ~> 1.1 prerelease //"
+#r "nuget: Xake, 2.0.0"
+#r "nuget: Xake.Dotnet, 1.1.4.7-beta"
 
 open Xake
 open Xake.Dotnet
@@ -25,7 +24,9 @@ do xakeScript {
 
 This script compiles helloworld assembly from helloworld.cs file.
 
-To run this script:
+## Getting started
+
+Make sure dotnet SDK 7.0+ is installed.
 
 1. Clone the project:
 
@@ -36,8 +37,7 @@ To run this script:
 
     ```
     cd samples
-    dotnet restore dotnet-fake.csproj
-    dotnet fake run gettingstarted.fsx
+    dotnet fsi gettingstarted.fsx
     ```
 
 ## Further reading
@@ -51,11 +51,27 @@ To run this script:
 Once you cloned the repository you are ready to compile and test the binaries:
 
 ```
-dotnet restore build.proj
-dotnet fake run build.fsx -- build test
+dotnet fsi build.fsx -- -- build test
 ```
 
 ... or use `build.cmd` (`build.sh`) in the root folder
+
+## Getting started for Mono on Linux/OSX
+
+> This is untested and mono nowadays is poorly explored territory for me.
+
+Make sure mono with F# is installed and root certificates are imported:
+
+```
+sudo apt-get install mono-complete
+sudo mozroots --import --sync
+```
+
+TBD
+
+## Documentation
+
+See [documentation](docs/overview.md) for more details.
 
 ## References
 

@@ -1,14 +1,9 @@
-#r "paket:
-    nuget Xake ~> 1.1 prerelease //"
-
-#if !FAKE
-#load ".fake/build.fsx/intellisense.fsx"
-#endif
+#r "nuget: Xake, 2.0.0"
 
 open Xake
 open Xake.Tasks
 
-let frameworks = ["netstandard2.0"; "net46"]
+let frameworks = ["netstandard2.0" (*; "net46" *)]
 let libtargets =
     [ for t in frameworks do
       for e in ["dll"; "xml"]
@@ -33,23 +28,19 @@ let getVersion () = recipe {
 
 let makePackageName = sprintf "Xake.%s.nupkg"
 
-let dotnet arglist = recipe {
-    do! shell {
+let dotnet arglist =
+    shell {
         cmd "dotnet"
         args arglist
         failonerror
-        } |> Recipe.Ignore
-}
+    } |> Ignore
 
 do xakeScript {
     filelog "build.log" Verbosity.Diag
     // consolelog Verbosity.Normal
 
     rules [
-        "main"  => recipe {
-            do! need ["build"]
-            do! need ["test"]
-            }
+        "main" <<< ["build"; "test"]
 
         "build" <== libtargets
         "clean" => rm {dir "out"}
@@ -59,37 +50,34 @@ do xakeScript {
 
             let! where =
               getVar("FILTER")
-              |> Recipe.map (function |Some clause -> ["--filter"; sprintf "Name~\"%s\"" clause] | None -> [])
+              |> map (function |Some clause -> ["--filter"; $"Name~\"{clause}\""] | None -> [])
 
             // in case of travis only run tests for standard runtime, eventually will add more
-            let! limitFwk = getEnv("TRAVIS") |> Recipe.map (function | Some _ -> ["-f:netcoreapp2.0"] | _ -> [])
-
+            let! limitFwk = getEnv("TRAVIS") |> map (function | Some _ -> ["-f:netcoreapp2.0"] | _ -> [])
             do! dotnet <| ["test"; "src/tests"; "-c"; "Release"] @ where @ limitFwk
         }
 
         libtargets *..> recipe {
 
-            let! allFiles
-                = getFiles <| fileset {
-                    basedir "src/core"
-                    includes "Xake.fsproj"
-                    includes "**/*.fs"
-                }
+            let! allFiles = getFiles <| fileset {
+                basedir "src/core"
+                includes "Xake.fsproj"
+                includes "**/*.fs"
+            }
 
             do! needFiles allFiles
             let! version = getVersion()
 
             for framework in frameworks do
-                do! dotnet
-                        [
-                            "build"
-                            "src/core"
-                            "/p:Version=" + version
-                            "--configuration"; "Release"
-                            "--framework"; framework
-                            "--output"; "../../out/" + framework
-                            "/p:DocumentationFile=Xake.xml"
-                        ]
+                do! dotnet [
+                    "build"
+                    "src/core"
+                    "/p:Version=" + version
+                    "--configuration"; "Release"
+                    "--framework"; framework
+                    "--output"; "./out/" + framework
+                    "/p:DocumentationFile=Xake.xml"
+                ]
         }
     ]
 
@@ -102,14 +90,13 @@ do xakeScript {
 
         "out/Xake.(ver:*).nupkg" ..> recipe {
             let! ver = getRuleMatch("ver")
-            do! dotnet
-                  [
-                      "pack"; "src/core"
-                      "-c"; "Release"
-                      "/p:Version=" + ver
-                      "--output"; "../../out/"
-                      "/p:DocumentationFile=Xake.xml"
-                  ]
+            do! dotnet [
+                "pack"; "src/core"
+                "-c"; "Release"
+                $"/p:Version={ver}"
+                "--output"; "out/"
+                "/p:DocumentationFile=Xake.xml"
+            ]
         }
 
         // push need pack to be explicitly called in advance
@@ -117,13 +104,12 @@ do xakeScript {
             let! version = getVersion()
 
             let! nuget_key = getEnv("NUGET_KEY")
-            do! dotnet
-                  [
-                    "nuget"; "push"
-                    "out" </> makePackageName version
-                    "--source"; "https://www.nuget.org/api/v2/package"
-                    "--api-key"; nuget_key |> Option.defaultValue ""
-                  ]
+            do! dotnet [
+                "nuget"; "push"
+                "out" </> makePackageName version
+                "--source"; "https://www.nuget.org/api/v2/package"
+                "--api-key"; nuget_key |> Option.defaultValue ""
+            ]
         }
     ]
 }

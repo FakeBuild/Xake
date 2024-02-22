@@ -37,7 +37,7 @@ Xake script is just an F# script with some flavors.
 The most simple, but structured script looks as follows:
 
 ```fsharp
-#r @".tools/Xake.Core.dll"       // (1)
+#r "nuget: Xake, 1.1.4.427-beta" // (1)
 
 open Xake                        // (2)
 
@@ -154,6 +154,7 @@ There're several forms of rules including:
 
 * `rule (<name> => <action>)` - creates a phony rule (the rule that does not create a file)
 * `rule (<name> <== [targets])` - creates a phony rule which demands specified targets
+* `rule (<name> <<< [targets])` - the same as above, but the targets are requested one by one (non-parallel excution)
 * `rule (<file pattern> ..> <action>)` - rule for single file or group of files matching the specified wildcards pattern. The file and an optional matching groups can be accessed via getTargetFile and getRuleMatch methods
 * `rule (<condition> ..?> <action>)` - allows to use function instead of file name or wildcards
 

@@ -243,7 +243,7 @@ let openProgress getDurationDeps threadCount goals toConsole =
                     | TaskStart target ->    return! loop (state, runningTasks |> Map.add target (0<ms>, true))
                     | TaskSuspend target ->  return! loop (state, runningTasks |> Map.map (suspend target))
                     | TaskResume target ->   return! loop (state, runningTasks |> Map.map (resume target))
-                    | Refresh _ ->
+                    | Refresh ->
                         reportProgress (state, runningTasks)
                         return! loop (state,runningTasks)
 
