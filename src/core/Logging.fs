@@ -174,7 +174,10 @@ module private ConsoleSink =
                     return! loop outputString
 
                 | Flush ch ->
+                    Console.Write "\r"
                     wipeProgressMessage()
+                    Console.Write "\r"
+
                     do! Console.Out.FlushAsync() |> Async.AwaitTask
  
                     ch.Reply ()

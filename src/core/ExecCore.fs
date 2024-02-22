@@ -9,7 +9,7 @@ module internal ExecCore =
 
     /// Writes the message with formatting to a log
     let traceLog (level:Logging.Level) fmt =
-        let write s = action {
+        let write s = recipe {
             let! ctx = getCtx()
             return ctx.Logger.Log level "%s" s
         }
@@ -80,14 +80,6 @@ module internal ExecCore =
 
         rules |> List.tryPick matchRule
 
-    let reportError ctx error details =
-        do ctx.Logger.Log Error "Error '%s'. See build.log for details" error
-        do ctx.Logger.Log Verbose "Error details are:\n%A\n\n" details
-
-    let raiseError ctx error details =
-        do reportError ctx error details
-        raise (XakeException(sprintf "Script failed (error code: %A)\n%A" error details))
-
     // Ordinal of the task being added to a task pool
     let refTaskOrdinal = ref 0
 
@@ -151,8 +143,11 @@ module internal ExecCore =
             target |> function
             | FileTarget file when File.exists file ->
                 async.Return <| (target, ExecStatus.JustFile, FileDep (file, File.getLastWriteTime file))
-            | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" target.FullName) ""
-
+            | _ ->
+                let errorText = sprintf "Neither rule nor file is found for '%s'" target.FullName
+                do ctx.Logger.Log Error "%s" errorText
+                raise (XakeException errorText)
+        
     /// <summary>
     /// Executes several artifacts in parallel.
     /// </summary>
@@ -353,6 +348,10 @@ module internal ExecCore =
             | tt ->
                 tt |> List.map (fun (s: string) -> s.Split(';', '|') |> List.ofArray)
 
+        let reportError ctx error details =
+            do ctx.Logger.Log Error "Error '%s'. See build.log for details" error
+            do ctx.Logger.Log Verbose "Error details are:\n%A\n\n" details
+                
         try
             match options with
             | Dump ->
@@ -366,11 +365,20 @@ module internal ExecCore =
                     targetLists |> (runBuild ctx options) |> Async.RunSynchronously |> ignore
                     ctx.Logger.Log Message "\n\n    Build completed in %A\n" (System.DateTime.Now - start)
                 with | exn ->
-                    let th = if options.FailOnError then raiseError else reportError
-                    let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
-                    th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
+                    let exceptions = exn |> unwindAggEx
+                    let errors = exceptions |> Seq.map (fun e -> e.Message) in
+                    let details = exceptions |> Seq.last |> fun e -> e.ToString()
+                    let errorText = errors |> String.concat "\r\n"
+
+                    do reportError ctx errorText details
                     ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
-                    exit 2
+
+                    if options.FailOnError then
+                        raise (XakeException "Script failure. See log file for details.")
+
+                        // finalize()
+                        // exit 2
+                    // TODO optionally panic
         finally
             finalize()
 

@@ -16,7 +16,7 @@ module ScriptFuncs =
     /// </summary>
     /// <param name="targets"></param>
     let need targets =
-        action {
+        recipe {
             let! ctx = getCtx()
             let t' = targets |> (List.map (ExecCore.makeTarget ctx))
             do! ExecCore.need t'
@@ -41,7 +41,7 @@ module ScriptFuncs =
     /// <param name="variableName"></param>
     let getEnv variableName =
         let value = Util.getEnvVar variableName
-        action {
+        recipe {
             do! EnvVar (variableName,value) |> record
             return value
         }
@@ -105,7 +105,7 @@ module ScriptFuncs =
     /// <summary>
     /// Gets group (part of the name) by its name.
     /// </summary>
-    let getRuleMatch key = action {
+    let getRuleMatch key = recipe {
         let! groups = getRuleMatches()
         return groups |> Map.tryFind key |> function |Some v -> v | None -> ""
     }
