@@ -1,4 +1,4 @@
-#r "paket: nuget Xake ~> 1.1 prerelease //"
+#r "nuget: Xake, 1.1.4.427-beta"
 
 open Xake
 open Xake.Tasks

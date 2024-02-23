@@ -20,7 +20,7 @@ let ``accepts various switches``() =
         wantOverride (["test"])
 
         rules [
-            "test" => action {
+            "test" => recipe {
                 let! opts = getCtxOptions()
                 scriptOptions := opts
             }
@@ -45,11 +45,11 @@ let ``reads target lists``() =
     do xakeArgs args XakeOptions {
 
         rules [
-            "target1" => action {
+            "target1" => recipe {
                 let! opts = getCtxOptions()
                 scriptOptions := opts
             }
-            "target2" => action {
+            "target2" => recipe {
                 executed2 := true
             }
         ]
@@ -81,7 +81,7 @@ let ``supports ignoring command line``() =
     
     do xakeArgs args {XakeOptions with IgnoreCommandLine = true; Threads = 2; FileLog = "~testout~" </> "ss"; Targets = ["main"]} {
         rules [
-            "main" => action {
+            "main" => recipe {
                 let! opts = getCtxOptions()
                 scriptOptions := opts
             }

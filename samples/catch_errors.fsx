@@ -1,5 +1,4 @@
-﻿#r "paket: nuget Xake ~> 1.1 prerelease //"
-
+﻿#r "nuget: Xake, 2.0.0"
 open Xake
 
 do xakeScript {

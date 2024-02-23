@@ -1,10 +1,5 @@
-#r "paket:
-    nuget Xake ~> 1.1 prerelease
-    nuget Xake.Dotnet ~> 1.1 prerelease //"
-
-#if !FAKE
-#load ".fake/features.fsx/intellisense.fsx"
-#endif
+#r "nuget: Xake, 2.0.0"
+#r "nuget: Xake.Dotnet, 1.1.4.7-beta"
 
 // This a sample Xake script to show off some features.
 //
@@ -39,13 +34,19 @@ do xakeScript {
         // this is shorter way to express the same. See also `<==` and '<<<' operators.
         "main"  => need ["tracetest"; "temp/a.exe"]
 
+        // "phony" rule that produces no file but just removes the files
+        // `rm` recipe (Xake.Tasks namespace) allow to remove files and folders
+        "clean" => recipe {
+            do! rm {file "paket-files/*.*"}
+            do! rm {dir "out"}
+            do! rm {files (fileset {
+                    includes "samplefile*"
+                }); verbose
+            }
+        }
+
         // .NET build rules
-        // build .net executable using full .net framework (or mono under unix)
-
-        // define a "phony rule", which has goal to produce a file
-        "clean" => rm {file "temp/a*"}
-
-        // rule to build an a.exe executable by using c# compiler
+        // build .net executable from C# sources using full .net framework (or mono under unix)
         // notice there's no "out" parameter: csc recipe will use the target file as an output
         "temp/a.exe" ..> csc {src (!!"temp/a.cs" + "temp/AssemblyInfo.cs")}
 
@@ -105,17 +106,6 @@ do xakeScript {
             // here you place regular build steps
 
             return ()
-        }
-
-        // "phony" rule that produces no file but just removes the files
-        // `rm` recipe (Xake.Tasks namespace) allow to remove files and folders
-        "clean" => recipe {
-            do! rm {file "paket-files/*.*"}
-            do! rm {dir "out"}
-            do! rm {files (fileset {
-                    includes "samplefile*"
-                }); verbose
-            }
         }
 
         "libs" => recipe {

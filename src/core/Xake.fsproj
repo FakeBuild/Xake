@@ -3,8 +3,8 @@
   <PropertyGroup>
     <AssemblyName>Xake</AssemblyName>
     <OutputType>Library</OutputType>
-    <TargetFrameworks>net46;netstandard2.0</TargetFrameworks>
-    <Copyright>(c) OlegZee 2014-2018</Copyright>
+    <TargetFrameworks>net462;netstandard2.0</TargetFrameworks>
+    <Copyright>(c) OlegZee 2014-2024</Copyright>
 
     <PackageProjectUrl>https://github.com/xakebuild/Xake</PackageProjectUrl>
     <PackageIconUrl>https://github.com/xakebuild/Xake/raw/dev/Icon.png</PackageIconUrl>
@@ -17,6 +17,7 @@
     <Compile Include="Pickler.fs" />
     <Compile Include="Env.fs" />
     <Compile Include="Path.fs" />
+    <Compile Include="PathExt.fs" />
     <Compile Include="File.fsi" />
     <Compile Include="File.fs" />
     <Compile Include="Fileset.fs" />

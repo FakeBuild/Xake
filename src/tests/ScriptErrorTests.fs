@@ -12,7 +12,7 @@ type ``Script error handling``() =
     inherit XakeTestBase("scripterr")
 
     member x.MakeDebugOptions (errorlist:List<string>) =
-        {x.TestOptions with FailOnError = true; CustomLogger = CustomLogger ((=) Level.Error) errorlist.Add; FileLog = ""}
+        {x.TestOptions with ThrowOnError = true; CustomLogger = CustomLogger ((=) Level.Error) errorlist.Add; FileLog = ""}
 
     [<Test>]
     member __.``verifies executing target action``() =
