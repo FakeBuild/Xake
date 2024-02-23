@@ -1,6 +1,7 @@
 ﻿namespace Xake
 
 open System.Threading
+open Xake.WorkerPool
 
 /// Script execution options
 type ExecOptions = {

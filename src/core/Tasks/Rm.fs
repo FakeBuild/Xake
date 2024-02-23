@@ -69,17 +69,14 @@ module RmImpl =
 
     type RmArgsBuilder() =
 
-        [<CustomOperation("file")>]    member this.File(a :RmArgs, value) =   {a with file = value }
-        [<CustomOperation("dir")>]     member this.Dir(a :RmArgs, value) =    {a with dir = value}
-        [<CustomOperation("files")>] member this.Fileset(a :RmArgs, value) =  {a with files = value}
-        [<CustomOperation("verbose")>] member this.Verbose(a:RmArgs) =        {a with verbose = true}
+        [<CustomOperation("file")>]    member __.File(a :RmArgs, value) =   {a with file = value }
+        [<CustomOperation("dir")>]     member __.Dir(a :RmArgs, value) =    {a with dir = value}
+        [<CustomOperation("files")>]   member __.Fileset(a :RmArgs, value) =  {a with files = value}
+        [<CustomOperation("verbose")>] member __.Verbose(a:RmArgs) =        {a with verbose = true}
 
-        member this.Bind(x, f) = f x
-        member this.Yield(()) = RmArgs.Default
-        member x.For(sq, b) = for e in sq do b e
-
-        member this.Zero() = RmArgs.Default
-        member this.Run(args:RmArgs) = Rm args
+        member __.Yield(()) = RmArgs.Default
+        member __.Zero() = RmArgs.Default
+        member __.Run(args:RmArgs) = Rm args
 
     let rm = RmArgsBuilder()
     let del = rm

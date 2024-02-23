@@ -30,7 +30,7 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-﻿Xake script is just an F# script with some flavors.
+Xake script is just an F# script with some flavors.
 
 ## The first script
 
@@ -94,9 +94,11 @@ do xake {ExecOptions.Default with FileLog = "build.log"; Threads = 4 } {
 ```
 
 ## So what?
+
 Pretty much the same result could be obtained in traditional build system without ever mentioning declarative approach. However `xake` will not only create the requested binaries but would also remember the rules it followed and any dependencies it discovered.
 
 ### Dependencies tracking
+
 The information recorded during the build allows `xake` to avoid redundant actions during current and subsequent runs.
 Particularly in this example it will record:
 

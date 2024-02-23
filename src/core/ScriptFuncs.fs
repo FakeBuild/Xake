@@ -133,16 +133,4 @@ module ScriptFuncs =
         do! alwaysRerun()
     })
 
-    type RuleActionArgs =
-        RuleActionArgs of File * Map<string,string>
-        with
-        /// Gets the resulting file.
-        member this.File = let (RuleActionArgs (file,_)) = this in file
-        /// Gets the full name of resulting file.
-        member this.FullName = let (RuleActionArgs (file,_)) = this in File.getFullName file
-
-        /// Gets group (part of the name) by its name.
-        member this.GetGroup(key) =
-            let (RuleActionArgs (_,groups)) = this in
-            groups |> Map.tryFind key |> function |Some v -> v | None -> ""
 

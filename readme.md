@@ -1,23 +1,15 @@
-Xake is a make utility made for .NET on F# language. Xake is inspired by [shake](https://github.com/ndmitchell/shake) build tool.
+Xake is a build utility that uses the full power of the F# programming language. Xake is inspired by [shake](https://github.com/ndmitchell/shake) build tool.
 
-Unlike NAnt, Fake and similar tools with imperative script style, Xake is declarative:
+[![Build Status](https://travis-ci.org/xakebuild/Xake.svg?branch=dev)](https://travis-ci.org/xakebuild/Xake)
 
-  * you define targets (either files or actions)
-  * you describe rules on how to make particular target and which targets it depends on
-  * build tool identifies dependencies and build your targets
-
-See [documentation](docs/overview.md) for more details.
-
-[![Build Status](https://travis-ci.org/OlegZee/Xake.svg?branch=master)](https://travis-ci.org/OlegZee/Xake)
-
-## The script
+## Sample script
 
 The simple script looks like:
 
 ```fsharp
 #r "nuget: Xake"
 open Xake
-open Xake.Tasks.Dotnet
+open Xake.Dotnet
 
 do xakeScript {
   rules [
@@ -37,7 +29,7 @@ Make sure dotnet SDK 7.0+ is installed.
 1. Clone the project:
 
     ```
-    git clone http://github.com/olegzee/xake
+    git clone http://github.com/xakebuild/xake
     ```
 1. Run the "Hello world" build sctipt:
 
@@ -45,12 +37,16 @@ Make sure dotnet SDK 7.0+ is installed.
     cd samples
     dotnet fsi gettingstarted.fsx
     ```
-1. Run the showcase script:
 
     ```
     dotnet fsi features.fsx
     ```
     
+## Further reading
+
+* See [the features.fsx](https://github.com/xakebuild/Xake/blob/dev/samples/features.fsx) script for various samples.
+* We have the [introduction page](https://github.com/xakebuild/Xake/wiki/introduction) for you to learn more about Xake.
+* And there're the [documentation notes](https://github.com/xakebuild/Xake/wiki) for more details.
 
 ## Build the project
 
@@ -81,8 +77,10 @@ See [documentation](docs/overview.md) for more details.
 
 ## References
 
+* [documentation](https://github.com/xakebuild/Xake/wiki) 
 * [implementation notes](docs/implnotes.md)
 * [Shake manual](https://github.com/ndmitchell/shake/blob/master/docs/Manual.md)
+* [samples repository](https://github.com/xakebuild/Samples)
 
 ## Mono on OSX troubleshooting
 

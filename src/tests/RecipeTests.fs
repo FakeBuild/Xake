@@ -12,7 +12,7 @@ let ``execute the body``() =
     let wasExecuted = ref false
     
     do xake DebugOptions {
-      phony "main" (action {
+      phony "main" (recipe {
         wasExecuted := true
       })
     }
@@ -28,7 +28,7 @@ let ``ordered execution``() =
     let note = errorlist.Add
     
     do xake DebugOptions {
-      phony "main" (action {
+      phony "main" (recipe {
         do note "1"
         wasExecuted := true
         do note "2"
@@ -49,7 +49,7 @@ let ``starting async operations``() =
     let note = errorlist.Add
 
     do xake DebugOptions {
-      phony "main" (action {
+      phony "main" (recipe {
         do! async {note "1"}
         wasExecuted := true
         do! async {note "2"}
@@ -70,10 +70,10 @@ let ``invoke other actions within action (do!)``() =
     let errorlist = makeStringList()
     let note = errorlist.Add
 
-    let noteAction t = action {do note t}
+    let noteAction t = recipe {do note t}
     
     do xake DebugOptions {
-      phony "main" (action {
+      phony "main" (recipe {
         do! noteAction "1"
         wasExecuted := true
         do! noteAction "2"
@@ -102,12 +102,12 @@ let ``ignoring result of do! action``() =
         }
     
     do xake DebugOptions {
-      phony "main" (recipe {
-        do! (testee "1") |> Ignore
-        wasExecuted := true
-        do! testee "2" |> Recipe.Ignore
-        do note "3"
-      })
+        phony "main" (recipe {
+            do! (testee "1") |> Ignore
+            wasExecuted := true
+            do! testee "2" |> Recipe.Ignore
+            do note "3"
+        })
     }
 
     do note "4"
@@ -184,7 +184,7 @@ let ``branching using if without else``() =
     
     do xake DebugOptions {
 
-      phony "main" (action {
+      phony "main" (recipe {
         if true then
             do note "i1-t"
 
@@ -385,30 +385,4 @@ let ``use! for disposable resources``() =
 
     Assert.AreEqual(1, !excCount)
     Assert.AreEqual(1, !disposeCount)
-
-type RecipeBuilderPlus() =
-    inherit RecipeBuilder()
-    [<CustomOperation("need")>]
-    member this.Need(targets) = need targets
-
-let actionPlus = new RecipeBuilderPlus()
-
-[<Test; Explicit>]
-let ``need op``() =
-    let excCount = ref 0
-    do xake DebugOptions {
-        rules [
-            "main" =>
-            actionPlus {
-                //need "print"
-                printfn "done main"
-            }
-            "print" => recipe {
-                printfn "print"
-            }
-        ]
-    }
-
-    Assert.AreEqual(1, !excCount)
-// TODO use!
 
