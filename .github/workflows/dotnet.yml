@@ -3,14 +3,30 @@
 
 name: .NET
 
-on:
-  push:
-    branches: [ "dev" ]
-  pull_request:
-    branches: [ "dev" ]
-
 jobs:
   build:
+
+    on:
+      push:
+        branches: [ "dev" ]
+      pull_request:
+        branches: [ "dev" ]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 7.0.x
+    - name: Build & test
+      run: dotnet fsi build.fsx -- -- build test
+
+  publish:
+
+    on:
+      tags:
+        - 'v*'
 
     runs-on: ubuntu-latest
 
@@ -20,7 +36,10 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 7.0.x
-    - name: Build
-      run: dotnet fsi build.fsx -- -- build
-    - name: Test
-      run: dotnet fsi build.fsx -- -- test
+    - name: Build and test
+      run: dotnet fsi build.fsx -- -- build test
+    - name: Publish
+      run: dotnet fsi build.fsx -- -- pack push
+      env:
+        VER: $(if [[ "${GITHUB_REF_NAME:0:1}" == "v" ]]; then echo ${GITHUB_REF_NAME:1}.${{github.run_number}}; else echo 1.0.0.${{github.run_number}}; fi;)
+        NUGET_KEY: ${{ secrets.NUGET_API_KEY }}
