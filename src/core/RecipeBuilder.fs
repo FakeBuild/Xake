@@ -1,6 +1,7 @@
 ﻿namespace Xake
 
 module internal A =
+    open System.Threading.Tasks
     let runAction (Recipe r) = r
     let returnF a = Recipe (fun (s,_) -> async {return (s,a)})
 
@@ -10,6 +11,10 @@ module internal A =
         })
     let bindA m f = Recipe (fun (s, r) -> async {
         let! a = m in
+        return! runAction (f a) (s, r)
+        })
+    let bindT (m: Task<'a>) f = Recipe (fun (s, r) -> async {
+        let! a = m |> Async.AwaitTask in
         return! runAction (f a) (s, r)
         })
     let resultFromF m = m
@@ -70,6 +75,7 @@ module Builder =
         // binds both monadic and for async computations
         member this.Bind(m, f) = bindF m f
         member this.Bind(m, f) = bindA m f
+        member this.Bind(m, f) = bindT m f
         member this.Bind((), f) = bindF (returnF()) f
 
         member this.Combine(f, g) = combineF f g

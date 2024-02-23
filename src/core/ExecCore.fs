@@ -3,15 +3,12 @@
 open System.Text.RegularExpressions
 open DependencyAnalysis
 
-/// Default options
-[<System.Obsolete("Obsolete, use ExecOptions.Default")>]
-let XakeOptions = ExecOptions.Default
-
 open Storage
+open WorkerPool
 
 /// Writes the message with formatting to a log
 let traceLog (level:Logging.Level) fmt =
-    let write s = action {
+    let write s = recipe {
         let! ctx = getCtx()
         return ctx.Logger.Log level "%s" s
     }
@@ -71,21 +68,16 @@ let locateRule (Rules rules) projectRoot target =
                 let targets = patterns |> List.map (generateName >> (</>) projectRoot >> File.make >> FileTarget)
                 rule, groups, targets)
 
-        |PhonyRule (name,_), PhonyAction phony when phony = name ->
-            // writeLog Verbose "Found phony pattern '%s'" name
-            Some (rule, [], [target])
+        |PhonyRule (pattern,_), PhonyAction phony ->
+            // printfn $"Phony rule {phony}, pattern {pattern}"
+            // Some (rule, [], [target])
+            phony
+            |> Path.matchGroups pattern ""
+            |> Option.map (fun groups -> rule,groups,[target])
 
         | _ -> None
 
     rules |> List.tryPick matchRule
-
-let reportError ctx error details =
-    do ctx.Logger.Log Error "Error '%s'. See build.log for details" error
-    do ctx.Logger.Log Verbose "Error details are:\n%A\n\n" details
-
-let raiseError ctx error details =
-    do reportError ctx error details
-    raise (XakeException(sprintf "Script failed (error code: %A)\n%A" error details))
 
 // Ordinal of the task being added to a task pool
 let refTaskOrdinal = ref 0
@@ -142,16 +134,19 @@ let rec execOne ctx target =
         let groupsMap = groups |> Map.ofSeq
         let (Recipe action) = rule |> getAction
         async {
-            let! waitTask = (fun channel -> WorkerPool.Run(target, targets, run groupsMap action targets, channel)) |> ctx.TaskPool.PostAndAsyncReply
+            let! waitTask = (fun channel -> Run(target, targets, run groupsMap action targets, channel)) |> ctx.TaskPool.PostAndAsyncReply
             let! status = waitTask
             return target, status, ArtifactDep target
         }
     | None ->
         target |> function
         | FileTarget file when File.exists file ->
-            async.Return <| (target, JustFile, FileDep (file, File.getLastWriteTime file))
-        | _ -> raiseError ctx (sprintf "Neither rule nor file is found for '%s'" target.FullName) ""
-
+            async.Return <| (target, ExecStatus.JustFile, FileDep (file, File.getLastWriteTime file))
+        | _ ->
+            let errorText = sprintf "Neither rule nor file is found for '%s'" target.FullName
+            do ctx.Logger.Log Error "%s" errorText
+            raise (XakeException errorText)
+        
 /// <summary>
 /// Executes several artifacts in parallel.
 /// </summary>
@@ -184,7 +179,10 @@ and execNeed ctx targets : Async<ExecStatus * Dependency list> =
 /// phony actions are detected by their name so if there's "clean" phony and file "clean" in `need` list if will choose first
 let makeTarget ctx name =
     let (Rules rules) = ctx.Rules
-    let isPhonyRule nm = function |PhonyRule (n,_) when n = nm -> true | _ -> false
+    let isPhonyRule nm = function
+        |PhonyRule (pattern,_) ->
+            nm |> Path.matchGroups pattern "" |> Option.isSome
+        | _ -> false
     in
     match rules |> List.exists (isPhonyRule name) with
     | true -> PhonyAction name
@@ -230,7 +228,7 @@ let dryRun ctx options (groups: string list list) =
                 deps |> List.iter (showDepStatus (ii+1))
                 deps |> List.iter (displayNestedDeps (ii+1))
 
-    let targetGroups = makeTarget ctx |> List.map |> List.map <| groups in 
+    let targetGroups = makeTarget ctx |> List.map |> List.map <| groups
     let toSec v = float (v / 1<ms>) * 0.001
     let endTime = Progress.estimateEndTime (getDurationDeps ctx getDeps) options.Threads targetGroups |> toSec
 
@@ -299,7 +297,7 @@ let runBuild ctx options groups =
                 do Progress.Finish |> progressSink.Post
         }
 
-    groups |> List.map
+    groups |> List.map 
         (List.map (makeTarget ctx) >> (runTargets ctx options))
     |> runSeq
     |> asyncMap (Array.concat >> List.ofArray)
@@ -307,7 +305,6 @@ let runBuild ctx options groups =
 /// Executes the build script
 let runScript options rules =
     let logger = CombineLogger (ConsoleLogger options.ConLogLevel) options.CustomLogger
-
     let logger =
         match options.FileLog, options.FileLogLevel with
         | null,_ | "",_
@@ -315,8 +312,17 @@ let runScript options rules =
         | logFileName,level -> CombineLogger logger (FileLogger logFileName level)
 
     let (throttler, pool) = WorkerPool.create logger options.Threads
+    let db = Storage.openDb (options.ProjectRoot </> options.DbFileName) logger
 
-    let db = openDb (options.ProjectRoot </> options.DbFileName) logger
+    let finalize () =
+        db.PostAndReply Storage.CloseWait
+        FlushLogs()
+
+    System.Console.CancelKeyPress
+    |> Event.add (fun _ -> 
+        logger.Log Error "Build interrupted by user"
+        finalize()
+        exit 1)
 
     let ctx = {
         Ordinal = 0
@@ -326,7 +332,8 @@ let runScript options rules =
         Progress = Progress.emptyProgress()
         NeedRebuild = fun _ -> false
         Targets = []
-        RuleMatches = Map.empty }
+        RuleMatches = Map.empty
+        }
 
     logger.Log Info "Options: %A" options
 
@@ -335,15 +342,19 @@ let runScript options rules =
         options.Targets |>
         function
         | [] ->
-            do logger.Log Message "No target(s) specified. Defaulting to 'main'"
+            do logger.Log Level.Message "No target(s) specified. Defaulting to 'main'"
             [["main"]]
         | tt ->
             tt |> List.map (fun (s: string) -> s.Split(';', '|') |> List.ofArray)
 
+    let reportError ctx error details =
+        do ctx.Logger.Log Error "Error '%s'. See build.log for details" error
+        do ctx.Logger.Log Verbose "Error details are:\n%A\n\n" details
+            
     try
         match options with
         | Dump ->
-            do logger.Log Command "Dumping dependencies for targets %A" targetLists
+            do logger.Log Level.Command "Dumping dependencies for targets %A" targetLists
             targetLists |> List.iter (List.map (makeTarget ctx) >> (dumpDeps ctx))
         | Dryrun ->
             targetLists |> (dryRun ctx options)
@@ -353,25 +364,31 @@ let runScript options rules =
                 targetLists |> (runBuild ctx options) |> Async.RunSynchronously |> ignore
                 ctx.Logger.Log Message "\n\n    Build completed in %A\n" (System.DateTime.Now - start)
             with | exn ->
-                let th = if options.FailOnError then raiseError else reportError
-                let errors = exn |> unwindAggEx |> Seq.map (fun e -> e.Message) in
-                th ctx (exn.Message + "\n" + (errors |> String.concat "\r\n            ")) exn
+                let exceptions = exn |> unwindAggEx
+                let errors = exceptions |> Seq.map (fun e -> e.Message) in
+                let details = exceptions |> Seq.last |> fun e -> e.ToString()
+                let errorText = errors |> String.concat "\r\n"
+
+                do reportError ctx errorText details
                 ctx.Logger.Log Message "\n\n\tBuild failed after running for %A\n" (System.DateTime.Now - start)
-                exit 2
+
+                if options.ThrowOnError then
+                    raise (XakeException "Script failure. See log file for details.")
+                else
+                    finalize()
+                    exit 2
     finally
-        db.PostAndReply Storage.CloseWait
-        FlushLogs()
+        finalize()
 
 /// "need" implementation
-let need targets =
-    action {
-        let startTime = System.DateTime.Now
+let need targets = recipe {
+    let startTime = System.DateTime.Now
 
-        let! ctx = getCtx()
-        let! _,deps = targets |> execNeed ctx
+    let! ctx = getCtx()
+    let! _,deps = targets |> execNeed ctx
 
-        let totalDuration = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
-        let! result = getResult()
-        let result' = {result with Depends = result.Depends @ deps} |> (Step.updateWaitTime totalDuration)
-        do! setResult result'
-    }
+    let totalDuration = int (System.DateTime.Now - startTime).TotalMilliseconds * 1<ms>
+    let! result = getResult()
+    let result' = {result with Depends = result.Depends @ deps} |> (Step.updateWaitTime totalDuration)
+    do! setResult result'
+}

@@ -1,6 +1,7 @@
 ﻿namespace Xake
 
 open System.Threading
+open Xake.WorkerPool
 
 /// Script execution options
 type ExecOptions = {
@@ -24,8 +25,9 @@ type ExecOptions = {
     /// Global script variables
     Vars: (string * string) list
 
-    /// Defines whether `run` should throw exception if script fails
-    FailOnError: bool
+    /// Defines whether `run` should throw exception if script fails.
+    /// Default is false which means to exit process with non-zero code.
+    ThrowOnError: bool
 
     /// Ignores command line swithes
     IgnoreCommandLine: bool
@@ -44,28 +46,28 @@ type ExecOptions = {
 
     /// Dump dependencies only
     Progress: bool
-} with
-static member Default = {
-    ProjectRoot = System.IO.Directory.GetCurrentDirectory()
-    Threads = System.Environment.ProcessorCount
-    ConLogLevel = Normal
+} with static member Default = {
+        ProjectRoot = System.IO.Directory.GetCurrentDirectory()
+        Threads = System.Environment.ProcessorCount
+        ConLogLevel = Normal
 
-    CustomLogger = CustomLogger (fun _ -> false) ignore
-    FileLog = "build.log"
-    FileLogLevel = Chatty
-    Targets = []
-    FailOnError = false
-    Vars = List<string*string>.Empty
-    IgnoreCommandLine = false
-    Nologo = false
-    DbFileName = ".xake"
-    DryRun = false
-    DumpDeps = false
-    Progress = true }
+        CustomLogger = CustomLogger (fun _ -> false) ignore
+        FileLog = "build.log"
+        FileLogLevel = Chatty
+        Targets = []
+        ThrowOnError = false
+        Vars = List<string*string>.Empty
+        IgnoreCommandLine = false
+        Nologo = false
+        DbFileName = ".xake"
+        DryRun = false
+        DumpDeps = false
+        Progress = true
+    }
 end
 
 type ExecStatus = | Succeed | Skipped | JustFile
-type TaskPool = Agent<WorkerPool.ExecMessage<ExecStatus>>
+type TaskPool = Agent<ExecMessage<ExecStatus>>
 
 /// Script execution context
 type ExecContext = {

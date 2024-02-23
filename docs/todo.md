@@ -2,13 +2,10 @@
 
   * change the first page to a tutorial with script and usage examples
 
-  * switch development to mono under windows
   * idea: xake script as a task. Override/inherit variables. How to change variable on the fly is the original question. (we have got it out of the box, need more info)
-  * accept filemasks in 'need' parameters (WHY I added it here?, the use case is very unclear)
   * detect changes in build script (internal changes), e.g. new target added that was not in .xake database
   * dependencies tracking mode: automatically rebuild when dependency is changed, execute triggers allowing to start/stop the processes which lock/hold artifacts
   * in-memory artifact (string or stream). Say in Gulp file is processed in-memory
-  * can the rules be abstract over artifacts
 
 ### Refactorings
 
@@ -25,10 +22,12 @@
   * `rule "Viewer" -> fun folder -> action {need [folder <\\> "bin" <\\> folder <.> "exe"]...}`
 * Filelist is not handy as it requires to cast all the time
 * FileInfo is not good for the same reason: poorly composable and does not cover Directory well
-* wildcards phony actions
 
 ## Done (top is recent)
 
+ * wildcards phony actions
+ * support tasks in line with recipes and asyncs
+  
  * rules should accept #seq not just the list
  * <<< for running tasks one by one. Current one runs in parallel only.
  * complete copyFiles method

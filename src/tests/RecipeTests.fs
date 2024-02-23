@@ -4,7 +4,7 @@ open NUnit.Framework
 open Xake
 
 let makeStringList() = new System.Collections.Generic.List<string>()
-let DebugOptions = {ExecOptions.Default with FailOnError = true; FileLog = ""}
+let DebugOptions = {ExecOptions.Default with ThrowOnError = true; FileLog = ""}
 
 [<Test>]
 let ``execute the body``() =

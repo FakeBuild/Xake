@@ -82,7 +82,7 @@ let alt<'a> (ftag: 'a -> Core.int) (puu: PU<'a> array): PU<'a> =
 /// </summary>
 let option pu =
     alt
-        (function | None _ -> 0 | Some _ -> 1)
+        (function | None -> 0 | Some _ -> 1)
         [|
             wrap ((fun () -> None), ignore) unit
             wrap (Some, Option.get) pu

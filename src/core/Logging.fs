@@ -124,9 +124,10 @@ module private ConsoleSink =
         let rec loop (progressMessage) =
             let wipeProgressMessage () =
                 let len = progressMessage |> Option.fold (fun _ -> String.length) 0
-                // printfn "cleft: %A len: %d" Console.CursorLeft len
-                match len - Console.CursorLeft with
-                | e when e > 0 -> System.Console.Write (String.replicate e " ")
+                Console.Out.Flush()
+                let cursorLeft = Console.CursorLeft
+                len - cursorLeft |> function
+                | e when e > 0 -> Console.Write (String.replicate e " ")
                 | _ -> ()
             let renderProgress = function
                 | Some (outputString: string) ->
@@ -141,9 +142,9 @@ module private ConsoleSink =
                 Console.Write (sprintf "\r[%s] " level)
 
                 Console.ForegroundColor <- textColor
-                System.Console.Write txt
+                Console.Write txt
                 wipeProgressMessage()
-                System.Console.WriteLine()
+                Console.WriteLine()
 
             async { 
                 let! msg = mbox.Receive()
@@ -152,16 +153,9 @@ module private ConsoleSink =
                     match level |> levelToColor with
                     | Some colors ->
                         // in case of CRLF in the string make sure we washed out the progress message
-                        let rec writeLines = function
-                        | [] -> ignore
-                        | (txt: string)::tail ->
-                            function
-                            | true ->
-                                renderLineWithInfo colors (LevelToString level) txt
-                                do writeLines tail false
-                            | false -> System.Console.WriteLine txt; do writeLines tail false
-
-                        writeLines (text.Split('\n') |> List.ofArray) true
+                        text.Split('\n') |> Seq.iteri (function
+                            | 0 -> renderLineWithInfo colors (LevelToString level)
+                            | _ -> System.Console.WriteLine)
                         renderProgress progressMessage
 
                     | _ -> ()
@@ -180,8 +174,12 @@ module private ConsoleSink =
                     return! loop outputString
 
                 | Flush ch ->
+                    Console.Write "\r"
                     wipeProgressMessage()
                     Console.Write "\r"
+
+                    do! Console.Out.FlushAsync() |> Async.AwaitTask
+ 
                     ch.Reply ()
                     return! loop None
 
@@ -206,9 +204,7 @@ let private ConsoleLoggerBase (write: Level -> string -> unit) maxLevel =
 
 /// Simplistic console logger.
 let DumbConsoleLogger =
-    ConsoleLoggerBase (
-        fun level -> (LevelToString level) |> sprintf "[%s] %s" >> System.Console.WriteLine
-        )
+    ConsoleLoggerBase (fun l -> l |> LevelToString |> sprintf "[%s] %s" >> System.Console.WriteLine)
 
 /// Console logger with colors highlighting
 let ConsoleLogger =
@@ -217,7 +213,7 @@ let ConsoleLogger =
 /// Ensures all logs finished pending output.
 let FlushLogs () =
     try
-        ConsoleSink.po.PostAndReply (ConsoleSink.Flush, 200) |> ignore
+        ConsoleSink.po.PostAndTryAsyncReply (ConsoleSink.Flush, 200) |> Async.RunSynchronously |> ignore
     with _ -> ()
 
 /// Draws a progress bar to console log.
@@ -233,9 +229,7 @@ let WriteConsoleProgress =
 let CombineLogger (log1 : ILogger) (log2 : ILogger) = 
     { new ILogger with
           member __.Log level (fmt : Printf.StringFormat<'a, unit>) : 'a = 
-              let write s = 
-                  log1.Log level "%s" s
-                  log2.Log level "%s" s
+              let write s = log1.Log level "%s" s; log2.Log level "%s" s
               Printf.kprintf write fmt }
 
 /// <summary>
@@ -254,11 +248,11 @@ let PrefixLogger (prefix:string) (log : ILogger) =
 /// </summary>
 /// <param name="parseVerbosity"></param>
 let parseVerbosity = function
-    | "Silent" -> Verbosity.Silent
-    | "Quiet" -> Verbosity.Quiet
-    | "Normal" -> Verbosity.Normal
-    | "Loud" -> Verbosity.Loud
-    | "Chatty" -> Verbosity.Chatty
-    | "Diag" -> Verbosity.Diag
+    | "Silent" -> Silent
+    | "Quiet" -> Quiet
+    | "Normal" -> Normal
+    | "Loud" -> Loud
+    | "Chatty" -> Chatty
+    | "Diag" -> Diag
     | s ->
         failwithf "invalid verbosity: %s. Expected one of %s" s "Silent | Quiet | Normal | Loud | Chatty | Diag"

@@ -1,6 +1,5 @@
-#r "paket:
-  nuget Xake ~> 1.1 prerelease
-  nuget Xake.Dotnet ~> 1.1 prerelease //"
+#r "nuget: Xake, 2.0.0"
+#r "nuget: Xake.Dotnet, 1.1.4.7-beta"
 
 open Xake
 open Xake.Dotnet
